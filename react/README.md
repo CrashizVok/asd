@@ -88,7 +88,7 @@ Dates arrive as `YYYY-MM-DD` strings because the backend sets `dateStrings: true
 3. Change the table headers in `Bookings.jsx`.
 4. Change the card fields in `Home.jsx`. The owner popup reads `first_name`, `last_name`, `owner_email`, and `owner_image`.
 5. Change the links. `Bookings.jsx` uses `:id`; `SearchResult.jsx` links to `/hotels/${result.hotel_id}`.
-6. Change the text. UI labels are plain strings, not translation keys.
+6. Change the text. UI labels are plain strings, not translation keys. The sample exam may use Hungarian labels, so translate the JSX strings when the task requires it.
 
 ## Images
 

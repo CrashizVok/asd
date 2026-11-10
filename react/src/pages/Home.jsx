@@ -108,6 +108,9 @@ export default function Home() {
                             tabIndex={0}
                             onClick={() => navigate(`/hotels/${hotel.id}`)}
                             onKeyDown={(event) => {
+                                if (event.target !== event.currentTarget) {
+                                    return;
+                                }
                                 if (event.key === 'Enter' || event.key === ' ') {
                                     event.preventDefault();
                                     navigate(`/hotels/${hotel.id}`);
