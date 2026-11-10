@@ -1406,8 +1406,8 @@ mark {
     }
 
     .ref-jump {
-        max-height: 132px;
-        overflow-y: auto;
+        max-height: none;
+        overflow: visible;
     }
 }
 

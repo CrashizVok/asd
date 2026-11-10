@@ -298,9 +298,9 @@ function renderHome() {
 
         <div class="notice">
             <p>
-                This is an original exam reference. It does not contain copied W3Schools text,
-                and it does not link out. The command index is built to cover the standard
-                tags, properties, methods, and APIs for these five languages.
+                This is an original exam reference. It has no external links and no copied
+                tutorial text. The command index covers the standard tags, properties, methods,
+                and APIs for these five languages.
             </p>
         </div>`;
 
