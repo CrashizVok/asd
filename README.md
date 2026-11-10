@@ -82,15 +82,9 @@ The schema creates the `bookings` database, three tables, foreign keys, and a sm
 
 ### Offline wiki
 
-Open `offline/index.html` in a browser. It is a searchable, Wikipedia-style page built from the five cheat sheets: HTML, CSS, JavaScript, React, and Java. Search matches titles, explanations, and code examples. No server or build step is needed.
+Open `offline/index.html` in a browser. It is a searchable, Wikipedia-style page built from the five cheat sheets: HTML, CSS, JavaScript, React, and Java. Search matches titles, explanations, and code examples.
 
-To rebuild after editing a cheat sheet:
-
-```bash
-cd offline
-npm install
-npm run build
-```
+The generated `offline/data.js` is committed, so there is no `npm install` and no build step. The exam machine only needs the repo after `git pull`.
 
 The text is original exam material, not a W3Schools mirror. Each article links to the matching W3Schools section for the full tutorial.
 

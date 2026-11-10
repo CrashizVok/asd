@@ -23,9 +23,11 @@ The search box at the top matches titles, explanations, and code examples. Type 
 
 Search starts at two characters. Press `/` anywhere to focus the box, and `Escape` to clear it.
 
-## Rebuild after editing a cheat sheet
+## No npm, no build
 
-`data.js` is generated from the five cheat sheets:
+`data.js` is already generated and committed. Opening `index.html` is all the exam machine needs. There is no `package.json`, no `node_modules`, and no install step.
+
+The five cheat sheets are the source material:
 
 - `../html/cheatsheet.md`
 - `../css/cheatsheet.md`
@@ -33,15 +35,7 @@ Search starts at two characters. Press `/` anywhere to focus the box, and `Escap
 - `../react/cheatsheet.md`
 - `../java/cheatsheet.md`
 
-Run:
-
-```bash
-cd offline
-npm install
-npm run build
-```
-
-The build splits each sheet on `##` headings and converts the Markdown to HTML. Every level two heading becomes one article.
+If you edit a cheat sheet, the wiki does not update by itself. Add the new article to `data.js` by hand, or ask for a regeneration before the exam.
 
 ## Files
 
@@ -50,14 +44,25 @@ offline/
   index.html    layout and script tags
   style.css     Wikipedia-style design and responsive rules
   app.js        routing, sidebar, search, copy buttons
-  build.mjs     cheat sheet to data.js converter
-  data.js       generated articles, do not edit by hand
-  package.json  marked build dependency
+  data.js       all articles, committed
 ```
 
 ## Add a topic
 
-Add a new `##` section to the relevant cheat sheet, then run `npm run build`. The sidebar and search pick it up automatically.
+Add an object to the `window.WIKI_ARTICLES` array in `data.js`:
+
+```js
+{
+  id: "java-my-topic",
+  lang: "Java",
+  title: "My topic",
+  html: "<p>Explanation.</p><pre><code>int x = 1;</code></pre>",
+  plain: "Java My topic Explanation. int x = 1;",
+  w3: "https://www.w3schools.com/java/"
+}
+```
+
+The sidebar and search read the array on load. Keep `id` unique and include the words you want to find in `plain`.
 
 ## Design notes
 
