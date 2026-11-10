@@ -3,9 +3,11 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="color-scheme" content="dark" />
+        <meta name="theme-color" content="#0a0c10" />
         <meta
             name="description"
-            content="Searchable exam reference for HTML, CSS, JavaScript, React, and Java."
+            content="Offline exam reference for HTML, CSS, JavaScript, React, and Java. Topic pages, command index, examples, no external links."
         />
         <title>Exam Wiki</title>
         <link rel="stylesheet" href="style.css" />
@@ -27,26 +29,27 @@
 
             <a class="brand" href="#/home" aria-label="Exam Wiki home">
                 <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6" />
+                    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" />
                     <path
                         d="M3 12h18M12 3c3 3.5 4.5 6.5 4.5 9S15 17.5 12 21c-3-3.5-4.5-6.5-4.5-9S9 6.5 12 3Z"
                         fill="none"
                         stroke="currentColor"
-                        stroke-width="1.6"
+                        stroke-width="1.5"
                     />
                 </svg>
-                <span>Exam Wiki</span>
+                <span class="brand-text">Exam Wiki</span>
+                <span class="offline-badge">offline</span>
             </a>
 
             <form class="search" id="search-form" role="search">
                 <input
                     id="search-input"
                     type="search"
-                    placeholder="Search commands, tags, methods..."
+                    placeholder="Search a tag, property, method, or topic..."
                     aria-label="Search the wiki"
                     autocomplete="off"
                 />
-                <button type="submit">Search</button>
+                <button type="submit" aria-label="Search">Search</button>
             </form>
 
             <nav class="topnav" aria-label="Wiki">
@@ -58,8 +61,8 @@
         <div class="shell">
             <aside class="sidebar" id="sidebar">
                 <div class="sidebar-head">
-                    <h2>Contents</h2>
-                    <p>HTML, CSS, JavaScript, React, Java</p>
+                    <h2>Library</h2>
+                    <p>Topics and command indexes</p>
                 </div>
                 <nav id="sidebar-nav" aria-label="Wiki contents"></nav>
             </aside>
@@ -68,13 +71,15 @@
         </div>
 
         <footer class="page-footer">
-            <p>
-                Original exam reference. Not affiliated with W3Schools. For the full tutorials, visit
-                <a href="https://www.w3schools.com/" target="_blank" rel="noopener">w3schools.com</a>.
-            </p>
+            <p>Original exam reference. Works offline. No external links.</p>
         </footer>
 
         <script src="data.js"></script>
+        <script src="ref-html.js"></script>
+        <script src="ref-css.js"></script>
+        <script src="ref-js.js"></script>
+        <script src="ref-react.js"></script>
+        <script src="ref-java.js"></script>
         <script src="app.js"></script>
     </body>
 </html>
