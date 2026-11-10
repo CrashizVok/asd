@@ -112,8 +112,8 @@ This repository does not contain copied W3Schools pages. The reference sheets ar
 The folder is a local git repository. To publish it:
 
 ```bash
-cd /home/rronyecz/exam-prep
-git remote add origin git@github.com:YOUR_NAME/exam-prep.git
+cd /home/rronyecz/Documents/GitHub/asd
+git remote add origin git@github.com:YOUR_NAME/asd.git
 git push -u origin main
 ```
 
@@ -122,7 +122,7 @@ Create the empty repository on GitHub first. The `gh` CLI is installed but not l
 ## Structure
 
 ```text
-exam-prep/
+asd/
   docs/          exam map, time plan, copy-paste index
   java/          console template, cheat sheet, sample CSV
   javafx/        GUI template, CSS, Maven file, cheat sheet
