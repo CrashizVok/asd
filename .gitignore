@@ -1,0 +1,31 @@
+# Java build output
+*.class
+*.jar
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Local environment
+.env
+.env.local
+
+# React build
+dist/
+.vite/
+
+# Generated exam output
+rovidek.txt
+out.txt
+
+# Editors
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

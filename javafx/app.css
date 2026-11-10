@@ -1,0 +1,60 @@
+/* Base look for the BookingsGUI template. */
+
+.root {
+    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    -fx-font-size: 13px;
+    -fx-background-color: #f3f5f8;
+}
+
+.menu-bar {
+    -fx-background-color: #1f2937;
+}
+
+.menu-bar .label {
+    -fx-text-fill: #ffffff;
+}
+
+.menu-bar .menu:hover,
+.menu-bar .menu:showing {
+    -fx-background-color: #374151;
+}
+
+.tool-bar {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e5e7eb;
+    -fx-border-width: 0 0 1 0;
+}
+
+.radio-button {
+    -fx-text-fill: #111827;
+}
+
+.list-view {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: #d1d5db;
+    -fx-border-width: 1;
+}
+
+.list-cell {
+    -fx-padding: 8 12 8 12;
+    -fx-background-color: transparent;
+}
+
+.list-cell:filled:hover {
+    -fx-background-color: #eff6ff;
+}
+
+.list-cell:filled:selected {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: #ffffff;
+}
+
+.list-view .placeholder .label {
+    -fx-text-fill: #6b7280;
+}
+
+.alert .header-panel {
+    -fx-background-color: #eff6ff;
+}

@@ -1,0 +1,13 @@
+customer_email,first_name,last_name,phone,birthday,customer_image,hotel_id,hotel_city,hotel_name,hotel_description,hotel_stars,hotel_owner_email,hotel_image,start_date,end_date,adults,children,boylovers
+jane.doe@example.com,Jane,Doe,+3612345678,1990-05-12,/images/default.png,1,Budapest,Hotel Sunrise,Quiet hotel near the river,4,owner@example.com,/images/hotel1.jpg,2024-01-03,2024-01-10,2,0,0
+john.smith@example.com,John,Smith,+3612345679,1985-08-23,/images/default.png,2,Vienna,Hotel Park,Family hotel with a large garden,5,owner2@example.com,/images/hotel2.jpg,2024-01-05,2024-01-06,1,1,0
+jane.doe@example.com,Jane,Doe,+3612345678,1990-05-12,/images/default.png,3,Prague,Hotel Castle,Old town view and quiet rooms,4,owner3@example.com,/images/hotel3.jpg,2024-02-10,2024-02-20,3,0,0
+anna.kovacs@example.com,Anna,Kovacs,+3612345680,1992-11-02,/images/default.png,1,Budapest,Hotel Sunrise,Quiet hotel near the river,4,owner@example.com,/images/hotel1.jpg,2024-03-01,2024-03-04,2,2,0
+peter.nagy@example.com,Peter,Nagy,+3612345681,1978-04-18,/images/default.png,2,Vienna,Hotel Park,Family hotel with a large garden,5,owner2@example.com,/images/hotel2.jpg,2024-04-12,2024-04-19,2,0,0
+lisa.mueller@example.com,Lisa,Mueller,+4912345678,1995-07-30,/images/default.png,3,Prague,Hotel Castle,Old town view and quiet rooms,4,owner3@example.com,/images/hotel3.jpg,2024-05-02,2024-05-03,1,0,0
+john.smith@example.com,John,Smith,+3612345679,1985-08-23,/images/default.png,1,Budapest,Hotel Sunrise,Quiet hotel near the river,4,owner@example.com,/images/hotel1.jpg,2024-06-15,2024-06-22,2,1,0
+maria.szabo@example.com,Maria,Szabo,+3612345682,1988-01-09,/images/default.png,2,Vienna,Hotel Park,Family hotel with a large garden,5,owner2@example.com,/images/hotel2.jpg,2024-07-01,2024-07-08,1,0,0
+jane.doe@example.com,Jane,Doe,+3612345678,1990-05-12,/images/default.png,2,Vienna,Hotel Park,Family hotel with a large garden,5,owner2@example.com,/images/hotel2.jpg,2024-08-20,2024-08-21,1,0,0
+peter.nagy@example.com,Peter,Nagy,+3612345681,1978-04-18,/images/default.png,3,Prague,Hotel Castle,Old town view and quiet rooms,4,owner3@example.com,/images/hotel3.jpg,2025-01-10,2025-01-17,2,0,0
+anna.kovacs@example.com,Anna,Kovacs,+3612345680,1992-11-02,/images/default.png,1,Budapest,Hotel Sunrise,Quiet hotel near the river,4,owner@example.com,/images/hotel1.jpg,2025-02-14,2025-02-16,2,0,0
+lisa.mueller@example.com,Lisa,Mueller,+4912345678,1995-07-30,/images/default.png,2,Vienna,Hotel Park,Family hotel with a large garden,5,owner2@example.com,/images/hotel2.jpg,2025-03-03,2025-03-10,1,1,0
