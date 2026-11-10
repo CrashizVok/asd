@@ -118,15 +118,17 @@ This repository does not contain copied W3Schools pages. The reference sheets ar
 
 ## GitHub
 
-The folder is a local git repository. To publish it:
+The folder is a local git repository. The `origin` remote points at `https://github.com/CrashizVok/asd.git`.
+
+If a push asks for a login, authenticate once:
 
 ```bash
 cd /home/rronyecz/Documents/GitHub/asd
-git remote add origin git@github.com:YOUR_NAME/asd.git
+gh auth login
 git push -u origin main
 ```
 
-Create the empty repository on GitHub first. The `gh` CLI is installed but not logged in on this machine, so the remote must be added manually or after `gh auth login`.
+After that, `git pull` on the exam machine gets the latest version. The offline wiki is static, so it does not need `npm install` after the pull.
 
 ## Structure
 
