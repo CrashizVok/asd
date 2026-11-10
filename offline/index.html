@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            name="description"
+            content="Searchable exam reference for HTML, CSS, JavaScript, React, and Java."
+        />
+        <title>Exam Wiki</title>
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+
+        <header class="topbar">
+            <button
+                type="button"
+                class="icon-button"
+                id="sidebar-toggle"
+                aria-label="Toggle navigation"
+                aria-expanded="false"
+                aria-controls="sidebar"
+            >
+                ☰
+            </button>
+
+            <a class="brand" href="#/home" aria-label="Exam Wiki home">
+                <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6" />
+                    <path
+                        d="M3 12h18M12 3c3 3.5 4.5 6.5 4.5 9S15 17.5 12 21c-3-3.5-4.5-6.5-4.5-9S9 6.5 12 3Z"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                    />
+                </svg>
+                <span>Exam Wiki</span>
+            </a>
+
+            <form class="search" id="search-form" role="search">
+                <input
+                    id="search-input"
+                    type="search"
+                    placeholder="Search commands, tags, methods..."
+                    aria-label="Search the wiki"
+                    autocomplete="off"
+                />
+                <button type="submit">Search</button>
+            </form>
+
+            <nav class="topnav" aria-label="Wiki">
+                <a href="#/home">Home</a>
+                <a href="#/random">Random</a>
+            </nav>
+        </header>
+
+        <div class="shell">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-head">
+                    <h2>Contents</h2>
+                    <p>HTML, CSS, JavaScript, React, Java</p>
+                </div>
+                <nav id="sidebar-nav" aria-label="Wiki contents"></nav>
+            </aside>
+
+            <main class="content" id="content" tabindex="-1"></main>
+        </div>
+
+        <footer class="page-footer">
+            <p>
+                Original exam reference. Not affiliated with W3Schools. For the full tutorials, visit
+                <a href="https://www.w3schools.com/" target="_blank" rel="noopener">w3schools.com</a>.
+            </p>
+        </footer>
+
+        <script src="data.js"></script>
+        <script src="app.js"></script>
+    </body>
+</html>

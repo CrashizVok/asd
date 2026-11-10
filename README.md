@@ -25,6 +25,7 @@ The templates are written to be copied, renamed, and adapted under time pressure
 | Practice SQL queries | `sql/queries.sql` |
 | Study CSS layout | `css/cheatsheet.md` |
 | Study algorithms | `algorithms/README.md` |
+| Search all notes offline | `offline/index.html` |
 | Practice exam-style tasks | `practice/tasks.md` |
 
 ## Quick start
@@ -79,6 +80,20 @@ mysql -u root -p < sql/schema.sql
 
 The schema creates the `bookings` database, three tables, foreign keys, and a small neutral sample data set.
 
+### Offline wiki
+
+Open `offline/index.html` in a browser. It is a searchable, Wikipedia-style page built from the five cheat sheets: HTML, CSS, JavaScript, React, and Java. Search matches titles, explanations, and code examples. No server or build step is needed.
+
+To rebuild after editing a cheat sheet:
+
+```bash
+cd offline
+npm install
+npm run build
+```
+
+The text is original exam material, not a W3Schools mirror. Each article links to the matching W3Schools section for the full tutorial.
+
 ## The sample exam in one screen
 
 - **Java console:** read `bookings.csv`, print the count, find the longest booking, list 2024 bookings sorted by length, pick a random guest and print their bookings, count words in hotel descriptions, group bookings by year, write short bookings to `rovidek.txt`.
@@ -99,7 +114,7 @@ The templates use neutral sample data. Replace it with the exam CSV or the exam 
 
 ## About W3Schools
 
-This repository does not contain copied W3Schools pages. The reference sheets are original, condensed notes that cover the same beginner ground: HTML, CSS, JavaScript, React, Node, and SQL. Use the official pages when you need every detail:
+This repository does not contain copied W3Schools pages. The reference sheets are original, condensed notes that cover the same beginner ground: HTML, CSS, JavaScript, React, Node, and SQL. The `offline/` wiki is generated from those original notes. Use the official pages when you need every detail:
 
 - https://www.w3schools.com/
 - https://developer.mozilla.org/
@@ -134,5 +149,6 @@ asd/
   javascript/    JavaScript cheat sheet and snippets
   algorithms/    JavaScript and Java algorithm demos
   practice/      exam-style tasks with hints
+  offline/       searchable static wiki built from the cheat sheets
   git/           git cheat sheet
 ```

@@ -234,6 +234,148 @@ try {
 ```
 `finally` always runs. Rethrow when the caller must know: `throw new Error("context", { cause: err })`. Custom errors extend `Error`.
 
+## Classes
+
+```js
+class Room {
+    #price; // private field
+
+    constructor(name, price) {
+        this.name = name;
+        this.#price = price;
+    }
+
+    get price() {
+        return this.#price;
+    }
+
+    label() {
+        return `${this.name}: ${this.#price} EUR`;
+    }
+
+    static from(row) {
+        return new Room(row.name, row.price);
+    }
+}
+
+const room = new Room("Double", 80);
+console.log(room.label());
+console.log(Room.from({ name: "Single", price: 50 }).price);
+```
+
+A class groups data and behaviour. `constructor` runs on `new`. A `get` accessor is read like a property. `static` belongs to the class, not an instance. `#field` is truly private.
+
+## Promises
+
+```js
+function loadRooms() {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            const ok = true;
+            if (ok) resolve([{ name: "A" }]);
+            else reject(new Error("Network down"));
+        }, 500);
+    });
+}
+
+loadRooms()
+    .then((rooms) => console.log(rooms))
+    .catch((err) => console.error(err.message))
+    .finally(() => console.log("done"));
+
+const [rooms, guests] = await Promise.all([loadRooms(), loadGuests()]);
+```
+
+A promise is a future value. `then` handles success, `catch` failure, `finally` always runs. `await` pauses the async function until the promise settles. `Promise.all` waits for all and rejects on the first failure.
+
+## Map and Set
+
+```js
+const counts = new Map();
+counts.set("Anna", 2);
+counts.set("Ben", 1);
+counts.set("Anna", counts.get("Anna") + 1);
+console.log(counts.get("Anna")); // 3
+console.log(counts.has("Ben"));  // true
+console.log(counts.size);        // 2
+
+for (const [name, count] of counts) {
+    console.log(name, count);
+}
+
+const unique = new Set(["A", "B", "A"]);
+console.log(unique.size);     // 2
+console.log(unique.has("B")); // true
+const list = [...unique];     // back to an array
+```
+
+A `Map` keeps key order and accepts any key type. A plain object only has string and symbol keys. A `Set` stores unique values. Both are iterable with `for...of`.
+
+## Regular expressions
+
+```js
+const email = "book@example.com";
+const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+console.log(pattern.test(email));        // true
+console.log(email.match(/@(.+)$/)[1]);   // example.com
+console.log("a-b-c".replace(/-/g, "_")); // a_b_c
+console.log("2026-11-10".split(/-/));    // ["2026", "11", "10"]
+```
+
+`test` returns a boolean, `match` returns the match array, `replace` swaps text, `split` cuts a string. Flags: `g` all matches, `i` ignore case, `m` multiline. Escape a literal dot as `\.`.
+
+## Timers
+
+```js
+const timeout = setTimeout(() => {
+    console.log("runs once");
+}, 1000);
+
+const interval = setInterval(() => {
+    console.log("every second");
+}, 1000);
+
+clearTimeout(timeout);
+clearInterval(interval);
+```
+
+`setTimeout` runs once after a delay; `setInterval` repeats. The delay is milliseconds, not seconds. Store the id so you can cancel it, especially in a React cleanup function.
+
+## DOM traversal
+
+```js
+const card = document.querySelector(".card");
+
+card.parentElement;          // the container
+card.children;               // element children
+card.firstElementChild;      // first element child
+card.lastElementChild;       // last element child
+card.nextElementSibling;     // next element
+card.previousElementSibling; // previous element
+card.closest(".grid");       // nearest ancestor matching a selector
+card.matches(".card.active"); // true or false
+```
+
+`children` contains elements only. `childNodes` also contains text and comments. `closest` walks up the tree and is useful for event delegation.
+
+## Math and random
+
+```js
+Math.round(4.6);   // 5
+Math.floor(4.9);   // 4
+Math.ceil(4.1);    // 5
+Math.min(3, 1, 2); // 1
+Math.max(3, 1, 2); // 3
+Math.abs(-5);      // 5
+Math.random();     // 0 up to, not including, 1
+
+const dice = Math.floor(Math.random() * 6) + 1; // 1 to 6
+const pick = list[Math.floor(Math.random() * list.length)];
+```
+
+`Math.random` never returns 1, so `Math.floor(Math.random() * n)` gives 0 to n-1. Add 1 for a dice. For a random array item, multiply by `list.length`.
+
 ## Modules
 ```js
 // math.js

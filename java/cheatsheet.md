@@ -366,6 +366,197 @@ try (Connection conn = DriverManager.getConnection(url, "root", "password");
 
 Always use `?` placeholders for user input. String concatenation opens SQL injection.
 
+## Classes and objects
+
+```java
+class Hotel {
+    private String name;
+    private int stars;
+
+    Hotel(String name, int stars) {
+        this.name = name;
+        this.stars = stars;
+    }
+
+    String label() {
+        return name + " (" + stars + " stars)";
+    }
+}
+
+Hotel h = new Hotel("Danube View", 4);
+System.out.println(h.label());
+```
+
+A class is the blueprint, an object is one instance. `private` hides the field, the constructor sets it, and a method exposes behaviour. Use `this.field` when a parameter has the same name.
+
+## Inheritance and interfaces
+
+```java
+interface Payable {
+    double amount();
+}
+
+abstract class BookingBase {
+    abstract double price();
+}
+
+class RoomBooking extends BookingBase implements Payable {
+    private final double nightly;
+    private final int nights;
+
+    RoomBooking(double nightly, int nights) {
+        this.nightly = nightly;
+        this.nights = nights;
+    }
+
+    @Override
+    double price() {
+        return nightly * nights;
+    }
+
+    @Override
+    public double amount() {
+        return price();
+    }
+}
+```
+
+`extends` shares code, `implements` promises a contract. `@Override` catches a wrong signature. An abstract class can hold shared state; an interface is the public contract. Polymorphism means a `Payable` variable can hold any implementation.
+
+## ArrayList and HashMap
+
+```java
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+List<String> names = new ArrayList<>();
+names.add("Anna");
+names.add("Ben");
+names.set(0, "Cara");
+names.remove("Ben");
+System.out.println(names.size());             // 1
+System.out.println(names.get(0));             // Cara
+System.out.println(names.contains("Cara"));   // true
+
+Map<String, Integer> nights = new HashMap<>();
+nights.put("Anna", 3);
+nights.put("Ben", 5);
+nights.put("Anna", 4);                        // overwrites
+System.out.println(nights.get("Anna"));        // 4
+System.out.println(nights.getOrDefault("Cara", 0)); // 0
+System.out.println(nights.containsKey("Ben")); // true
+
+for (Map.Entry<String, Integer> entry : nights.entrySet()) {
+    System.out.println(entry.getKey() + ": " + entry.getValue());
+}
+```
+
+`ArrayList` keeps insertion order and allows duplicates. `HashMap` maps a key to a value, has no order, and overwrites on a duplicate key. `get` returns `null` for a missing key, so use `getOrDefault` or `containsKey`.
+
+## HashSet and TreeSet
+
+```java
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+
+Set<String> cities = new HashSet<>();
+cities.add("Budapest");
+cities.add("Debrecen");
+cities.add("Budapest"); // ignored
+System.out.println(cities.size());          // 2
+System.out.println(cities.contains("Debrecen")); // true
+
+Set<Integer> sorted = new TreeSet<>(List.of(3, 1, 2, 1));
+System.out.println(sorted); // [1, 2, 3]
+```
+
+A `Set` stores unique values. `HashSet` is fast and unordered. `TreeSet` keeps natural order and is slower. Use a `Set` when duplicates are a bug.
+
+## Lambda and streams
+
+```java
+List<String> names = List.of("Anna", "Ben", "Cara");
+
+names.forEach(name -> System.out.println(name));
+
+List<String> shortNames = names.stream()
+    .filter(name -> name.length() <= 3)
+    .map(String::toUpperCase)
+    .sorted()
+    .toList();
+
+long count = names.stream().filter(name -> name.startsWith("A")).count();
+```
+
+A lambda is a short implementation of a functional interface. A stream chains filter, map, sort, and collect without writing a loop. `toList()` returns an immutable list. Use a normal loop when you need an index or early exit.
+
+## Enum
+
+```java
+enum Status {
+    PENDING, PAID, CANCELLED
+}
+
+Status status = Status.PAID;
+if (status == Status.PAID) {
+    System.out.println("Paid");
+}
+System.out.println(status.name());   // PAID
+System.out.println(status.ordinal()); // 1
+```
+
+An enum is a fixed set of constants. Compare with `==`. Use `name()` for the label, `values()` to loop, and `valueOf("PAID")` to parse.
+
+## Generics
+
+```java
+class Box<T> {
+    private T value;
+
+    void set(T value) { this.value = value; }
+    T get() { return value; }
+}
+
+Box<String> box = new Box<>();
+box.set("hello");
+String text = box.get();
+```
+
+`<T>` is a type parameter. Generics catch a wrong type at compile time and avoid casts. Use `List<String>` instead of a raw `List`.
+
+## Threads
+
+```java
+Thread worker = new Thread(() -> {
+    for (int i = 0; i < 3; i++) {
+        System.out.println("worker " + i);
+    }
+});
+worker.start();
+worker.join(); // wait for it
+```
+
+`start()` runs the task on a new thread. `join()` waits for it to finish. Do not call `run()` directly; that runs on the current thread. Shared mutable state needs synchronization.
+
+## try-with-resources
+
+```java
+try (BufferedReader reader = Files.newBufferedReader(Path.of("bookings.csv"))) {
+    String line;
+    while ((line = reader.readLine()) != null) {
+        System.out.println(line);
+    }
+} catch (IOException e) {
+    System.out.println("Read failed: " + e.getMessage());
+}
+```
+
+A resource declared in the parentheses closes automatically, even when an exception is thrown. The resource must implement `AutoCloseable`. Use it for files, streams, and JDBC objects instead of a `finally` block.
+
 ## Common errors
 
 | Error | Cause | Fix |

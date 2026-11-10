@@ -191,6 +191,94 @@ Without it, a phone renders the page at desktop width and zooms out. With it, CS
 - Use real text instead of text baked into images.
 - Give each landmark a name if there are several: `aria-label="Main"`.
 
+## Headings and paragraphs
+
+```html
+<h1>Hotel bookings</h1>
+<h2>Rooms</h2>
+<h3>Sea view double</h3>
+<p>A paragraph of text. The browser wraps it automatically.</p>
+<p>Use <br> for a line break inside a paragraph, not to make space.</p>
+<hr>
+```
+
+Use one `h1` per page, then `h2` for sections and `h3` for subsections. Do not skip a level for style. A paragraph is a block; `br` is a line break, and `hr` is a thematic break.
+
+## Text formatting
+
+```html
+<p><strong>Important</strong> and <em>emphasised</em>.</p>
+<p><mark>Highlighted</mark>, <code>inlineCode()</code>, and <small>small print</small>.</p>
+<blockquote>
+  A quoted sentence.
+</blockquote>
+<pre><code>line one
+line two</code></pre>
+```
+
+`strong` means importance, `em` means stress. `mark` highlights a search match. `code` is inline code; `pre` keeps whitespace and line breaks. Do not use `b` and `i` for meaning; they carry no semantic weight.
+
+## Classes and IDs
+
+```html
+<section class="card card--featured" id="featured-room">
+  <h2 class="card__title">Sea view double</h2>
+</section>
+```
+
+A class can repeat and can hold several names. An id must be unique on the page and is used by `#id`, labels, and fragment links. Style with classes; use ids for a single anchor or a JavaScript hook.
+
+## Block, inline, div and span
+
+```html
+<div class="card">
+  <p>A paragraph is block level.</p>
+  <span class="badge">New</span>
+  <a href="/rooms">A link is inline.</a>
+</div>
+```
+
+Block elements start on a new line and take the available width. Inline elements sit in the text flow and only take the space they need. `div` and `span` are generic containers; use a semantic tag when one fits.
+
+## Audio and video
+
+```html
+<video controls width="640" poster="poster.jpg">
+  <source src="tour.mp4" type="video/mp4">
+  Your browser does not support video.
+</video>
+
+<audio controls>
+  <source src="intro.mp3" type="audio/mpeg">
+  Your browser does not support audio.
+</audio>
+```
+
+`controls` shows the browser player. The text inside is a fallback. `poster` is the image before playback. Do not autoplay sound; browsers block it and users dislike it.
+
+## Iframe
+
+```html
+<iframe
+  src="https://example.com/map"
+  title="Hotel location"
+  width="600"
+  height="400"
+  loading="lazy"
+></iframe>
+```
+
+An iframe embeds another page. Always set `title` for screen readers. `loading="lazy"` delays off-screen frames. Many sites block embedding with `X-Frame-Options`.
+
+## Entities
+
+```html
+<p>&lt;tag&gt; &amp; &quot;quoted&quot; &copy; 2026</p>
+<p>Non-breaking&nbsp;space</p>
+```
+
+Use `&lt;` and `&gt;` to show angle brackets as text. `&amp;` is a literal ampersand. `&nbsp;` keeps two words together. Named entities are clearer than numeric codes.
+
 ## Complete page skeleton
 
 ```html

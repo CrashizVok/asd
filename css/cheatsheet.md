@@ -232,6 +232,160 @@ A fixed bar leaves the flow, so reserve its height on the body. Add `backdrop-fi
 
 `object-fit: cover` stops image distortion. `overflow: hidden` clips the image to the rounded corners.
 
+## Colors and backgrounds
+
+```css
+:root {
+  --brand: #2563eb;
+  --ink: #1f2937;
+  --paper: #ffffff;
+}
+
+.hero {
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), url("hero.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+```
+
+Use hex for a fixed colour, `rgb()` or `hsl()` when you need transparency or a hue. A gradient layer over an image keeps text readable. `background-size: cover` fills the box and may crop.
+
+## Text and fonts
+
+```css
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #1f2937;
+}
+
+h1 {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+```
+
+`line-height` without a unit scales with the font size. `clamp(min, preferred, max)` makes a fluid heading without a media query. A font stack falls back from left to right.
+
+## Borders, margin, padding
+
+```css
+.card {
+  margin: 16px auto;
+  padding: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+.card > h2 {
+  margin: 0 0 8px;
+}
+```
+
+Margin is space outside the border; padding is space inside. Shorthand `margin: 16px auto` means 16px top and bottom, auto left and right, which centers a fixed-width block. `border-radius` rounds the corners; `box-shadow` adds depth without affecting layout.
+
+## Overflow and z-index
+
+```css
+.table-wrap {
+  overflow-x: auto;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+```
+
+`overflow-x: auto` adds a horizontal scrollbar only when needed. `z-index` only works on a positioned element or a flex/grid item. A child cannot escape its parent's stacking context, so a high number is not always enough.
+
+## Pseudo-elements and combinators
+
+```css
+.card::before {
+  content: "";
+  display: block;
+  height: 4px;
+  background: #2563eb;
+}
+
+.card > h2 { margin-top: 0; }
+.card + .card { margin-top: 16px; }
+.card:hover { border-color: #2563eb; }
+.card:focus-within { outline: 2px solid #2563eb; }
+
+li:nth-child(odd) { background: #f9fafb; }
+input:not([type="checkbox"]) { width: 100%; }
+```
+
+`::before` and `::after` create a decorative box; `content` is required. `>` is a direct child, `+` the next sibling, `~` any later sibling. `:nth-child` counts among siblings. `:not()` excludes a case.
+
+## Animation
+
+```css
+.fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.button {
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.button:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none; transition: none; }
+}
+```
+
+`animation` runs a keyframe sequence; `transition` animates a property change. `both` keeps the final state. Respect `prefers-reduced-motion` for people who get motion sickness.
+
+## Units and functions
+
+```css
+.panel {
+  width: min(1100px, 100% - 32px);
+  min-height: 100vh;
+  padding: clamp(16px, 3vw, 32px);
+  font-size: 1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+```
+
+`rem` is relative to the root font size, `em` to the current element, `vh` and `vw` to the viewport. `min()`, `max()`, and `clamp()` choose a value at runtime. `auto-fill` and `minmax()` make a responsive grid without media queries.
+
 ## Quick reminders
 
 - `width: 100%` plus padding overflows unless `border-box` is set.

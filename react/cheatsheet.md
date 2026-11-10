@@ -399,6 +399,201 @@ Vite serves files in `public/` from `/`. `url('/backgroundImage.jpg')` works whe
 - The order must be the same on every render.
 - `useState`, `useEffect`, `useContext`, `useRef`, `useMemo`, `useCallback` all follow this rule.
 
+## useRef
+
+```jsx
+import { useEffect, useRef } from "react";
+
+function SearchBox() {
+    const inputRef = useRef(null);
+    const renders = useRef(0);
+
+    useEffect(() => {
+        inputRef.current.focus();
+    }, []);
+
+    renders.current += 1;
+
+    return <input ref={inputRef} placeholder="Search" />;
+}
+```
+
+`useRef` returns an object with a `current` field. Changing `current` does not re-render. Use it for a DOM node or a value that must survive renders, such as a timer id.
+
+## useReducer
+
+```jsx
+import { useReducer } from "react";
+
+function reducer(state, action) {
+    switch (action.type) {
+        case "add":
+            return { count: state.count + 1 };
+        case "reset":
+            return { count: 0 };
+        default:
+            throw new Error("Unknown action");
+    }
+}
+
+function Counter() {
+    const [state, dispatch] = useReducer(reducer, { count: 0 });
+
+    return (
+        <>
+            <p>{state.count}</p>
+            <button onClick={() => dispatch({ type: "add" })}>Add</button>
+            <button onClick={() => dispatch({ type: "reset" })}>Reset</button>
+        </>
+    );
+}
+```
+
+Use `useReducer` when several actions change one state object, or when the next state depends on the previous one. `dispatch` sends an action; the reducer returns the new state. Keep the reducer pure.
+
+## useContext
+
+```jsx
+import { createContext, useContext } from "react";
+
+const ThemeContext = createContext("light");
+
+function Toolbar() {
+    const theme = useContext(ThemeContext);
+    return <button className={theme}>Menu</button>;
+}
+
+function App() {
+    return (
+        <ThemeContext.Provider value="dark">
+            <Toolbar />
+        </ThemeContext.Provider>
+    );
+}
+```
+
+`createContext` makes the channel, `Provider` supplies the value, and `useContext` reads the nearest provider. A component that reads the context re-renders when the value changes. Do not put a new object in the value on every render unless you memoize it.
+
+## useMemo and useCallback
+
+```jsx
+import { useCallback, useMemo } from "react";
+
+function RoomList({ rooms, onPick }) {
+    const sorted = useMemo(
+        () => [...rooms].sort((a, b) => a.price - b.price),
+        [rooms]
+    );
+
+    const handlePick = useCallback((id) => onPick(id), [onPick]);
+
+    return sorted.map((room) => (
+        <button key={room.id} onClick={() => handlePick(room.id)}>
+            {room.name}
+        </button>
+    ));
+}
+```
+
+`useMemo` caches a calculated value; `useCallback` caches a function. Both only help when the result is passed to a memoized child or used in a dependency array. Do not wrap every value; the dependency check has a cost.
+
+## Class components
+
+```jsx
+import { Component } from "react";
+
+class Counter extends Component {
+    state = { count: 0 };
+
+    add = () => {
+        this.setState({ count: this.state.count + 1 });
+    };
+
+    render() {
+        return <button onClick={this.add}>{this.state.count}</button>;
+    }
+}
+```
+
+Older React code uses classes. `state` is an object, `setState` merges a partial update, and `this` must be bound or use an arrow method. New code uses function components and hooks; read a class only when the exam or an existing file uses one.
+
+## Portals and Suspense
+
+```jsx
+import { createPortal } from "react-dom";
+import { lazy, Suspense } from "react";
+
+const HeavyPage = lazy(() => import("./HeavyPage.jsx"));
+
+function Modal({ children }) {
+    return createPortal(children, document.getElementById("modal-root"));
+}
+
+function App() {
+    return (
+        <Suspense fallback={<p>Loading...</p>}>
+            <HeavyPage />
+        </Suspense>
+    );
+}
+```
+
+A portal renders a child into another DOM node, which is useful for modals and tooltips. `lazy` splits a component into a separate chunk; `Suspense` shows a fallback while it loads. The target node must exist in `index.html`.
+
+## Error boundaries
+
+```jsx
+import { Component } from "react";
+
+class ErrorBoundary extends Component {
+    state = { error: null };
+
+    static getDerivedStateFromError(error) {
+        return { error };
+    }
+
+    componentDidCatch(error, info) {
+        console.error(error, info);
+    }
+
+    render() {
+        if (this.state.error) {
+            return <p>Something went wrong.</p>;
+        }
+        return this.props.children;
+    }
+}
+```
+
+An error boundary catches render errors in its children. It does not catch event handler errors, async errors, or errors in itself. Wrap a route or a risky panel, not the whole app.
+
+## React.memo, forwardRef, HOC
+
+```jsx
+import { forwardRef, memo } from "react";
+
+const Input = forwardRef(function Input(props, ref) {
+    return <input ref={ref} {...props} />;
+});
+
+const Row = memo(function Row({ room }) {
+    return <li>{room.name}</li>;
+});
+
+function withTitle(Component) {
+    return function Wrapped(props) {
+        return (
+            <>
+                <h2>Rooms</h2>
+                <Component {...props} />
+            </>
+        );
+    };
+}
+```
+
+`memo` skips a re-render when props are equal. `forwardRef` passes a ref through to a DOM node. A higher order component takes a component and returns a new one. Use these only when a profiler shows a problem.
+
 ## Common errors
 
 | Error | Cause | Fix |
