@@ -1,5 +1,27 @@
-const articles = window.WIKI_ARTICLES || [];
-const reference = window.WIKI_REFERENCE || [];
+function mergeContent(base, overrides, extras) {
+    const map = new Map();
+
+    for (const item of base) map.set(item.id, item);
+    for (const [id, item] of Object.entries(overrides || {})) {
+        map.set(id, { ...(map.get(id) || {}), ...item });
+    }
+    for (const item of extras || []) {
+        map.set(item.id, { ...(map.get(item.id) || {}), ...item });
+    }
+
+    return [...map.values()];
+}
+
+const articles = mergeContent(
+    window.WIKI_ARTICLES || [],
+    window.WIKI_ARTICLE_OVERRIDES || {},
+    window.WIKI_ARTICLES_EXTRA || []
+);
+const reference = mergeContent(
+    window.WIKI_REFERENCE || [],
+    window.WIKI_REFERENCE_OVERRIDES || {},
+    window.WIKI_REFERENCE_EXTRA || []
+);
 
 const byId = new Map(articles.map((article) => [article.id, article]));
 const refById = new Map(reference.map((entry) => [entry.id, entry]));
@@ -30,10 +52,22 @@ const languages = [
         accent: '#61dafb',
     },
     {
+        key: 'node',
+        name: 'Node.js',
+        blurb: 'Express, Knex, MySQL, files, streams, and environment setup.',
+        accent: '#3fb950',
+    },
+    {
         key: 'java',
         name: 'Java',
         blurb: 'Syntax, OOP, collections, files, exceptions, and JDBC.',
         accent: '#ff7b72',
+    },
+    {
+        key: 'javafx',
+        name: 'JavaFX',
+        blurb: 'Windows, controls, layouts, FXML, CSS, and scene graphs.',
+        accent: '#d2a8ff',
     },
 ];
 
@@ -164,7 +198,8 @@ function renderSidebar() {
     sidebarNav.innerHTML = languages
         .map((language) => {
             const items = articles.filter((article) => article.lang === language.name);
-            if (!items.length) return '';
+            const commands = referenceCount(language.name);
+            if (!items.length && !commands) return '';
 
             return `
                 <section class="nav-section">
@@ -197,14 +232,18 @@ function renderHome() {
     const cards = languages
         .map((language) => {
             const topics = articles.filter((article) => article.lang === language.name);
+            const commands = referenceCount(language.name);
             const first = topics[0];
             const samples = topics.slice(0, 2);
+            const startHref = first
+                ? `#/article/${first.id}`
+                : `#/reference/${language.key}`;
 
             return `
                 <article class="lang-card" style="--accent: ${language.accent}">
                     <div class="lang-card-top">
                         <span class="lang-kicker">${escapeHtml(language.name)}</span>
-                        <span class="lang-count">${topics.length} topics · ${referenceCount(language.name)} commands</span>
+                        <span class="lang-count">${topics.length} topics · ${commands} commands</span>
                     </div>
                     <h3>${escapeHtml(language.name)}</h3>
                     <p>${escapeHtml(language.blurb)}</p>
@@ -218,11 +257,9 @@ function renderHome() {
                     </ul>
                     <div class="card-actions">
                         <a class="card-link" href="#/reference/${language.key}">Command index</a>
-                        ${
-                            first
-                                ? `<a class="card-link ghost" href="#/article/${first.id}">Start reading</a>`
-                                : ''
-                        }
+                        <a class="card-link ghost" href="${startHref}">${
+                            first ? 'Start reading' : 'Open reference'
+                        }</a>
                     </div>
                 </article>`;
         })
@@ -240,8 +277,8 @@ function renderHome() {
             <p class="hero-kicker">Offline exam reference</p>
             <h1 class="hero-title">Everything for the exam.<br><span>Without the internet.</span></h1>
             <p class="hero-sub">
-                HTML, CSS, JavaScript, React, and Java. Topic pages, a command index for
-                every language, and examples with comments. All of it local.
+                ${languages.map((language) => language.name).join(', ')}. Topic pages, a
+                command index for every language, and examples with comments. All of it local.
             </p>
 
             <form class="hero-search" id="hero-search" role="search">
@@ -260,7 +297,7 @@ function renderHome() {
             <div class="hero-stats">
                 <span><strong>${articles.length}</strong> topic pages</span>
                 <span><strong>${reference.length}</strong> command pages</span>
-                <span><strong>5</strong> languages</span>
+                <span><strong>${languages.length}</strong> languages</span>
                 <span><strong>0</strong> external links</span>
             </div>
         </section>
@@ -300,7 +337,7 @@ function renderHome() {
             <p>
                 This is an original exam reference. It has no external links and no copied
                 tutorial text. The command index covers the standard tags, properties, methods,
-                and APIs for these five languages.
+                and APIs for these ${languages.length} languages.
             </p>
         </div>`;
 
@@ -526,6 +563,8 @@ function renderReferenceEntry(id) {
 
             <h2>Example</h2>
             <pre><code>${escapeHtml(entry.example)}</code></pre>
+
+            ${entry.html ? `<div class="ref-body">${entry.html}</div>` : ''}
 
             <div class="article-footer">
                 <div class="footer-block">

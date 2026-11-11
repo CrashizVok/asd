@@ -15,19 +15,44 @@ for (const file of [
     'offline/ref-js.js',
     'offline/ref-react.js',
     'offline/ref-java.js',
+    'offline/generated-content.js',
 ]) {
     require(path.join(root, file));
 }
 
-const articles = global.window.WIKI_ARTICLES || [];
-const reference = global.window.WIKI_REFERENCE || [];
+function mergeContent(base, overrides, extras) {
+    const map = new Map();
+
+    for (const item of base) map.set(item.id, item);
+    for (const [id, item] of Object.entries(overrides || {})) {
+        map.set(id, { ...(map.get(id) || {}), ...item });
+    }
+    for (const item of extras || []) {
+        map.set(item.id, { ...(map.get(item.id) || {}), ...item });
+    }
+
+    return [...map.values()];
+}
+
+const articles = mergeContent(
+    global.window.WIKI_ARTICLES || [],
+    global.window.WIKI_ARTICLE_OVERRIDES || {},
+    global.window.WIKI_ARTICLES_EXTRA || []
+);
+const reference = mergeContent(
+    global.window.WIKI_REFERENCE || [],
+    global.window.WIKI_REFERENCE_OVERRIDES || {},
+    global.window.WIKI_REFERENCE_EXTRA || []
+);
 
 const folder = {
     HTML: 'html',
     CSS: 'css',
     JavaScript: 'javascript',
     React: 'react',
+    'Node.js': 'node',
     Java: 'java',
+    JavaFX: 'javafx',
 };
 
 const fence = {
@@ -35,7 +60,9 @@ const fence = {
     CSS: 'css',
     JavaScript: 'js',
     React: 'jsx',
+    'Node.js': 'js',
     Java: 'java',
+    JavaFX: 'java',
 };
 
 const cheatFile = {
@@ -43,13 +70,15 @@ const cheatFile = {
     CSS: 'css/cheatsheet.md',
     JavaScript: 'javascript/cheatsheet.md',
     React: 'react/cheatsheet.md',
+    'Node.js': 'node/cheatsheet.md',
     Java: 'java/cheatsheet.md',
+    JavaFX: 'javafx/cheatsheet.md',
 };
 
 const output = path.join(root, 'reference');
 await rm(output, { recursive: true, force: true });
 
-const languages = ['HTML', 'CSS', 'JavaScript', 'React', 'Java'];
+const languages = ['HTML', 'CSS', 'JavaScript', 'React', 'Node.js', 'Java', 'JavaFX'];
 const counts = {};
 
 for (const language of languages) {
@@ -70,8 +99,8 @@ for (const language of languages) {
         const body = rest.join('\n').trim();
         const topic = topics.find((item) => item.title === title);
 
-        if (!topic) {
-            console.warn(`No article matches "${title}" in ${language}`);
+        if (!topic || topic.source) {
+            if (!topic) console.warn(`No article matches "${title}" in ${language}`);
             continue;
         }
 
@@ -88,16 +117,30 @@ ${body}
     for (const topic of topics) {
         if (seen.has(topic.id)) continue;
 
+        let body = topic.html;
+
+        if (topic.source) {
+            const raw = await readFile(path.join(root, topic.source), 'utf8');
+            const text = raw.replace(/\r\n/g, '\n');
+            const withoutFront = text.startsWith('---\n')
+                ? text.slice(text.indexOf('\n---', 4) + 4).replace(/^\n+/, '')
+                : text;
+            body = withoutFront.replace(/^#\s+.*\n+/, '');
+        }
+
         const page = `# ${topic.title}
 
 ${language} topic · Exam Wiki
 
-${topic.html}
+${body}
 `;
         await writeFile(path.join(output, key, 'topics', `${topic.id}.md`), page, 'utf8');
     }
 
     for (const entry of commands) {
+        const details = entry.markdown
+            ? `\n## Details\n\n${entry.markdown}\n`
+            : '';
         const body = `# ${entry.name}
 
 ${language} command · ${entry.group}
@@ -115,7 +158,7 @@ ${entry.syntax}
 \`\`\`${fence[language]}
 ${entry.example}
 \`\`\`
-`;
+${details}`;
         await writeFile(path.join(output, key, 'commands', `${entry.id}.md`), body, 'utf8');
     }
 

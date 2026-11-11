@@ -551,6 +551,13 @@ or read the Markdown files here.
 - [`form validation`](react/commands/react-forms-validation.md)
 - [`rules of hooks`](react/commands/react-rules.md)
 
+## Node.js
+
+0 topics · 0 commands
+
+### Topics
+
+
 ## Java
 
 28 topics · 59 commands
@@ -683,3 +690,10 @@ or read the Markdown files here.
 - [`PreparedStatement`](java/commands/java-preparedstatement.md)
 - [`ResultSet`](java/commands/java-resultset.md)
 - [`executeUpdate`](java/commands/java-jdbc-update.md)
+
+## JavaFX
+
+0 topics · 0 commands
+
+### Topics
+
