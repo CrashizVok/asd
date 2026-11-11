@@ -490,6 +490,638 @@ public class HotelDemo {
 
 The static counter prints 2, not 3, because the rejected hotel threw before `created++` ran. That ordering is deliberate: count the object only after every check passed. Note how `main` never touches a field directly. Every read and write goes through a method, which is what encapsulation buys you.
 
+## More examples
+
+The examples below continue the numbering. Each one is a complete file you can compile on its own, and each one is about a rule you will be asked to explain rather than the happy path.
+
+### Example 5: an immutable value class
+
+```java
+// File: MoneyDemo.java
+// Data shape: Money { amountMinor: long, currency: String },
+//             PriceList { label: String, prices: List<Money> }
+// Every "change" returns a new object. Nothing in this file can alter a Money.
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+final class Money {                            // final: no subclass can add mutable state
+    private final long amountMinor;            // cents, never a double
+    private final String currency;
+
+    private Money(long amountMinor, String currency) {   // private, callers use of(...)
+        this.amountMinor = amountMinor;
+        this.currency = currency;
+    }
+
+    static Money of(long amountMinor, String currency) {
+        if (currency == null || currency.length() != 3) {
+            throw new IllegalArgumentException("currency must be a 3 letter code");
+        }
+        return new Money(amountMinor, currency.toUpperCase());
+    }
+
+    long amountMinor() { return amountMinor; }  // read only accessors, no setter
+    String currency() { return currency; }
+
+    Money plus(Money other) {                   // returns a new object, this stays untouched
+        requireSameCurrency(other);
+        return new Money(amountMinor + other.amountMinor, currency);
+    }
+
+    Money times(int factor) {
+        if (factor < 0) {
+            throw new IllegalArgumentException("factor cannot be negative");
+        }
+        return new Money(amountMinor * factor, currency);
+    }
+
+    private void requireSameCurrency(Money other) {
+        if (!currency.equals(other.currency)) {
+            throw new IllegalArgumentException("cannot mix " + currency + " and " + other.currency);
+        }
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) return true;
+        if (!(other instanceof Money m)) return false;
+        return amountMinor == m.amountMinor && currency.equals(m.currency);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(amountMinor, currency);   // same two fields as equals
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s %d.%02d", currency, amountMinor / 100, amountMinor % 100);
+    }
+}
+
+final class PriceList {
+    private final String label;
+    private final List<Money> prices;
+
+    PriceList(String label, List<Money> prices) {
+        this.label = label;
+        this.prices = List.copyOf(prices);      // defensive copy, unmodifiable
+    }
+
+    String label() { return label; }
+
+    List<Money> prices() { return prices; }     // already unmodifiable, safe to hand out
+
+    Money cheapest() {
+        Money best = prices.get(0);
+        for (Money m : prices) {
+            if (m.amountMinor() < best.amountMinor()) best = m;
+        }
+        return best;
+    }
+
+    Money total() {
+        Money sum = Money.of(0, "EUR");
+        for (Money m : prices) {
+            sum = sum.plus(m);                  // a new Money each round, never a mutated one
+        }
+        return sum;
+    }
+}
+
+public class MoneyDemo {
+
+    public static void main(String[] args) {
+        List<Money> raw = new ArrayList<>(List.of(Money.of(9250, "eur"), Money.of(6100, "EUR")));
+        PriceList list = new PriceList("two nights", raw);
+
+        raw.clear();                                    // the caller's list is not the object's list
+        System.out.println(list.prices().size());       // 2
+        System.out.println(list.total());               // EUR 153.50
+        System.out.println(list.cheapest());            // EUR 61.00
+
+        try {
+            list.prices().add(Money.of(1, "EUR"));      // the copy is read only
+        } catch (UnsupportedOperationException e) {
+            System.out.println("the list is read only");
+        }
+
+        Money a = Money.of(500, "EUR");
+        Money b = Money.of(500, "eur");                 // same value after normalisation
+        System.out.println(a.equals(b) + " " + (a.hashCode() == b.hashCode()));   // true true
+    }
+}
+```
+
+The recipe for an immutable class: mark the class `final`, make every field `private final`, write no setter, copy every mutable input on the way in, and return copies from getters. The class then has no reachable path that changes a field after the constructor ends, which also makes it safe to share between threads.
+
+### Example 6: equals and hashCode together
+
+```java
+// File: EqualsDemo.java
+// Data shape: BookingKey { reference: String, hotelId: int }
+// A key stored in a HashMap needs both equals and hashCode, or lookups fail silently.
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+final class BookingKey {
+    private final String reference;
+    private final int hotelId;
+
+    BookingKey(String reference, int hotelId) {
+        this.reference = Objects.requireNonNull(reference, "reference");
+        this.hotelId = hotelId;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) return true;                       // identity, fast path
+        if (!(other instanceof BookingKey k)) return false;   // also catches null
+        return hotelId == k.hotelId && reference.equals(k.reference);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(reference, hotelId);              // same fields as equals
+    }
+
+    @Override
+    public String toString() {
+        return reference + "@" + hotelId;
+    }
+}
+
+// Deliberately wrong: equals without hashCode.
+final class BrokenKey {
+    private final String reference;
+
+    BrokenKey(String reference) { this.reference = reference; }
+
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof BrokenKey k && reference.equals(k.reference);
+    }
+}
+
+public class EqualsDemo {
+
+    public static void main(String[] args) {
+        // The map hashes a fresh key and finds the stored entry.
+        Map<BookingKey, String> guests = new HashMap<>();
+        guests.put(new BookingKey("AB-12", 7), "anna@example.com");
+        System.out.println(guests.get(new BookingKey("AB-12", 7)));   // anna@example.com
+
+        // The set refuses a second key that is equal to one already inside.
+        Set<BookingKey> keys = new HashSet<>();
+        System.out.println(keys.add(new BookingKey("AB-12", 7)));     // true
+        System.out.println(keys.add(new BookingKey("AB-12", 7)));     // false
+
+        // The broken class reports equality and still fails the set lookup.
+        Set<BrokenKey> broken = new HashSet<>();
+        broken.add(new BrokenKey("AB-12"));
+        System.out.println(new BrokenKey("AB-12").equals(new BrokenKey("AB-12")));  // true
+        System.out.println(broken.contains(new BrokenKey("AB-12")));                // false
+    }
+}
+```
+
+`HashSet` and `HashMap` find an entry in two steps: pick the bucket from `hashCode`, then compare with `equals` inside that bucket. When two equal objects hash differently they land in different buckets, so `equals` is never called and the lookup returns nothing. The class compiles, the test of `equals` alone passes, and the collection silently disagrees.
+
+### Example 7: a builder for many optional arguments
+
+```java
+// File: BuilderDemo.java
+// Data shape: Reservation { guestEmail, hotelId, nights, adults, children, breakfast }
+// Six fields, four of them optional. A builder keeps the call readable and validates once.
+
+final class Reservation {
+    private final String guestEmail;
+    private final int hotelId;
+    private final int nights;
+    private final int adults;
+    private final int children;
+    private final boolean breakfast;
+
+    private Reservation(Builder b) {            // the only constructor takes the builder
+        this.guestEmail = b.guestEmail;
+        this.hotelId = b.hotelId;
+        this.nights = b.nights;
+        this.adults = b.adults;
+        this.children = b.children;
+        this.breakfast = b.breakfast;
+    }
+
+    static Builder builder() {
+        return new Builder();
+    }
+
+    int totalGuests() {
+        return adults + children;
+    }
+
+    String breakfastNote() {
+        return breakfast ? "breakfast included" : "room only";
+    }
+
+    static final class Builder {
+        private String guestEmail;
+        private int hotelId;
+        private int nights = 1;                 // defaults live here, in one place
+        private int adults = 1;
+        private int children;
+        private boolean breakfast;
+
+        Builder guestEmail(String v) { this.guestEmail = v; return this; }
+        Builder hotelId(int v) { this.hotelId = v; return this; }
+        Builder nights(int v) { this.nights = v; return this; }
+        Builder adults(int v) { this.adults = v; return this; }
+        Builder children(int v) { this.children = v; return this; }
+        Builder breakfast(boolean v) { this.breakfast = v; return this; }
+
+        Reservation build() {                   // every rule runs here, once
+            if (guestEmail == null || !guestEmail.contains("@")) {
+                throw new IllegalArgumentException("valid guest_email is required");
+            }
+            if (hotelId <= 0) {
+                throw new IllegalArgumentException("hotel_id must be positive");
+            }
+            if (nights < 1) {
+                throw new IllegalArgumentException("nights must be at least 1");
+            }
+            if (adults < 1) {
+                throw new IllegalArgumentException("at least one adult is required");
+            }
+            if (children < 0) {
+                throw new IllegalArgumentException("children cannot be negative");
+            }
+            return new Reservation(this);
+        }
+    }
+}
+
+public class BuilderDemo {
+
+    public static void main(String[] args) {
+        Reservation r = Reservation.builder()
+                .guestEmail("anna@example.com")
+                .hotelId(12)
+                .nights(3)
+                .adults(2)
+                .children(1)
+                .breakfast(true)
+                .build();
+
+        System.out.println(r.totalGuests());        // 3
+        System.out.println(r.breakfastNote());      // breakfast included
+
+        try {
+            Reservation.builder().hotelId(12).build();   // guest_email missing
+        } catch (IllegalArgumentException e) {
+            System.out.println("rejected: " + e.getMessage());
+        }
+    }
+}
+```
+
+The fluent setters return `this`, so the calls chain. The builder is mutable and short lived; the object it produces is not. Validation sits in `build()` because that is the single moment when all fields are known at once. If you validate inside each setter you cannot check combinations, and the order of calls starts to matter.
+
+### Example 8: static factories that cache
+
+```java
+// File: FactoryDemo.java
+// Data shape: Stars { value: int } with five shared instances,
+//             Mail { address: String } with one instance per normalised address.
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+final class Stars {
+    private static final Stars[] CACHE = new Stars[6];   // index 1..5
+
+    static {
+        for (int i = 1; i <= 5; i++) {
+            CACHE[i] = new Stars(i);
+        }
+    }
+
+    private final int value;
+
+    private Stars(int value) {
+        this.value = value;
+    }
+
+    static Stars of(int value) {              // cached factory, no new object
+        if (value < 1 || value > 5) {
+            throw new IllegalArgumentException("stars must be 1..5, got " + value);
+        }
+        return CACHE[value];
+    }
+
+    int value() { return value; }
+
+    @Override
+    public String toString() {
+        return value + " stars";
+    }
+}
+
+final class Mail {
+    private static final Map<String, Mail> CACHE = new ConcurrentHashMap<>();
+
+    private final String address;
+
+    private Mail(String address) {
+        this.address = address;
+    }
+
+    static Mail of(String raw) {              // normalise first, then look up
+        return CACHE.computeIfAbsent(normalise(raw), Mail::new);
+    }
+
+    private static String normalise(String raw) {
+        if (raw == null) {
+            throw new IllegalArgumentException("customer_email is required");
+        }
+        String trimmed = raw.trim().toLowerCase();
+        int at = trimmed.indexOf('@');
+        if (at < 1 || at == trimmed.length() - 1) {
+            throw new IllegalArgumentException("invalid customer_email: " + raw);
+        }
+        return trimmed;
+    }
+
+    String address() { return address; }
+
+    boolean sameDomain(Mail other) {
+        return domain().equals(other.domain());
+    }
+
+    private String domain() {
+        return address.substring(address.indexOf('@'));
+    }
+
+    @Override
+    public String toString() {
+        return address;
+    }
+}
+
+public class FactoryDemo {
+
+    public static void main(String[] args) {
+        System.out.println(Stars.of(4) == Stars.of(4));        // true, one shared object
+        System.out.println(Stars.of(4).value());               // 4
+
+        try {
+            Stars.of(7);
+        } catch (IllegalArgumentException e) {
+            System.out.println("rejected: " + e.getMessage());
+        }
+
+        Mail a = Mail.of("  Anna@Example.COM ");
+        Mail b = Mail.of("anna@example.com");
+        System.out.println(a);                                 // anna@example.com
+        System.out.println(a == b);                            // true, one instance per address
+        System.out.println(a.sameDomain(Mail.of("bela@example.com")));   // true
+        System.out.println(a.sameDomain(Mail.of("bela@other.org")));     // false
+    }
+}
+```
+
+A private constructor plus a static factory lets the class decide whether to allocate. `Stars` has only five legal values, so five objects are enough and `==` becomes a valid comparison. `Mail` normalises before the lookup, so the same address typed in two cases cannot produce two objects. A constructor cannot do either of those things.
+
+### Example 9: nested, inner, local and anonymous classes
+
+```java
+// File: InnerDemo.java
+// Data shape: Hotel { name, reviews } plus four kinds of class declared around it.
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+class Hotel {
+    private final String name;
+    private final List<String> reviews = new ArrayList<>();
+
+    Hotel(String name) {
+        this.name = name;
+    }
+
+    String getName() { return name; }
+
+    void addReview(String text) { reviews.add(text); }
+
+    List<String> reviews() { return List.copyOf(reviews); }
+
+    static class Stats {                       // static nested: no outer object needed
+        private int hotels;
+        private int reviews;
+
+        void record(Hotel h) {
+            hotels++;
+            reviews += h.reviews().size();     // the outer object arrives as a parameter
+        }
+
+        @Override
+        public String toString() {
+            return hotels + " hotels, " + reviews + " reviews";
+        }
+    }
+
+    class Review {                             // inner: one Review belongs to one Hotel
+        private final String text;
+
+        Review(String text) {
+            this.text = text;
+        }
+
+        String describe() {
+            return name + " (" + reviews().size() + " reviews): " + text;
+        }
+    }
+
+    Review review(String text) {                // the outer object hands out the inner one
+        addReview(text);
+        return new Review(text);
+    }
+}
+
+public class InnerDemo {
+
+    public static void main(String[] args) {
+        Hotel a = new Hotel("Danube View");
+        Hotel b = new Hotel("Hilltop");
+
+        Hotel.Review r = a.review("quiet rooms");        // inner class needs a Hotel first
+        System.out.println(r.describe());                // Danube View (1 reviews): quiet rooms
+
+        Hotel.Stats stats = new Hotel.Stats();           // static nested: no Hotel first
+        stats.record(a);
+        stats.record(b);
+        System.out.println(stats);                       // 2 hotels, 1 reviews
+
+        // Local class: declared inside a method, visible only until the method returns.
+        class Headline {
+            private final String text;
+
+            Headline(String text) { this.text = text; }
+
+            @Override
+            public String toString() { return "== " + text + " =="; }
+        }
+        System.out.println(new Headline(a.getName()));   // == Danube View ==
+
+        // Anonymous class: an implementation with no name, used once.
+        Comparator<Hotel> byName = new Comparator<>() {
+            @Override
+            public int compare(Hotel x, Hotel y) {
+                return x.getName().compareTo(y.getName());
+            }
+        };
+        List<Hotel> all = new ArrayList<>(List.of(b, a));
+        all.sort(byName);
+        System.out.println(all.get(0).getName());        // Danube View
+    }
+}
+```
+
+Four shapes, one rule each. A static nested class is a name space plus a normal class, and it is what you want for a `Builder` or a `Stats`. An inner class carries a hidden pointer to the outer instance, which is why `new Review(...)` is only legal through a `Hotel`. A local class lives inside one method and can read effectively final locals. An anonymous class removes the name when nobody needs it.
+
+### Example 10: a small domain model
+
+```java
+// File: DomainDemo.java
+// Data shape:
+//   Guest { email: String, name: String }                 record, validated
+//   RoomType { STANDARD, SUPERIOR, SUITE }                enum carrying a nightly rate
+//   LineItem { label: String, amountMinor: long }         interface
+//   RoomCharge, ExtraCharge                               records implementing LineItem
+//   Invoice { guest, lines }                              immutable class that sums them
+
+import java.util.ArrayList;
+import java.util.List;
+
+record Guest(String email, String name) {
+    Guest {
+        if (email == null || !email.contains("@")) {
+            throw new IllegalArgumentException("valid customer_email is required");
+        }
+        name = name == null ? "" : name.trim();
+        if (name.isEmpty()) {
+            throw new IllegalArgumentException("first_name is required");
+        }
+    }
+
+    String label() {
+        return name + " <" + email + ">";
+    }
+}
+
+enum RoomType {
+    STANDARD(6100), SUPERIOR(9250), SUITE(15400);
+
+    private final long nightlyMinor;
+
+    RoomType(long nightlyMinor) {
+        this.nightlyMinor = nightlyMinor;
+    }
+
+    long nightlyMinor() { return nightlyMinor; }
+}
+
+interface LineItem {
+    String label();
+
+    long amountMinor();
+}
+
+record RoomCharge(int hotelId, RoomType type, int nights) implements LineItem {
+    RoomCharge {
+        if (hotelId <= 0) {
+            throw new IllegalArgumentException("hotel_id must be positive");
+        }
+        if (nights < 1) {
+            throw new IllegalArgumentException("nights must be at least 1");
+        }
+    }
+
+    @Override
+    public String label() {
+        return "hotel " + hotelId + " " + type + " x" + nights;
+    }
+
+    @Override
+    public long amountMinor() {
+        return type.nightlyMinor() * nights;
+    }
+}
+
+record ExtraCharge(String label, long amountMinor) implements LineItem {
+    ExtraCharge {
+        if (amountMinor < 0) {
+            throw new IllegalArgumentException("a charge cannot be negative");
+        }
+    }
+}
+
+final class Invoice {
+    private final Guest guest;
+    private final List<LineItem> lines;
+
+    Invoice(Guest guest, List<LineItem> lines) {
+        this.guest = guest;
+        this.lines = List.copyOf(lines);           // own copy, so later edits do not leak in
+    }
+
+    long totalMinor() {
+        long sum = 0;
+        for (LineItem line : lines) {
+            sum += line.amountMinor();             // each line knows its own price
+        }
+        return sum;
+    }
+
+    String summary() {
+        StringBuilder sb = new StringBuilder("invoice for " + guest.label() + "\n");
+        for (LineItem line : lines) {
+            sb.append(String.format("  %-30s %7d%n", line.label(), line.amountMinor()));
+        }
+        return sb.append(String.format("  %-30s %7d%n", "total", totalMinor())).toString();
+    }
+}
+
+public class DomainDemo {
+
+    public static void main(String[] args) {
+        Guest guest = new Guest("anna@example.com", "  Anna  ");   // compact constructor trims
+        List<LineItem> lines = new ArrayList<>();
+        lines.add(new RoomCharge(12, RoomType.SUPERIOR, 3));
+        lines.add(new ExtraCharge("breakfast", 2400));
+
+        Invoice invoice = new Invoice(guest, lines);
+        lines.clear();                               // the invoice kept its own copy
+
+        System.out.println(invoice.summary());
+        System.out.println("total minor units: " + invoice.totalMinor());   // 30150
+
+        try {
+            new Guest("not-an-email", "Bela");
+        } catch (IllegalArgumentException e) {
+            System.out.println("rejected: " + e.getMessage());
+        }
+    }
+}
+```
+
+This is the shape most exam tasks ask for: records for values that only carry data, an enum for a fixed set of choices, an interface for the thing the total is computed over, and one immutable class that owns the collection. `ExtraCharge` implements `LineItem` without writing either method, because the generated accessors already match the interface. Adding a new charge type means adding a record, not editing the invoice.
+
 ## Common mistakes
 
 - Making every field public. The first caller that writes `-1` teaches you why this fails.

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "java-collections-extra-hashmap-merge-nested",
+    "group": "Maps",
+    "name": "merge for counters",
+    "syntax": "map.merge(key, value, Integer::sum)",
+    "desc": "Adds a value to the number stored under a key, inserting it when the key is new. One call replaces the get, null check, and put sequence.",
+    "example": "Map<String, Integer> rowsByCity = new HashMap<>();\nfor (Booking b : bookings) {\n    // First hit inserts 1, every later hit adds to the stored value.\n    rowsByCity.merge(b.city(), 1, Integer::sum);\n}\n\nint budapest = rowsByCity.getOrDefault(\"Budapest\", 0);\nSystem.out.println(rowsByCity);",
+    "body": "The same call sums a field instead of counting rows: `rowsByCity.merge(b.city(), b.nights(), Integer::sum)`.\n\nNesting works because the outer value is a map of its own:\n\n```java\nMap<String, Map<String, Integer>> nightsByCityHotel = new TreeMap<>();\nfor (Booking b : bookings) {\n    nightsByCityHotel\n            .computeIfAbsent(b.city(), key -> new TreeMap<>())\n            .merge(b.hotelName(), b.nights(), Integer::sum);\n}\n```\n\nA `null` value in the map is treated as absent, so a row that stored null does not throw. Use `putIfAbsent` when the old value must be kept, and `merge` when it must be combined."
+  },
+  {
+    "id": "java-collections-extra-hashmap-compute",
+    "group": "Maps",
+    "name": "compute and computeIfPresent",
+    "syntax": "map.compute(key, (k, v) -> newValue)",
+    "desc": "Rebuilds the value for a key from the old value. Returning null removes the entry, which makes conditional updates a single call.",
+    "example": "Map<String, Integer> priceByHotel = new HashMap<>();\npriceByHotel.put(\"Danube View\", 80);\npriceByHotel.put(\"City Inn\", 60);\n\n// Ten percent off, only where a price exists.\npriceByHotel.computeIfPresent(\"Danube View\", (key, price) -> price - price / 10);\n\n// compute sees the null for a missing key and can still insert.\npriceByHotel.compute(\"Park Hotel\", (key, price) -> price == null ? 110 : price);\n\n// Returning null deletes, so this line removes the cheap hotel.\npriceByHotel.computeIfPresent(\"City Inn\", (key, price) -> price < 70 ? null : price);\n\nSystem.out.println(priceByHotel);",
+    "body": "`computeIfAbsent` is the one to reach for when grouping: it only runs the lambda on a miss, so the list is created once and then reused. `computeIfPresent` skips missing keys entirely. `compute` always runs and receives null for a miss.\n\nDo not modify the same map from inside the lambda. The update is already in progress, and a nested put on the same key is undefined behaviour for most implementations."
+  },
+  {
+    "id": "java-collections-extra-treemap-ceiling-floor",
+    "group": "Sorted maps",
+    "name": "floorKey and ceilingKey",
+    "syntax": "map.floorKey(key); map.ceilingKey(key)",
+    "desc": "Returns the nearest key at or below, or at or above, the given key. Both return null when no such key exists.",
+    "example": "TreeMap<Integer, String> bandByNights = new TreeMap<>();\nbandByNights.put(1, \"short stay\");\nbandByNights.put(3, \"weekend\");\nbandByNights.put(7, \"full week\");\n\n// 4 nights falls between the 3 and 7 bands.\nint lower = bandByNights.floorKey(4);      // 3\nint upper = bandByNights.ceilingKey(4);    // 7\n\nSystem.out.println(lower + \" to \" + upper);\nSystem.out.println(\"Band: \" + bandByNights.floorEntry(4).getValue());\nSystem.out.println(\"No cheaper band: \" + bandByNights.floorKey(0));   // null",
+    "body": "The four methods come in key and entry pairs: `floorKey`, `floorEntry`, `ceilingKey`, `ceilingEntry`. Strict neighbours are `lowerKey` and `higherKey`, which exclude an exact match.\n\n`firstKey` and `lastKey` read the ends. All of them are logarithmic, so a price band lookup stays cheap on a large table."
+  },
+  {
+    "id": "java-collections-extra-treemap-submap",
+    "group": "Sorted maps",
+    "name": "subMap range view",
+    "syntax": "map.subMap(from, true, to, false)",
+    "desc": "Returns a view of the entries between two keys. The booleans decide whether each bound is included.",
+    "example": "TreeMap<Integer, Long> revenueByYear = new TreeMap<>();\nrevenueByYear.put(2021, 3100L);\nrevenueByYear.put(2022, 4200L);\nrevenueByYear.put(2023, 3900L);\nrevenueByYear.put(2024, 5100L);\n\n// 2022 and 2023 only: low bound included, high bound excluded.\nSystem.out.println(revenueByYear.subMap(2022, true, 2024, false));\n\n// Views are backed by the map, so a write through one is a write to the other.\nrevenueByYear.subMap(2022, true, 2024, false).clear();\nSystem.out.println(revenueByYear);   // 2021 and 2024 remain",
+    "body": "`headMap(to, inclusive)` and `tailMap(from, inclusive)` are the one sided forms. Without the boolean, `subMap(from, to)` includes the low key and excludes the high one.\n\nA view is not a copy. Removing through it changes the original map, and adding a key outside the range throws `IllegalArgumentException`. Copy into an `ArrayList` when the caller needs an independent snapshot."
+  },
+  {
+    "id": "java-collections-extra-treeset-comparator-ties",
+    "group": "Sets",
+    "name": "TreeSet with a tie breaker",
+    "syntax": "new TreeSet<>(Comparator.comparingInt(Type::key).thenComparing(Type::name))",
+    "desc": "Keeps elements sorted and unique by the comparator. A comparator that ignores a field treats two different rows as the same element.",
+    "example": "// Sorted by nights only, so two bookings with 3 nights collide.\nTreeSet<Booking> byNights = new TreeSet<>(Comparator.comparingInt(Booking::nights));\nbyNights.add(new Booking(\"Danube View\", 3));\nbyNights.add(new Booking(\"Alpen Hof\", 3));\nSystem.out.println(byNights.size());   // 1, one row was dropped\n\n// Add the fields that make the rows different and both survive.\nTreeSet<Booking> safe = new TreeSet<>(Comparator\n        .comparingInt(Booking::nights)\n        .thenComparing(Booking::hotelName));\nsafe.add(new Booking(\"Danube View\", 3));\nsafe.add(new Booking(\"Alpen Hof\", 3));\nSystem.out.println(safe.size());       // 2",
+    "body": "Inside a `TreeSet`, `compare` returning 0 means duplicate, whatever `equals` says. The set never calls `equals`.\n\nThis bites in reports sorted by one field: the set looks correct, the count is short. Add every field that identifies a row, or use a `HashSet` when order does not matter."
+  },
+  {
+    "id": "java-collections-extra-hashset-retainall",
+    "group": "Sets",
+    "name": "retainAll and removeAll",
+    "syntax": "set.retainAll(other); set.removeAll(other)",
+    "desc": "Keeps only the elements also present in another collection, or drops every element found there. Both edit the set in place.",
+    "example": "Set<String> bookedCities = new HashSet<>(List.of(\"Budapest\", \"Vienna\", \"Praha\"));\nSet<String> servedCities = new HashSet<>(List.of(\"Vienna\", \"Praha\", \"Graz\"));\n\n// Intersection: cities in both sets.\nSet<String> both = new HashSet<>(bookedCities);\nboth.retainAll(servedCities);\nSystem.out.println(both);   // [Vienna, Praha]\n\n// Difference: booked but not served. removeAll edits the copy, not the original.\nSet<String> missing = new HashSet<>(bookedCities);\nmissing.removeAll(servedCities);\nSystem.out.println(missing);   // [Budapest]",
+    "body": "`retainAll` returns true when the set changed, so it doubles as a change check.\n\nCopy first when the original set must survive. `removeAll` on the original is the common slip: the report then runs on an emptied set. For a union, add everything into a copy instead.\n\nBoth methods are linear in the smaller collection's size when the argument is a set."
+  },
+  {
+    "id": "java-collections-extra-linkedlist-listiterator",
+    "group": "Lists",
+    "name": "ListIterator insert and set",
+    "syntax": "ListIterator<T> it = list.listIterator(); it.add(v); it.set(v)",
+    "desc": "Edits a list at the cursor while walking it. add inserts before the cursor, set replaces the last element returned by next.",
+    "example": "LinkedList<Task> agenda = new LinkedList<>();\nagenda.add(new Task(\"print arrivals\", 2));\nagenda.add(new Task(\"close till\", 1));\n\nListIterator<Task> it = agenda.listIterator();\nwhile (it.hasNext()) {\n    Task task = it.next();\n    if (task.priority() >= 2) {\n        it.add(new Task(\"check \" + task.name(), task.priority()));\n    }\n    if (task.name().equals(\"close till\")) {\n        it.set(new Task(\"close till and count cash\", task.priority()));\n    }\n}\n\nSystem.out.println(agenda);",
+    "body": "`list.listIterator(size)` starts at the end, so `hasPrevious` and `previous` walk backwards. That is the only cheap reverse walk on a list.\n\nThe same work with `list.add` inside a for-each loop throws `ConcurrentModificationException`, because the list changes outside the loop's own cursor. Removal through `it.remove()` is legal for the same reason."
+  },
+  {
+    "id": "java-collections-extra-deque-stack-push-pop",
+    "group": "Deques",
+    "name": "Deque as a stack",
+    "syntax": "deque.push(v); deque.pop(); deque.peek()",
+    "desc": "push and pop act on the front of the deque, which gives LIFO behaviour without the legacy Stack class.",
+    "example": "Deque<String> undo = new ArrayDeque<>();\nundo.push(\"drop row 4\");\nundo.push(\"edit row 2\");\n\n// The last push is the first pop.\nSystem.out.println(undo.pop());     // edit row 2\nSystem.out.println(undo.pop());     // drop row 4\nSystem.out.println(undo.peek());    // null, the stack is empty",
+    "body": "`pop` on an empty deque throws `NoSuchElementException`, while `peek` returns null. Check `isEmpty` when the stack can run dry.\n\n`ArrayDeque` rejects null elements, so a null answer from `peek` can only mean empty. The front is also the queue head: `offerLast` and `pollFirst` make the same object a FIFO queue."
+  },
+  {
+    "id": "java-collections-extra-priorityqueue-comparator",
+    "group": "Queues",
+    "name": "PriorityQueue order",
+    "syntax": "new PriorityQueue<>(Comparator.comparingInt(Type::key))",
+    "desc": "Hands out the smallest element by comparator instead of the oldest. It implements Queue but is not first in, first out.",
+    "example": "Queue<Booking> shortestFirst = new PriorityQueue<>(\n        Comparator.comparingInt(Booking::nights));\nshortestFirst.add(new Booking(\"Danube View\", 4));\nshortestFirst.add(new Booking(\"City Inn\", 1));\nshortestFirst.add(new Booking(\"Alpen Hof\", 2));\n\n// poll returns the smallest key each time, not the insertion order.\nwhile (!shortestFirst.isEmpty()) {\n    System.out.println(shortestFirst.poll().nights());   // 1, 2, 4\n}",
+    "body": "The heap only guarantees the head. Iterating or printing the queue shows the internal array order, not sorted order, so drain it with `poll` when the order matters.\n\n`add` and `offer` are both logarithmic. Equal keys are ordered arbitrarily, so add a tie breaker when the output must be reproducible."
+  },
+  {
+    "id": "java-collections-extra-linkedhashmap-lru",
+    "group": "Caching",
+    "name": "LRU cache with LinkedHashMap",
+    "syntax": "new LinkedHashMap<>(capacity, 0.75f, true) { removeEldestEntry }",
+    "desc": "Keeps the most recently used entries up to a limit and drops the least recently used one. Access order plus one overridden method is the whole cache.",
+    "example": "class LruCache<K, V> extends LinkedHashMap<K, V> {\n    private final int capacity;\n\n    LruCache(int capacity) {\n        super(capacity, 0.75f, true);   // true = access order\n        this.capacity = capacity;\n    }\n\n    @Override\n    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {\n        return size() > capacity;\n    }\n}\n\nLruCache<String, Integer> prices = new LruCache<>(2);\nprices.put(\"Danube View\", 80);\nprices.put(\"Alpen Hof\", 95);\nprices.get(\"Danube View\");          // now the most recent\nprices.put(\"City Inn\", 60);         // evicts Alpen Hof\nSystem.out.println(prices.keySet());",
+    "body": "The third constructor argument is the switch: `true` tracks access order, `false` tracks insertion order. `removeEldestEntry` runs after every put and returns true to delete the head of the order.\n\nThe class is not thread safe. Wrap it in `Collections.synchronizedMap` only when every compound operation is also guarded, because a get followed by a put is two steps."
+  },
+  {
+    "id": "java-collections-extra-equals-hashcode-key",
+    "group": "Keys",
+    "name": "equals and hashCode for a key",
+    "syntax": "equals(Object) and hashCode() over the same fields",
+    "desc": "A key class must return equal hash codes for equal objects, or map and set lookups miss. A record generates both methods.",
+    "example": "final class RoomKey {\n    private final int hotelId;\n    private final int roomNumber;\n\n    RoomKey(int hotelId, int roomNumber) {\n        this.hotelId = hotelId;\n        this.roomNumber = roomNumber;\n    }\n\n    @Override\n    public boolean equals(Object other) {\n        if (this == other) return true;\n        if (!(other instanceof RoomKey)) return false;\n        RoomKey that = (RoomKey) other;\n        return hotelId == that.hotelId && roomNumber == that.roomNumber;\n    }\n\n    @Override\n    public int hashCode() {\n        // Same fields as equals, same order.\n        return Objects.hash(hotelId, roomNumber);\n    }\n}\n\nMap<RoomKey, String> guestByRoom = new HashMap<>();\nguestByRoom.put(new RoomKey(7, 101), \"anna@example.com\");\nSystem.out.println(guestByRoom.get(new RoomKey(7, 101)));   // found",
+    "body": "`Objects.hash` boxes its arguments, so a class hashed in a tight loop can use `31 * a + b` by hand instead. Correctness does not change.\n\nNever change a field used by `hashCode` after the object enters a map or set. The entry stays in the old bucket and both `get` and `contains` stop finding it. `record` fields are final, which removes the risk."
+  },
+  {
+    "id": "java-collections-extra-collections-frequency",
+    "group": "Counting",
+    "name": "Collections.frequency",
+    "syntax": "Collections.frequency(collection, value)",
+    "desc": "Counts how many elements equal the given value. Linear in the collection size, so it is fine for one value and wrong inside a loop over many values.",
+    "example": "List<String> cities = List.of(\"Budapest\", \"Vienna\", \"Budapest\", \"Praha\");\n\n// One pass over the list per call.\nint budapest = Collections.frequency(cities, \"Budapest\");\nSystem.out.println(budapest);   // 2\n\n// For many values, count once into a map instead of calling frequency per value.\nMap<String, Integer> counts = new HashMap<>();\nfor (String city : cities) {\n    counts.merge(city, 1, Integer::sum);\n}\nSystem.out.println(counts);",
+    "body": "`frequency` uses `equals`, so it works on records and strings without extra code. A custom class needs `equals` for the comparison to mean anything.\n\nA loop of `frequency` calls is quadratic: every call walks the whole list. The single map pass is linear and gives every count at once."
+  }
+]

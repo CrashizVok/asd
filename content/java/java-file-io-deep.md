@@ -427,6 +427,397 @@ public class CopyCsvFiles {
 
 `Files.list` gives one level, not a tree; use `Files.walk` when the CSV files sit in subfolders. `target.resolve(file.getFileName())` keeps the name and changes the folder. The copy loop runs outside the stream block because `Files.copy` throws `IOException` and a lambda inside `forEach` cannot pass a checked exception up without a wrapper.
 
+## More examples
+
+### Example 7: Choose between readString and readAllLines
+
+Both calls load the file into memory, so both are wrong for a log that does not fit. The choice between them is about the shape of the answer, not about speed.
+
+```java
+// File: PickReadCall.java
+// Data shape: Path -> either one String or List<String>, chosen by byte size
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+public class PickReadCall {
+
+    static final long SMALL = 1_000_000;   // 1 MB, a made up but safe ceiling
+
+    public static void main(String[] args) throws IOException {
+        Path file = Path.of("template.html");
+        Files.writeString(file, "<h1>Report</h1>\n<p>ready</p>\n", StandardCharsets.UTF_8);
+
+        long bytes = Files.size(file);
+
+        if (bytes < SMALL) {
+            // One String, newlines kept. Same charset on both sides of the round trip.
+            String text = Files.readString(file, StandardCharsets.UTF_8);
+            System.out.println("string mode, " + text.length() + " chars");
+            System.out.println(text.lines().count() + " logical line(s)");
+        } else {
+            // One element per line, terminators removed. The list is mutable.
+            List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+            lines.removeIf(String::isBlank);
+            System.out.println("list mode, " + lines.size() + " line(s)");
+        }
+    }
+}
+```
+
+`Files.size` returns bytes, not characters. For ASCII text the two counts agree; for accented UTF-8 text one character can take two bytes, so a byte limit is the conservative one. `String.lines()` splits on any line break and drops the trailing empty element, which matches what `readAllLines` gives you.
+
+### Example 8: One pass with BufferedReader
+
+`readAllLines` builds a list. When the question is only a count, a maximum, or a first match, that list is wasted memory. This loop keeps one line at a time.
+
+`notes.txt`:
+
+```text
+first line
+second line
+
+fourth line, the longest one here
+```
+
+```java
+// File: LineStats.java
+// Data shape: text file -> {lines, blanks, longest} in one pass
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+public class LineStats {
+
+    public static void main(String[] args) throws IOException {
+        Path input = Path.of("notes.txt");
+
+        if (!Files.isRegularFile(input)) {
+            System.out.println("No file at " + input.toAbsolutePath());
+            return;
+        }
+
+        int lines = 0;
+        int blanks = 0;
+        String longest = "";
+
+        // One pass, flat memory. readLine strips \n, \r\n and \r.
+        try (BufferedReader reader = Files.newBufferedReader(input, StandardCharsets.UTF_8)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                lines++;
+                if (line.isBlank()) {
+                    blanks++;
+                }
+                if (line.length() > longest.length()) {
+                    longest = line;
+                }
+            }
+        }
+
+        System.out.printf("lines=%d blanks=%d longest=%d%n", lines, blanks, longest.length());
+        System.out.println("first char of longest: " + (longest.isEmpty() ? "-" : longest.charAt(0)));
+    }
+}
+```
+
+`longest` starts empty, so the first line always wins the first comparison. Counting blank lines separately stops a blank line from becoming the longest one, and it is the number a report usually needs anyway. The read block opens and closes the file; nothing after it can use the reader.
+
+### Example 9: Bytes, not text
+
+A PNG, a zip, or a PDF has no lines and no charset. Passing it through `readAllLines` does not throw; it returns nonsense. The byte APIs keep the content untouched.
+
+```java
+// File: BinaryCopy.java
+// Data shape: byte[] payload -> file; two paths -> first differing byte, or -1
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
+public class BinaryCopy {
+
+    public static void main(String[] args) throws IOException {
+        Path original = Path.of("logo.bin");
+        Path copy = Path.of("backup", "logo.bin");
+
+        // Bytes are opaque here. No charset, no line splitting, no decoding.
+        byte[] payload = {(byte) 0x89, 'P', 'N', 'G', 0, 1, 2, (byte) 0xFF};
+        Files.createDirectories(copy.getParent());
+        Files.write(original, payload);
+
+        Files.copy(original, copy, StandardCopyOption.REPLACE_EXISTING);
+
+        long size = Files.size(copy);
+        long diff = Files.mismatch(original, copy);   // -1 means identical
+        System.out.println("size=" + size + " mismatch=" + diff);
+
+        if (diff != -1) {
+            System.out.println("copy differs at byte " + diff);
+        }
+    }
+}
+```
+
+`Files.write` with a `byte[]` replaces the file, exactly like the text overload. `Files.mismatch` returns -1 when the files match and the index of the first difference otherwise, which is a better check than comparing sizes. The cast `(byte) 0x89` is needed because Java bytes are signed and 0x89 is 137, outside the byte range.
+
+### Example 10: Walk a folder tree
+
+`Files.list` reads one level. A report over a tree needs `Files.walk`, and that stream holds a directory handle until it closes.
+
+```java
+// File: TreeReport.java
+// Data shape: directory -> Map<folder, {files, bytes}> for .txt files, any depth
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Stream;
+
+public class TreeReport {
+
+    public static void main(String[] args) throws IOException {
+        Path root = Path.of("data");
+
+        // Build a small tree so the program runs on an empty folder too.
+        Files.createDirectories(root.resolve("2025"));
+        Files.createDirectories(root.resolve("2026").resolve("q1"));
+        Files.writeString(root.resolve("readme.txt"), "index\n");
+        Files.writeString(root.resolve("2025").resolve("jan.txt"), "cold\n");
+        Files.writeString(root.resolve("2026").resolve("q1").resolve("mar.txt"), "wind\n");
+        Files.writeString(root.resolve("2026").resolve("skip.csv"), "a,b\n");
+
+        Map<String, long[]> perFolder = new TreeMap<>();   // folder -> {count, bytes}
+
+        // walk goes to any depth and includes the root itself.
+        try (Stream<Path> paths = Files.walk(root)) {
+            paths.filter(Files::isRegularFile)
+                 .filter(p -> p.getFileName().toString().endsWith(".txt"))
+                 .forEach(p -> {
+                     String folder = root.relativize(p.getParent()).toString();
+                     if (folder.isEmpty()) {
+                         folder = ".";
+                     }
+                     long[] row = perFolder.computeIfAbsent(folder, key -> new long[2]);
+                     row[0]++;
+                     try {
+                         row[1] += Files.size(p);
+                     } catch (IOException e) {
+                         // Size is decoration here, the count still matters.
+                         System.out.println("size failed for " + p + ": " + e.getMessage());
+                     }
+                 });
+        }
+
+        perFolder.forEach((folder, row) ->
+                System.out.printf("%-8s %2d file(s) %5d bytes%n", folder, row[0], row[1]));
+    }
+}
+```
+
+`root.relativize(p.getParent())` turns an absolute or nested path into `2026/q1`, which is the part a report should show. A `TreeMap` sorts the folders without a second sort call. The size lookup needs its own try because a lambda cannot pass a checked `IOException` to the surrounding `main`.
+
+`Files.walk(root, 2)` limits the depth: 1 is the root's children, 2 adds grandchildren. Do not delete files inside the stream that produced them; collect the paths first, then act.
+
+### Example 11: Publish through a temp file
+
+Writing the final report in place means a crash halfway leaves a truncated file. Write a temp file beside the target, then move it over the target in one step.
+
+```java
+// File: PublishFile.java
+// Data shape: staging Path -> final Path in one move, plus one audit line per run
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+
+public class PublishFile {
+
+    public static void main(String[] args) throws IOException {
+        Path outDir = Path.of("out");
+        Files.createDirectories(outDir);
+        Path target = outDir.resolve("report.txt");
+        Path log = outDir.resolve("publish.log");
+
+        // Temp file in the same folder, so the move stays on one filesystem.
+        Path staging = Files.createTempFile(outDir, "report-", ".tmp");
+        try {
+            Files.writeString(staging, "rows=3\n", StandardCharsets.UTF_8);
+            Files.move(staging, target,
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+        } finally {
+            // After a successful move there is nothing to delete, and this is harmless.
+            Files.deleteIfExists(staging);
+        }
+
+        // Append one line per run. CREATE covers the very first run.
+        Files.writeString(log, "published " + target.getFileName() + "\n",
+                StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+
+        System.out.println(Files.readString(target, StandardCharsets.UTF_8).trim());
+        System.out.println("log lines: " + Files.readAllLines(log, StandardCharsets.UTF_8).size());
+    }
+}
+```
+
+`createTempFile` generates a unique name, so two runs cannot collide. Putting it in `out` keeps the later move on one filesystem, where it is a rename instead of a copy and delete. `ATOMIC_MOVE` asks for that rename as a single step; a filesystem that cannot do it throws `AtomicMoveNotSupportedException`, so drop the option if the exam machine complains. The `finally` covers the failed path, and `deleteIfExists` stays quiet when the move already consumed the temp file.
+
+### Example 12: File attributes in one snapshot
+
+`Files.exists` answers one question. A report needs several, and `readAttributes` returns them together.
+
+```java
+// File: FileFacts.java
+// Data shape: Path -> one attribute snapshot {size, type, timestamps, flags}
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
+
+public class FileFacts {
+
+    public static void main(String[] args) throws IOException {
+        Path file = Path.of("facts.txt");
+        Files.writeString(file, "hello\n");
+
+        // One call, one snapshot. Cheaper and more consistent than four probes.
+        BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+
+        System.out.println("name       " + file.getFileName());
+        System.out.println("size       " + attrs.size() + " bytes");
+        System.out.println("directory  " + attrs.isDirectory());
+        System.out.println("regular    " + attrs.isRegularFile());
+
+        FileTime modified = attrs.lastModifiedTime();
+        System.out.println("modified   " + modified.toInstant());
+        System.out.println("age secs   "
+                + (Instant.now().getEpochSecond() - modified.toInstant().getEpochSecond()));
+
+        // exists follows links. None of these prove the next write will succeed.
+        System.out.println("readable   " + Files.isReadable(file));
+        System.out.println("writable   " + Files.isWritable(file));
+        System.out.println("exists     " + Files.exists(file));
+    }
+}
+```
+
+`attrs.size()` on a directory is not the sum of its contents; it is a number the filesystem reports and it differs between platforms. `lastModifiedTime` returns a `FileTime`, and `toInstant()` is the bridge to `java.time`. The three `Files.is...` calls repeat the path lookup; the attributes object already answers size and type, but it holds no permission bits. On Linux those come from `PosixFileAttributes`, on Windows from an `AclFileAttributeView`, so an answer that only needs size and dates should stay with `BasicFileAttributes`.
+
+### Example 13: Rewrite a file through two resources
+
+A conversion reads one file and writes another. Both belong in the same `try`, so the writer flushes before the read that follows.
+
+```java
+// File: RewriteCsv.java
+// Data shape: pipe separated rows in -> comma separated rows out, blank rows dropped
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+
+public class RewriteCsv {
+
+    public static void main(String[] args) throws IOException {
+        Path input = Path.of("rooms.psv");
+        Path output = Path.of("out", "rooms.csv");
+
+        if (!Files.exists(input)) {
+            Files.writeString(input, "room_id|city|beds\n101|Budapest|2\n\n102|Szeged|3\n");
+        }
+        Files.createDirectories(output.getParent());
+
+        int written = 0;
+
+        // Two resources, one try. The writer closes first, the reader last.
+        try (BufferedReader reader = Files.newBufferedReader(input, StandardCharsets.UTF_8);
+             BufferedWriter writer = Files.newBufferedWriter(output, StandardCharsets.UTF_8,
+                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isBlank()) {
+                    continue;               // an empty row, not a one field row
+                }
+                String[] fields = line.split("\\|", -1);
+                writer.write(String.join(",", fields));
+                writer.newLine();           // platform line separator
+                written++;
+            }
+        }
+
+        System.out.println("wrote " + written + " row(s)");
+        System.out.println(Files.readString(output, StandardCharsets.UTF_8));
+    }
+}
+```
+
+Closing order is reverse of declaration: the writer closes first, so its buffer reaches the disk before anything reads the output. `newLine()` writes the platform separator, which is why the same program produces CRLF on Windows and LF on Linux. If the task compares output byte for byte, write `"\n"` explicitly instead.
+
+Two edge cases are missing on purpose. A quoted field that contains a comma survives this conversion only because the input separator is a pipe; a real CSV to CSV rewrite needs the quoted field parser from the command reference.
+
+### Example 14: Scanner with your own delimiter
+
+`Scanner` splits on whitespace by default. A config file needs a different pattern, and the pattern is one call.
+
+```java
+// File: ReadConfig.java
+// Data shape: "key=value;" pairs -> Map<String, String>, file order kept
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Scanner;
+
+public class ReadConfig {
+
+    public static void main(String[] args) throws IOException {
+        Path file = Path.of("app.conf");
+        Files.writeString(file, "host=localhost;port=8080;mode=test;\n");
+
+        Map<String, String> config = new LinkedHashMap<>();
+
+        // useDelimiter replaces the whitespace default. The regex splits on ; and line breaks.
+        try (Scanner scanner = new Scanner(file, StandardCharsets.UTF_8)
+                .useDelimiter("[;\\r\\n]+")) {
+            while (scanner.hasNext()) {
+                String pair = scanner.next().trim();
+                if (pair.isEmpty() || pair.startsWith("#")) {
+                    continue;
+                }
+                int split = pair.indexOf('=');
+                if (split <= 0) {
+                    System.out.println("bad pair: " + pair);
+                    continue;
+                }
+                config.put(pair.substring(0, split), pair.substring(split + 1));
+            }
+        }
+
+        for (Map.Entry<String, String> entry : config.entrySet()) {
+            System.out.println(entry.getKey() + " -> " + entry.getValue());
+        }
+    }
+}
+```
+
+`hasNext` and `next` work on tokens, so the newline after the last pair produces no empty token once the delimiter class covers it. `LinkedHashMap` keeps the file order, which makes a printed config readable. The `split <= 0` test rejects both a missing `=` and a line that starts with one, and the loop continues instead of ending the parse.
+
 ## Common mistakes
 
 - `new FileReader("file.txt")` without a charset. Accented text breaks on a machine whose default is not UTF-8.

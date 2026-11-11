@@ -660,6 +660,610 @@ Read it in order and each block answers one exam style question: count, distinct
 rows, group, sort, rank, queue. The structures change because the question changes, not because
 the code got fancy.
 
+## More examples
+
+These programs go past the first five. Each one is a complete file, compiled with `javac`
+21, and each answers a question that appears in the exam in a slightly different wording.
+
+### Example 6: frequency counting, flat and nested
+
+The first counting loop in an exam is usually a single map of counters. The second one
+nests: cities that hold hotels that hold nights. Both use `merge`, and the outer map is a
+`TreeMap` so the printout needs no sort call.
+
+```java
+// File: FrequencyReport.java
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+/**
+ * FrequencyReport answers the counting questions in one pass: how many rows per
+ * city, how many nights per hotel inside each city, and which cities lead.
+ *
+ * Run:
+ *   javac FrequencyReport.java
+ *   java FrequencyReport
+ */
+public class FrequencyReport {
+
+    record Booking(String customerEmail, String city, String hotelName, int nights) {
+    }
+
+    public static void main(String[] args) {
+        // Data shape: List<Booking>, one element per row, order as read.
+        List<Booking> bookings = new ArrayList<>(List.of(
+                new Booking("anna@example.com", "Budapest", "Danube View", 3),
+                new Booking("bela@example.com", "Vienna", "Alpen Hof", 4),
+                new Booking("anna@example.com", "Budapest", "City Inn", 1),
+                new Booking("csilla@example.com", "Praha", "City Inn", 2),
+                new Booking("dora@example.com", "Budapest", "Danube View", 5),
+                new Booking("evelin@example.com", "Vienna", "Alpen Hof", 1)));
+
+        // Flat frequency: city to number of rows. merge() inserts 1 or adds to the old value.
+        // Data shape: Map<String, Integer>, city to row count.
+        Map<String, Integer> rowsByCity = new HashMap<>();
+        for (Booking b : bookings) {
+            rowsByCity.merge(b.city(), 1, Integer::sum);
+        }
+
+        // Nights per city, in a TreeMap so the printout is alphabetical with no sort call.
+        // Data shape: Map<String, Integer>, city to summed nights.
+        Map<String, Integer> nightsByCity = new TreeMap<>();
+        for (Booking b : bookings) {
+            nightsByCity.merge(b.city(), b.nights(), Integer::sum);
+        }
+
+        // Nested frequency: city to hotel to nights.
+        // Data shape: Map<String, Map<String, Integer>>, outer key ordered.
+        Map<String, Map<String, Integer>> nightsByCityHotel = new TreeMap<>();
+        for (Booking b : bookings) {
+            nightsByCityHotel
+                    .computeIfAbsent(b.city(), key -> new TreeMap<>())
+                    .merge(b.hotelName(), b.nights(), Integer::sum);
+        }
+
+        System.out.println("Rows per city: " + rowsByCity);
+        System.out.println("Nights per city: " + nightsByCity);
+
+        System.out.println("\nNights per hotel inside each city:");
+        for (Map.Entry<String, Map<String, Integer>> city : nightsByCityHotel.entrySet()) {
+            for (Map.Entry<String, Integer> hotel : city.getValue().entrySet()) {
+                System.out.printf("  %-9s %-12s %d%n",
+                        city.getKey(), hotel.getKey(), hotel.getValue());
+            }
+        }
+
+        // Ranking needs a list: a map has no order, and the sort key is the value.
+        // Data shape: List<Map.Entry<String, Integer>>, sorted by value descending.
+        List<Map.Entry<String, Integer>> ranking = new ArrayList<>(nightsByCity.entrySet());
+        ranking.sort(Map.Entry.<String, Integer>comparingByValue().reversed()
+                .thenComparing(Map.Entry.comparingByKey()));
+
+        System.out.println("\nTop cities by nights:");
+        ranking.stream().limit(2).forEach(e ->
+                System.out.printf("  %-9s %d%n", e.getKey(), e.getValue()));
+
+        // The total comes from the map, so the list is not walked a second time.
+        int total = 0;
+        for (int nights : nightsByCity.values()) {
+            total += nights;
+        }
+        System.out.println("\nTotal nights: " + total);
+
+        // Comparator on the entries again, this time ascending, to show the flip.
+        ranking.sort(Comparator.comparing(Map.Entry::getKey));
+        System.out.println("Alphabetical: " + ranking.get(0).getKey());
+    }
+}
+```
+
+`merge` does three jobs in one call: it inserts the first value, adds to an existing value,
+and never leaves a null behind. The nested map works the same way once `computeIfAbsent`
+creates the inner map. The ranking at the end converts entries to a list because a map has
+no order to sort.
+
+### Example 7: equals and hashCode in one class
+
+A hand written key class is the fastest way to lose rows in a map. This program shows a
+correct key, the same key as a record, and two ways to break the contract.
+
+```java
+// File: KeyContract.java
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+/**
+ * KeyContract shows why a key class needs both equals and hashCode, and what
+ * happens to a key that changes after it entered the map.
+ *
+ * Run:
+ *   javac KeyContract.java
+ *   java KeyContract
+ */
+public class KeyContract {
+
+    /** A key written by hand: equals and hashCode must agree on the same fields. */
+    static final class RoomKey {
+        private final int hotelId;
+        private final int roomNumber;
+
+        RoomKey(int hotelId, int roomNumber) {
+            this.hotelId = hotelId;
+            this.roomNumber = roomNumber;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            // Identity first: cheap and it protects the cast below.
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof RoomKey)) {
+                return false;
+            }
+            RoomKey that = (RoomKey) other;
+            return hotelId == that.hotelId && roomNumber == that.roomNumber;
+        }
+
+        @Override
+        public int hashCode() {
+            // The same two fields as equals, in the same order. Objects.hash is a readable default.
+            return Objects.hash(hotelId, roomNumber);
+        }
+
+        @Override
+        public String toString() {
+            return hotelId + "/" + roomNumber;
+        }
+    }
+
+    /** The same key as a record: equals, hashCode, and toString are generated. */
+    record RoomRef(int hotelId, int roomNumber) {
+    }
+
+    public static void main(String[] args) {
+        // Data shape: Map<RoomKey, String>, room to guest email.
+        Map<RoomKey, String> guestByRoom = new HashMap<>();
+        guestByRoom.put(new RoomKey(7, 101), "anna@example.com");
+        guestByRoom.put(new RoomKey(7, 102), "bela@example.com");
+
+        // A fresh key object with the same values finds the entry, because equals says they match.
+        String guest = guestByRoom.get(new RoomKey(7, 101));
+        System.out.println("Guest in 7/101: " + guest);
+
+        // A set deduplicates on the same pair of methods.
+        // Data shape: Set<RoomRef>, unique rooms.
+        Set<RoomRef> rooms = new HashSet<>();
+        System.out.println("first add: " + rooms.add(new RoomRef(7, 101)));
+        System.out.println("second add: " + rooms.add(new RoomRef(7, 101)));
+        System.out.println("rooms: " + rooms);
+
+        // The record version behaves identically and needs no code.
+        Map<RoomRef, Integer> nightsByRoom = new HashMap<>();
+        nightsByRoom.put(new RoomRef(7, 101), 3);
+        System.out.println("nights: " + nightsByRoom.get(new RoomRef(7, 101)));
+
+        // Broken variant: a key whose hashCode changes after insertion.
+        // The entry stays in the old bucket, so get() with an equal key misses it.
+        Map<RoomRef, Integer> stable = new HashMap<>();
+        RoomRef key = new RoomRef(8, 5);
+        stable.put(key, 2);
+        System.out.println("lookup before change: " + stable.get(new RoomRef(8, 5)));
+
+        // A record field is final, so this cannot happen to RoomRef. A mutable class can do it:
+        MutableKey mutable = new MutableKey("budapest");
+        Set<MutableKey> keys = new HashSet<>();
+        keys.add(mutable);
+        mutable.city = "vienna";     // the hash changed, the bucket did not
+        System.out.println("contains after mutation: " + keys.contains(new MutableKey("vienna")));
+
+        // With equals but no hashCode, two equal objects land in different buckets.
+        Set<NoHash> broken = new HashSet<>();
+        broken.add(new NoHash("budapest"));
+        System.out.println("equals only, contains: " + broken.contains(new NoHash("budapest")));
+    }
+
+    static final class MutableKey {
+        String city;
+
+        MutableKey(String city) {
+            this.city = city;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof MutableKey && city.equals(((MutableKey) other).city);
+        }
+
+        @Override
+        public int hashCode() {
+            return city.hashCode();
+        }
+    }
+
+    static final class NoHash {
+        final String city;
+
+        NoHash(String city) {
+            this.city = city;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof NoHash && city.equals(((NoHash) other).city);
+        }
+    }
+}
+```
+
+The `NoHash` class produces the warning `overrides equals, but neither it nor any superclass
+overrides hashCode` under `javac -Xlint:all`, which is the compiler telling you the set
+lookup will fail. The mutable key program prints `false` after the field changes, because
+the entry stayed in the bucket it was hashed into.
+
+### Example 8: editing a LinkedList and reusing it as a queue
+
+`LinkedList` earns its place in two jobs: inserting in the middle through a cursor, and
+walking backwards. Everything else on the page uses it as a queue, where `ArrayDeque` is the
+better class.
+
+```java
+// File: MidListEdits.java
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.ListIterator;
+import java.util.Queue;
+
+/**
+ * MidListEdits edits a linked list in place and then uses the same class as a
+ * queue, which is the only situation where LinkedList beats ArrayList outright.
+ *
+ * Run:
+ *   javac MidListEdits.java
+ *   java MidListEdits
+ */
+public class MidListEdits {
+
+    record Task(String name, int priority) {
+    }
+
+    public static void main(String[] args) {
+        // Data shape: LinkedList<Task>, insertion order, edited through cursors.
+        LinkedList<Task> agenda = new LinkedList<>();
+        agenda.add(new Task("print arrivals", 2));
+        agenda.add(new Task("close till", 1));
+        agenda.add(new Task("answer mail", 3));
+
+        // ListIterator can insert, replace, and walk backwards. A for-each cannot.
+        ListIterator<Task> cursor = agenda.listIterator();
+        while (cursor.hasNext()) {
+            Task task = cursor.next();
+            if (task.priority() >= 2) {
+                // Insert before the cursor: the node links change, no array shifts.
+                cursor.add(new Task("check " + task.name(), task.priority()));
+            }
+            if (task.name().equals("close till")) {
+                cursor.set(new Task("close till and count cash", task.priority()));
+            }
+        }
+
+        System.out.println("Agenda:");
+        agenda.forEach(t -> System.out.printf("  [%d] %s%n", t.priority(), t.name()));
+
+        // Backwards walk: only a ListIterator or a descendingIterator can do this.
+        System.out.println("Last task first:");
+        for (ListIterator<Task> back = agenda.listIterator(agenda.size()); back.hasPrevious(); ) {
+            System.out.println("  " + back.previous().name());
+        }
+
+        // Iterator removal is the safe delete. removeIf would do the same in one line.
+        Iterator<Task> walk = agenda.iterator();
+        while (walk.hasNext()) {
+            if (walk.next().name().startsWith("check ")) {
+                walk.remove();
+            }
+        }
+        System.out.println("After cleanup: " + agenda.size() + " task(s)");
+
+        // Queue view: offer adds at the tail, poll takes from the head, null means empty.
+        // Data shape: Queue<Task> holding pending work in arrival order.
+        Queue<Task> pending = new ArrayDeque<>(agenda);
+        while (!pending.isEmpty()) {
+            Task next = pending.poll();
+            System.out.println("Working on: " + next.name());
+        }
+
+        // Deque as a stack: push and pop work on the front, so the order reverses.
+        // Data shape: Deque<String> for the undo history.
+        Deque<String> undo = new ArrayDeque<>();
+        undo.push("drop row 4");
+        undo.push("edit row 2");
+        System.out.println("Undo first: " + undo.pop());
+        System.out.println("Undo next: " + undo.pop());
+        System.out.println("Nothing left: " + undo.peek());
+    }
+}
+```
+
+`ListIterator.add` inserts at the cursor and does not disturb the walk, unlike a `List.add`
+inside a for-each loop, which throws `ConcurrentModificationException`. The `Queue` variable
+hides the implementation, so the same code runs on an `ArrayDeque` or a `PriorityQueue`.
+
+### Example 9: ranges and neighbours with TreeMap and TreeSet
+
+A sorted map answers questions a `HashMap` cannot: what comes before this key, what falls
+inside a range, and what is the next key up. The methods are `floorKey`, `ceilingKey`,
+`headMap`, `tailMap`, and `subMap`.
+
+```java
+// File: RangeReport.java
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.NavigableSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
+
+/**
+ * RangeReport answers the questions that need sorted keys: which year comes
+ * before this one, what falls inside a range, and what the neighbours are.
+ *
+ * Run:
+ *   javac RangeReport.java
+ *   java RangeReport
+ */
+public class RangeReport {
+
+    record Booking(String city, String hotelName, int nights, int total) {
+    }
+
+    public static void main(String[] args) {
+        List<Booking> bookings = List.of(
+                new Booking("Budapest", "Danube View", 3, 240),
+                new Booking("Vienna", "Alpen Hof", 4, 380),
+                new Booking("Budapest", "City Inn", 1, 60),
+                new Booking("Praha", "City Inn", 2, 120),
+                new Booking("Budapest", "Danube View", 5, 400));
+
+        // Data shape: TreeMap<String, Integer>, hotel to revenue, keys kept sorted.
+        NavigableMap<String, Integer> revenueByHotel = new TreeMap<>();
+        for (Booking b : bookings) {
+            revenueByHotel.merge(b.hotelName(), b.total(), Integer::sum);
+        }
+
+        System.out.println("All hotels: " + revenueByHotel);
+
+        // Neighbours without a scan: floor is at or below, ceiling is at or above.
+        System.out.println("At or before Danube View: " + revenueByHotel.floorKey("Danube View"));
+        System.out.println("At or after Danube View:  " + revenueByHotel.ceilingKey("Danube View"));
+        System.out.println("First and last: " + revenueByHotel.firstKey()
+                + ", " + revenueByHotel.lastKey());
+
+        // Range views are backed by the map: subMap includes the low key, excludes the high key.
+        System.out.println("A to C: " + revenueByHotel.subMap("A", "D"));
+        System.out.println("From Danube View up: " + revenueByHotel.tailMap("Danube View", true));
+
+        // Descending view, no copy, no sort call.
+        System.out.println("Descending: " + revenueByHotel.descendingMap());
+
+        // A custom key order: longest hotel name first is meaningless, so reverse alphabetical here.
+        // Data shape: Map<String, Integer> with a Comparator on the keys.
+        Map<String, Integer> reverse = new TreeMap<>(Comparator.reverseOrder());
+        reverse.putAll(revenueByHotel);
+        System.out.println("Reverse keys: " + reverse);
+
+        // Data shape: TreeSet<Integer>, years present in the data, sorted and unique.
+        NavigableSet<Integer> years = new TreeSet<>(List.of(2021, 2023, 2024, 2026));
+        System.out.println("First after 2022: " + years.higher(2022));
+        System.out.println("Last before 2026: " + years.lower(2026));
+        System.out.println("Up to 2024: " + years.headSet(2024, true));
+        System.out.println("From 2023: " + years.tailSet(2023));
+
+        // A reminder about the comparator: ties compare as 0 and one row disappears.
+        // Data shape: TreeSet<Booking> ordered by nights only, so equal totals collide.
+        TreeSet<Booking> byNights = new TreeSet<>(Comparator.comparingInt(Booking::nights));
+        byNights.add(new Booking("Budapest", "Danube View", 3, 240));
+        byNights.add(new Booking("Vienna", "Alpen Hof", 3, 380));   // dropped: same nights
+        System.out.println("Rows kept by the nights comparator: " + byNights.size());
+
+        // Add a tie breaker and both rows survive: the comparator is the identity here.
+        TreeSet<Booking> safe = new TreeSet<>(Comparator
+                .comparingInt(Booking::nights)
+                .thenComparing(Booking::hotelName)
+                .thenComparing(Booking::city));
+        safe.addAll(List.of(
+                new Booking("Budapest", "Danube View", 3, 240),
+                new Booking("Vienna", "Alpen Hof", 3, 380)));
+        System.out.println("Rows kept with a tie breaker: " + safe.size());
+    }
+}
+```
+
+`subMap` includes the low key and excludes the high key unless you pass the boolean flags.
+Views are backed by the original map, so a write through the view is a write to the map. The
+last block prints the classic `TreeSet` failure: two bookings with equal nights compare as 0
+and one disappears, until a tie breaker is added.
+
+### Example 10: an LRU cache with LinkedHashMap
+
+A cache with a size limit is one subclass when the map already tracks order. `LinkedHashMap`
+keeps either insertion order or access order, and one overridden method decides what to
+evict.
+
+```java
+// File: LruCache.java
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * LruCache keeps the last N keys used and drops the least recently used one.
+ * LinkedHashMap already maintains the order, so the whole cache is one hashCode-free
+ * override of removeEldestEntry.
+ *
+ * Run:
+ *   javac LruCache.java
+ *   java LruCache
+ */
+public class LruCache<K, V> extends LinkedHashMap<K, V> {
+
+    private final int capacity;
+
+    /** accessOrder true moves a key to the end on every get, which is the LRU part. */
+    LruCache(int capacity) {
+        super(capacity, 0.75f, true);
+        this.capacity = capacity;
+    }
+
+    @Override
+    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+        // Returning true makes put() delete the head of the order, so size never passes capacity.
+        return size() > capacity;
+    }
+
+    public static void main(String[] args) {
+        // Data shape: LruCache<String, Integer>, hotel name to nightly price, max 3 entries.
+        LruCache<String, Integer> prices = new LruCache<>(3);
+
+        prices.put("Danube View", 80);
+        prices.put("Alpen Hof", 95);
+        prices.put("City Inn", 60);
+        System.out.println("After three puts: " + prices);
+
+        // A get counts as a use, so Danube View moves to the most recent end.
+        prices.get("Danube View");
+
+        // The fourth put evicts the head of the order, which is now Alpen Hof.
+        prices.put("Park Hotel", 110);
+        System.out.println("After eviction: " + prices.keySet());
+        System.out.println("Alpen Hof still cached: " + prices.containsKey("Alpen Hof"));
+        System.out.println("Danube View still cached: " + prices.containsKey("Danube View"));
+
+        // A plain LinkedHashMap with insertion order keeps the first key at the head instead.
+        // Data shape: Map<String, Integer> in insertion order, useful for a stable report.
+        Map<String, Integer> insertionOrder = new LinkedHashMap<>();
+        insertionOrder.put("first", 1);
+        insertionOrder.put("second", 2);
+        insertionOrder.put("first", 3);   // same key, position unchanged, value replaced
+        System.out.println("Insertion order: " + insertionOrder);
+
+        // Re-inserting in access order would move the key to the end of this map.
+        Map<String, Integer> accessOrder = new LinkedHashMap<>(4, 0.75f, true);
+        accessOrder.put("a", 1);
+        accessOrder.put("b", 2);
+        accessOrder.get("a");
+        System.out.println("Access order: " + accessOrder.keySet());
+    }
+}
+```
+
+The constructor argument `true` is access order, so `get` moves a key to the most recent
+end. `removeEldestEntry` runs after every `put` and returns true when the map is over
+capacity, which makes `put` remove the head. The same class with `false` gives insertion
+order, the shape you want for a stable report.
+
+### Example 11: sorting the same record four ways
+
+One record, four comparators: a report order with one descending key, a fully reversed
+chain, field order, and a null safe order. The program also shows the difference between
+sorting a list and inserting into a `TreeSet`.
+
+```java
+// File: SortRecords.java
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
+
+/**
+ * SortRecords sorts the same record four ways and shows where a missing tie
+ * breaker bites: a sort keeps every row, a TreeSet drops the ties.
+ *
+ * Run:
+ *   javac SortRecords.java
+ *   java SortRecords
+ */
+public class SortRecords {
+
+    record Booking(String city, String hotelName, int nights, int total) {
+    }
+
+    public static void main(String[] args) {
+        // Data shape: List<Booking>, the rows to sort, order as read.
+        List<Booking> bookings = new ArrayList<>(List.of(
+                new Booking("Budapest", "Danube View", 3, 240),
+                new Booking("Vienna", "Alpen Hof", 4, 380),
+                new Booking("Praha", "City Inn", 2, 120),
+                new Booking("Budapest", "City Inn", 1, 240),
+                new Booking("Vienna", "Alpen Hof", 2, 190)));
+
+        // Comparator 1: city ascending, revenue descending, name ascending.
+        // reversed() sits on the revenue key only, so city and name stay ascending.
+        Comparator<Booking> report = Comparator
+                .comparing(Booking::city)
+                .thenComparing(Comparator.comparingInt(Booking::total).reversed())
+                .thenComparing(Booking::hotelName);
+
+        List<Booking> byReport = new ArrayList<>(bookings);
+        byReport.sort(report);
+        System.out.println("Report order:");
+        byReport.forEach(b -> System.out.printf("  %-9s %-12s %4d%n",
+                b.city(), b.hotelName(), b.total()));
+
+        // Comparator 2: the whole chain flipped. reversed() goes last.
+        List<Booking> longestFirst = new ArrayList<>(bookings);
+        longestFirst.sort(Comparator.comparingInt(Booking::nights).reversed()
+                .thenComparing(Booking::hotelName));
+        System.out.println("\nLongest stay first: " + longestFirst.get(0).nights() + " nights");
+
+        // Comparator 3: natural order of the record fields, one after another.
+        List<Booking> natural = new ArrayList<>(bookings);
+        natural.sort(Comparator.comparing(Booking::city)
+                .thenComparing(Booking::hotelName)
+                .thenComparingInt(Booking::nights));
+        System.out.println("First row in field order: " + natural.get(0));
+
+        // Stability: equal keys keep their input order, so the second Budapest row stays second.
+        List<Booking> stable = new ArrayList<>(bookings);
+        stable.sort(Comparator.comparing(Booking::city));
+        System.out.println("\nStable sort, equal cities:");
+        stable.stream().filter(b -> b.city().equals("Budapest"))
+                .forEach(b -> System.out.println("  " + b.hotelName() + " " + b.nights()));
+
+        // Queue: a smallest-first work list. PriorityQueue orders by the comparator, not by arrival.
+        // Data shape: Queue<Booking> with the shortest stay on top.
+        Queue<Booking> shortestFirst = new PriorityQueue<>(
+                Comparator.comparingInt(Booking::nights));
+        shortestFirst.addAll(bookings);
+        System.out.println("\nPriority queue poll order:");
+        while (!shortestFirst.isEmpty()) {
+            System.out.println("  " + shortestFirst.poll().nights() + " nights");
+        }
+
+        // Comparator with nulls: a missing total sorts last instead of throwing.
+        // Data shape: List<Integer>, one total per row, some rows have no price yet.
+        List<Integer> totals = new ArrayList<>(List.of(240, 380, 120));
+        totals.add(null);
+        totals.sort(Comparator.nullsLast(Comparator.naturalOrder()));
+        System.out.println("\nNulls last: " + totals);
+    }
+}
+```
+
+A sort keeps every row and is stable, so equal keys keep their input order. A `TreeSet` uses
+the comparator as identity and drops rows that compare as 0. `nullsLast` is the cheap fix
+for a column that is not filled in yet, because `Comparator.naturalOrder()` throws on null.
+
 ## Common mistakes
 
 - Calling `get(i)` inside a loop over a `LinkedList`. Each call walks the chain, so the loop

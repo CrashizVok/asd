@@ -1,0 +1,101 @@
+[
+  {
+    "id": "java-csv-json-extra-bom-header",
+    "group": "CSV",
+    "name": "BOM in the header line",
+    "syntax": "if (header.startsWith(\"\\uFEFF\")) header = header.substring(1);",
+    "desc": "A UTF-8 file saved on Windows can start with a byte order mark, which attaches to the first header name and breaks a lookup by that name.",
+    "example": "List<String> lines = Files.readAllLines(Path.of(\"hotels.csv\"), StandardCharsets.UTF_8);\nif (lines.isEmpty()) {\n    return;   // nothing to read\n}\n\nString headerLine = lines.get(0);\n// After readAllLines the BOM is one char, not three bytes.\nif (headerLine.startsWith(\"\\uFEFF\")) {\n    headerLine = headerLine.substring(1);\n}\nString[] header = headerLine.split(\",\", -1);\n\n// Without the strip, header[0] is \"\\uFEFFhotel_id\" and containsKey(\"hotel_id\") is false.\nSystem.out.println(header[0]);",
+    "body": "The mark appears only at the start of the file, so strip it once from the header line and nowhere else. `Files.readString` behaves the same way: the decoder has already turned the three bytes into `\\uFEFF`.\n\nIf the file also uses a header you did not write, print the raw first header name with brackets around it, `System.out.println(\"[\" + header[0] + \"]\")`. An invisible character at the start of the name shows up as an extra column that the map cannot find."
+  },
+  {
+    "id": "java-csv-json-extra-delimiter-sniff",
+    "group": "CSV",
+    "name": "detect the delimiter",
+    "syntax": "headerLine.indexOf(';') >= 0 && headerLine.indexOf(',') < 0 ? \";\" : \",\"",
+    "desc": "A spreadsheet exported in a European locale often writes semicolons. Reading the first line and counting separators costs three lines and saves a file full of one-column rows.",
+    "example": "static String sniffDelimiter(String headerLine) {\n    // Semicolon present and comma absent means a semicolon file.\n    if (headerLine.indexOf(';') >= 0 && headerLine.indexOf(',') < 0) {\n        return \";\";\n    }\n    // Same test for a tab separated export.\n    if (headerLine.indexOf('\\t') >= 0 && headerLine.indexOf(',') < 0) {\n        return \"\\t\";\n    }\n    return \",\";\n}\n\nString delimiter = sniffDelimiter(headerLine);\n// Pattern.quote keeps a delimiter such as \"|\" from acting as a regex operator.\nString[] header = headerLine.split(Pattern.quote(delimiter), -1);\nSystem.out.println(header.length + \" columns, delimiter [\" + delimiter + \"]\");",
+    "body": "This is a guess from one line, so treat it as a fallback, not a parser. A header name with a quoted comma defeats the test, and so does a file that uses both characters in different roles. When the task states the separator, use that rather than sniffing.\n\nAlways pass the delimiter through `Pattern.quote` to `split`. A pipe, a dot, or a plus is a regex operator and splits somewhere unexpected. Semicolon and tab happen to be safe, but the habit keeps the code correct when the delimiter changes."
+  },
+  {
+    "id": "java-csv-json-extra-row-width",
+    "group": "CSV",
+    "name": "row width check",
+    "syntax": "if (fields.length != header.length) { report and skip }",
+    "desc": "Compares each parsed row against the header length before any index is used, so a ragged line becomes a message instead of a shifted record.",
+    "example": "String[] header = lines.get(0).split(\",\", -1);\n\nfor (int i = 1; i < lines.size(); i++) {\n    if (lines.get(i).isBlank()) {\n        continue;   // blank line between blocks\n    }\n    String[] f = lines.get(i).split(\",\", -1);\n    if (f.length != header.length) {\n        // One message with the file line number beats an exception with a stack trace.\n        System.out.println(\"line \" + (i + 1) + \": expected \" + header.length\n                + \" fields, found \" + f.length);\n        continue;\n    }\n    // Safe from here: every index in the header exists in the row.\n    System.out.println(f[0] + \" -> \" + f[2]);\n}",
+    "body": "The check runs before `col.get(\"city\")`, not after. A row with one extra field is the common shape of a stray comma in a description, and every value after the comma has moved one column to the right.\n\nKeep the `-1` in both splits. Without it a row that ends with an empty field looks shorter than the header and is reported as broken even though it is fine. Report the file line number, which is the array index plus one only when the header is the first line; count from a separate counter if you skipped anything above."
+  },
+  {
+    "id": "java-csv-json-extra-typed-default",
+    "group": "CSV",
+    "name": "typed conversion with defaults",
+    "syntax": "static Integer parseIntOrNull(String text)",
+    "desc": "Two small helpers return null for an empty or broken field, so the caller decides the default once instead of wrapping every row in a try block.",
+    "example": "static Integer parseIntOrNull(String text) {\n    String t = text.trim();\n    if (t.isEmpty()) {\n        return null;   // absent, not zero\n    }\n    try {\n        return Integer.valueOf(t);\n    } catch (NumberFormatException e) {\n        return null;   // present but broken\n    }\n}\n\nstatic LocalDate parseDateOrNull(String text) {\n    String t = text.trim();\n    if (t.isEmpty()) {\n        return null;\n    }\n    try {\n        return LocalDate.parse(t);   // strict: 2001-02-30 throws\n    } catch (DateTimeParseException e) {\n        return null;\n    }\n}\n\nInteger children = parseIntOrNull(f[4]);\nLocalDate birthday = parseDateOrNull(f[5]);\n// Empty is fine, junk is a problem. Both arrive as null, so test the text too.\nif (children == null && !f[4].trim().isEmpty()) {\n    System.out.println(\"bad children: \" + f[4]);\n}\nint safeChildren = children == null ? 0 : children;",
+    "body": "`Integer` rather than `int` is the point of the helper. A primitive has no way to say \"missing\", and the exam data has optional numeric columns such as `children` where an empty field and a zero mean different things.\n\nName the default where the record is built, not in the totals. If the task says a broken row must be dropped, record the problem and `continue`; if it says use a default, load it. Mixing the two rules across a program is how the report and the totals stop agreeing."
+  },
+  {
+    "id": "java-csv-json-extra-write-rows",
+    "group": "CSV",
+    "name": "write CSV rows",
+    "syntax": "Files.write(path, rows, StandardCharsets.UTF_8)",
+    "desc": "Writes a finished list of rows in one call, after every field has been quoted where needed.",
+    "example": "static String field(String value) {\n    if (value == null) {\n        return \"\";   // null becomes an empty field, not the text \"null\"\n    }\n    boolean needsQuotes = value.indexOf(',') >= 0 || value.indexOf('\"') >= 0\n            || value.indexOf('\\n') >= 0 || value.indexOf('\\r') >= 0;\n    return needsQuotes ? '\"' + value.replace(\"\\\"\", \"\\\"\\\"\") + '\"' : value;\n}\n\nstatic String row(String... values) {\n    StringBuilder b = new StringBuilder();\n    for (int i = 0; i < values.length; i++) {\n        if (i > 0) {\n            b.append(',');\n        }\n        b.append(field(values[i]));\n    }\n    return b.toString();\n}\n\nList<String> rows = List.of(\n        row(\"hotel_id\", \"name\", \"city\"),\n        row(\"10\", \"Danube View\", \"Budapest\"),\n        row(\"20\", \"Quote \\\"Inn\\\"\", \"Szeged\"));\nFiles.write(Path.of(\"out\", \"hotels.csv\"), rows, StandardCharsets.UTF_8);",
+    "body": "`Files.write` creates or truncates the file, adds a platform line separator after every row, and writes UTF-8. Create the folder first with `Files.createDirectories(path.getParent())`.\n\nFor a report built row by row, open a `BufferedWriter` and call `write(row)` then `newLine()` per row. `newLine()` writes the platform separator; if the file must be identical on every machine, write `\"\\n\"` explicitly and open the file with `StandardOpenOption.CREATE, TRUNCATE_EXISTING`."
+  },
+  {
+    "id": "java-csv-json-extra-json-array-manual",
+    "group": "JSON",
+    "name": "manual JSON array",
+    "syntax": "for (int i = 0; i < list.size(); i++) { if (i > 0) b.append(','); }",
+    "desc": "Builds an array without a library by putting the comma before every element except the first, which is the only way to avoid a trailing comma.",
+    "example": "StringBuilder b = new StringBuilder(\"[\\n\");\nfor (int i = 0; i < cities.size(); i++) {\n    if (i > 0) {\n        b.append(\",\\n\");   // separator before the element, never after the last\n    }\n    b.append(\"  \").append(str(cities.get(i)));\n}\nb.append(\"\\n]\");\nString json = b.toString();\n\n// Empty list must still produce [] and not a stray newline between the brackets.\nSystem.out.println(cities.isEmpty() ? \"[]\" : json);",
+    "body": "The alternative, appending a comma after every element and cutting the last one, also works but breaks as soon as the list is empty: `setLength(length - 1)` then removes a bracket.\n\nThe same rule applies one level up. A member list inside an object uses `, ` between members and no separator after the final one. A JSON parser rejects `[1,2,]` and `{\"a\":1,}` outright, so a trailing comma is a syntax error, not a style issue.\n\nWhen the array holds objects, build each object in its own method and append the returned text. That keeps the comma rule in one place and makes the nesting readable."
+  },
+  {
+    "id": "java-csv-json-extra-json-null-number",
+    "group": "JSON",
+    "name": "numbers, booleans and null by hand",
+    "syntax": "b.append(value == null ? \"null\" : value);",
+    "desc": "A number, a boolean, and a null are appended without quotes; only text goes through the string escaper.",
+    "example": "StringBuilder b = new StringBuilder(\"{\");\nb.append(\"\\\"hotel_id\\\": \").append(hotelId).append(\", \");      // 10, no quotes\nb.append(\"\\\"stars\\\": \").append(stars).append(\", \");            // 4, no quotes\nb.append(\"\\\"open\\\": \").append(open).append(\", \");              // true, no quotes\n\n// A null reference is the JSON literal null. String.valueOf(null) would be the text \"null\".\nInteger ownerId = null;\nb.append(\"\\\"owner_id\\\": \").append(ownerId == null ? \"null\" : ownerId);\nb.append('}');\n\nSystem.out.println(b);   // {\"hotel_id\": 10, \"stars\": 4, \"open\": true, \"owner_id\": null}",
+    "body": "The four scalars a hand written writer must not quote are numbers, `true`, `false`, and `null`. A quoted `\"4\"` is a string, and a reader that expects an integer throws or silently skips the field.\n\n`String.valueOf(null)` returns the four character string `null`, and `\"\" + null` does the same. Both produce `\"null\"`, which is a valid string and the wrong value. Test the reference before appending.\n\nFor money, append `BigDecimal.toPlainString()` rather than a `double`. `double` prints `19.99` fine today and `19.989999999999998` after a few sums, and the JSON parser will faithfully preserve the noise."
+  },
+  {
+    "id": "java-csv-json-extra-json-pretty-hand",
+    "group": "JSON",
+    "name": "pretty print JSON without a library",
+    "syntax": "static String pretty(String compactJson)",
+    "desc": "Indents a compact JSON string by scanning characters and tracking one flag: inside a string, where braces and commas are data.",
+    "example": "static String pretty(String json) {\n    StringBuilder out = new StringBuilder();\n    int depth = 0;\n    boolean inString = false;\n    boolean escaped = false;\n\n    for (int i = 0; i < json.length(); i++) {\n        char c = json.charAt(i);\n        if (inString) {\n            out.append(c);\n            if (escaped) {\n                escaped = false;\n            } else if (c == '\\\\') {\n                escaped = true;\n            } else if (c == '\"') {\n                inString = false;   // closing quote, structure resumes\n            }\n        } else if (c == '\"') {\n            inString = true;\n            out.append(c);\n        } else if (c == '{' || c == '[') {\n            out.append(c).append('\\n');\n            depth++;\n            out.append(\"  \".repeat(depth));\n        } else if (c == '}' || c == ']') {\n            out.append('\\n');\n            depth--;\n            out.append(\"  \".repeat(Math.max(depth, 0)));\n            out.append(c);\n        } else if (c == ',') {\n            out.append(\",\\n\").append(\"  \".repeat(depth));\n        } else if (c == ':') {\n            out.append(\": \");\n        } else if (!Character.isWhitespace(c)) {\n            out.append(c);   // whitespace outside strings is rebuilt by the indenter\n        }\n    }\n    return out.toString();\n}\n\nSystem.out.println(pretty(\"{\\\"city\\\":\\\"Budapest\\\",\\\"tags\\\":[\\\"river\\\"]}\"));",
+    "body": "The `escaped` flag is not optional. Without it the value `\"say \\\"hi\\\"\"` closes the string at the first escaped quote, and every following character is treated as structure.\n\nThe printer does not validate. It never checks that braces match, and it copies an unescaped control character through. An empty object comes out as an opening brace, a newline, a closing brace, which is valid JSON and not what a library would print.\n\nWhen Jackson is on the classpath, `mapper.writerWithDefaultPrettyPrinter().writeValueAsString(mapper.readTree(json))` does the same job with correct handling of every case."
+  },
+  {
+    "id": "java-csv-json-extra-jackson-list",
+    "group": "Jackson",
+    "name": "readValue with TypeReference",
+    "syntax": "mapper.readValue(json, new TypeReference<List<Hotel>>() { })",
+    "desc": "Deserializes a JSON array into a typed list. TypeReference carries the element type past type erasure.",
+    "example": "ObjectMapper mapper = new ObjectMapper()\n        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);\n\nrecord Hotel(int hotel_id, String name, String city, int stars) { }\n\nString json = \"\"\"\n        [{\"hotel_id\": 10, \"name\": \"Danube View\", \"city\": \"Budapest\", \"stars\": 4,\n          \"owner_email\": \"owner@example.com\"}]\n        \"\"\";\n\nList<Hotel> hotels = mapper.readValue(json, new TypeReference<List<Hotel>>() { });\nfor (Hotel h : hotels) {\n    System.out.println(h.hotel_id() + \" \" + h.name());\n}\n// Without the TypeReference the list would hold LinkedHashMap and the cast would fail.",
+    "body": "`new TypeReference<List<Hotel>>() { }` is anonymous on purpose: the empty braces keep the generic type in the class file, where `readValue` can read it. A plain `List.class` loses the element type.\n\nRecords work from Jackson 2.12 without extra configuration, because component names match the JSON keys. If the JSON uses different names, put `@JsonProperty(\"hotel_id\")` on the component. A class with no default constructor and no creator annotation fails with `InvalidDefinitionException`.\n\nAn unknown property such as `owner_email` throws unless `FAIL_ON_UNKNOWN_PROPERTIES` is off or the class carries `@JsonIgnoreProperties(ignoreUnknown = true)`. Set that once on the mapper, not per call."
+  },
+  {
+    "id": "java-csv-json-extra-jackson-array",
+    "group": "Jackson",
+    "name": "walk a JSON array",
+    "syntax": "for (JsonNode item : arrayNode)",
+    "desc": "readTree returns an ArrayNode for a JSON array, and the enhanced for loop yields its elements without indexes.",
+    "example": "JsonNode root = mapper.readTree(json);\nSystem.out.println(root.size());          // number of elements in the array\n\nfor (JsonNode node : root) {\n    String name = node.path(\"name\").asText(\"?\");\n\n    // path() returns a MissingNode when the key is absent; get() returns null.\n    String owner = node.path(\"owner_email\").asText(\"none\");\n\n    // An array of strings iterates the same way.\n    StringBuilder tags = new StringBuilder();\n    for (JsonNode tag : node.path(\"tags\")) {\n        if (tags.length() > 0) {\n            tags.append('/');\n        }\n        tags.append(tag.asText());\n    }\n    System.out.println(name + \" owner=\" + owner + \" tags=\" + tags);\n}",
+    "body": "`asText(default)` is the safe read for a field that may be missing or null. `asInt(0)` and `asBoolean(false)` take the same default argument. `textValue()` returns `null` for a non textual node, so use it only when the type is already known.\n\nA JSON object also iterates, but then the loop yields its values and the keys are lost. Walk the keys with `fieldNames()` or `properties()` when the shape is unknown.\n\nCast to `ArrayNode` only after `isArray()` or when the document is known. A `TextNode` cast to `ArrayNode` throws `ClassCastException`, and `path(\"tags\")` on an absent key gives a `MissingNode`, which is not an array either."
+  },
+  {
+    "id": "java-csv-json-extra-jackson-pretty",
+    "group": "Jackson",
+    "name": "writerWithDefaultPrettyPrinter",
+    "syntax": "mapper.writerWithDefaultPrettyPrinter().writeValueAsString(obj)",
+    "desc": "Serializes with two space indentation, for a report a person reads. The plain writeValueAsString stays compact.",
+    "example": "ObjectMapper mapper = new ObjectMapper();\n\nList<Hotel> hotels = List.of(\n        new Hotel(10, \"Danube View\", \"Budapest\"));\n\n// Compact: one line, for a request body or a log entry.\nString compact = mapper.writeValueAsString(hotels);\n\n// Indented: for a file the examiner or a human opens.\nString pretty = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(hotels);\nSystem.out.println(pretty);\n\n// Straight to a file, UTF-8, no intermediate String.\nPath out = Path.of(\"out\", \"hotels.json\");\nFiles.createDirectories(out.getParent());\nmapper.writerWithDefaultPrettyPrinter().writeValue(out.toFile(), hotels);",
+    "body": "The pretty printer is a writer setting, so it can be reused: keep `ObjectWriter pretty = mapper.writerWithDefaultPrettyPrinter()` in a field when several files are written.\n\nThe exact layout is Jackson's choice, including spaces before colons and arrays kept on one line when short. Do not compare the text in a test; parse it and compare values instead.\n\nWriting to a `Path` needs `toFile()`, because the `writeValue` overload takes `File`, `OutputStream`, or `Writer`. `Files.writeString(out, pretty, StandardCharsets.UTF_8)` is the two step version when the string is needed anyway."
+  }
+]

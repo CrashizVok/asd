@@ -1,0 +1,101 @@
+[
+  {
+    "id": "java-oop-extra-immutable-class",
+    "group": "Immutability",
+    "name": "immutable class",
+    "syntax": "final class Name { private final T field; }",
+    "desc": "A class whose state cannot change after construction. Every method that would change it returns a new object instead.",
+    "example": "final class Money {\n    private final long amountMinor;        // cents, never a double\n    private final String currency;\n\n    private Money(long amountMinor, String currency) {\n        this.amountMinor = amountMinor;\n        this.currency = currency;\n    }\n\n    static Money of(long amountMinor, String currency) {\n        if (currency == null || currency.length() != 3) {\n            throw new IllegalArgumentException(\"3 letter currency code required\");\n        }\n        return new Money(amountMinor, currency.toUpperCase());\n    }\n\n    long amountMinor() { return amountMinor; }\n    String currency() { return currency; }\n\n    Money plus(Money other) {              // returns a new object, this stays as it was\n        if (!currency.equals(other.currency)) {\n            throw new IllegalArgumentException(\"currency mismatch\");\n        }\n        return new Money(amountMinor + other.amountMinor, currency);\n    }\n}\n\nMoney a = Money.of(9250, \"eur\");\nMoney b = a.plus(Money.of(2400, \"EUR\"));\nSystem.out.println(a.amountMinor());       // 9250, unchanged\nSystem.out.println(b.amountMinor());       // 11650",
+    "body": "The recipe in four steps: the class is `final`, every field is `private final`, there is no setter, and every mutable input is copied on the way in. Methods like `plus` return a new instance, so a shared object can never be edited by one caller behind the back of another. `String` and the record types follow the same idea."
+  },
+  {
+    "id": "java-oop-extra-defensive-copy",
+    "group": "Encapsulation",
+    "name": "defensive copy with List.copyOf",
+    "syntax": "this.items = List.copyOf(items);",
+    "desc": "Stores an unmodifiable copy of a collection, so the caller cannot change the object's state through the reference it passed in.",
+    "example": "import java.util.ArrayList;\nimport java.util.List;\n\nfinal class PriceList {\n    private final List<Long> prices;\n\n    PriceList(List<Long> prices) {\n        this.prices = List.copyOf(prices);   // copy now, read only forever\n    }\n\n    List<Long> prices() {\n        return prices;                       // already unmodifiable, safe to hand out\n    }\n}\n\nList<Long> raw = new ArrayList<>(List.of(9250L, 6100L));\nPriceList list = new PriceList(raw);\nraw.clear();                                 // does not reach the object\nSystem.out.println(list.prices().size());    // 2\n// list.prices().add(1L);                    // UnsupportedOperationException",
+    "body": "Handing out the internal list means any caller can `clear()` it and break the object. `List.copyOf` copies and wraps in one call, and it also rejects `null` elements, which turns a bad argument into an exception at the boundary. For a list that must change later, keep a private `ArrayList` and return `List.copyOf(prices)` from the getter."
+  },
+  {
+    "id": "java-oop-extra-equals-contract",
+    "group": "Equality",
+    "name": "equals override",
+    "syntax": "public boolean equals(Object other)",
+    "desc": "Compares content instead of identity. The contract asks for reflexive, symmetric, transitive and consistent behaviour, and no exception on null.",
+    "example": "import java.util.Objects;\n\nfinal class BookingKey {\n    private final String reference;\n    private final int hotelId;\n\n    BookingKey(String reference, int hotelId) {\n        this.reference = Objects.requireNonNull(reference);\n        this.hotelId = hotelId;\n    }\n\n    @Override\n    public boolean equals(Object other) {\n        if (this == other) return true;                         // same object, fast path\n        if (!(other instanceof BookingKey k)) return false;     // catches null too\n        return hotelId == k.hotelId && reference.equals(k.reference);\n    }\n\n    @Override\n    public int hashCode() {\n        return Objects.hash(reference, hotelId);                // same fields as equals\n    }\n}\n\nSystem.out.println(new BookingKey(\"AB-12\", 7).equals(new BookingKey(\"AB-12\", 7)));  // true\nSystem.out.println(new BookingKey(\"AB-12\", 7).equals(null));                        // false",
+    "body": "`instanceof` with a pattern variable does the cast and the type check in one line, and it returns `false` for `null` without a separate branch. Compare every field that identifies the object, and use the same fields in `hashCode`. Keep those fields `final`: a key whose hash changes after it was put in a `HashSet` is lost inside the set."
+  },
+  {
+    "id": "java-oop-extra-hashcode-missing",
+    "group": "Equality",
+    "name": "missing hashCode",
+    "syntax": "Objects.hash(field1, field2)",
+    "desc": "Two equal objects must return the same hashCode, otherwise HashMap and HashSet cannot find them again.",
+    "example": "import java.util.HashSet;\nimport java.util.Objects;\nimport java.util.Set;\n\nfinal class Ref {\n    private final String value;\n    Ref(String value) { this.value = value; }\n\n    @Override\n    public boolean equals(Object other) {\n        return other instanceof Ref r && value.equals(r.value);\n    }\n    // no hashCode: Object.hashCode is based on identity\n}\n\nfinal class FixedRef {\n    private final String value;\n    FixedRef(String value) { this.value = value; }\n\n    @Override\n    public boolean equals(Object other) {\n        return other instanceof FixedRef r && value.equals(r.value);\n    }\n\n    @Override\n    public int hashCode() {\n        return Objects.hash(value);\n    }\n}\n\nSet<Ref> broken = new HashSet<>();\nbroken.add(new Ref(\"AB-12\"));\nSystem.out.println(broken.contains(new Ref(\"AB-12\")));        // false\n\nSet<FixedRef> fixed = new HashSet<>();\nfixed.add(new FixedRef(\"AB-12\"));\nSystem.out.println(fixed.contains(new FixedRef(\"AB-12\")));    // true",
+    "body": "A hash collection reads the hash first and only then compares with `equals` inside that bucket. Two objects that are equal but hash differently never meet, so `contains` answers `false` while `a.equals(b)` answers `true`. The compiler cannot warn about this, which is why every `equals` needs the matching `hashCode` in the same edit."
+  },
+  {
+    "id": "java-oop-extra-builder",
+    "group": "Builder",
+    "name": "builder pattern",
+    "syntax": "Name.builder().field(v).build()",
+    "desc": "Collects many optional constructor arguments in a small mutable helper, then creates the immutable target in one validated step.",
+    "example": "final class Reservation {\n    private final String guestEmail;\n    private final int hotelId;\n    private final int nights;\n\n    private Reservation(Builder b) {\n        this.guestEmail = b.guestEmail;\n        this.hotelId = b.hotelId;\n        this.nights = b.nights;\n    }\n\n    static Builder builder() { return new Builder(); }\n\n    @Override\n    public String toString() {\n        return guestEmail + \", hotel \" + hotelId + \", \" + nights + \" nights\";\n    }\n\n    static final class Builder {\n        private String guestEmail;\n        private int hotelId;\n        private int nights = 1;              // defaults live in the builder\n\n        Builder guestEmail(String v) { this.guestEmail = v; return this; }\n        Builder hotelId(int v) { this.hotelId = v; return this; }\n        Builder nights(int v) { this.nights = v; return this; }\n\n        Reservation build() {\n            if (guestEmail == null || !guestEmail.contains(\"@\")) {\n                throw new IllegalArgumentException(\"valid guest_email is required\");\n            }\n            if (hotelId <= 0) {\n                throw new IllegalArgumentException(\"hotel_id must be positive\");\n            }\n            if (nights < 1) {\n                throw new IllegalArgumentException(\"nights must be at least 1\");\n            }\n            return new Reservation(this);\n        }\n    }\n}\n\nReservation r = Reservation.builder()\n        .guestEmail(\"anna@example.com\")\n        .hotelId(12)\n        .nights(3)\n        .build();\nSystem.out.println(r);                     // anna@example.com, hotel 12, 3 nights",
+    "body": "Each setter returns `this`, so the calls chain and the code reads like a sentence. The builder is mutable and short lived; the object it produces is not. Use it when a constructor would need more than about four arguments, or when several are optional and a positional call becomes unreadable."
+  },
+  {
+    "id": "java-oop-extra-builder-validate",
+    "group": "Builder",
+    "name": "validation in build()",
+    "syntax": "Target build() { check fields; return new Target(this); }",
+    "desc": "Keeps every construction rule in one method, so a builder chain cannot produce an object the class would reject.",
+    "example": "final class Guest {\n    private final String email;\n    private final int adults;\n    private final int children;\n\n    private Guest(Builder b) {\n        this.email = b.email;\n        this.adults = b.adults;\n        this.children = b.children;\n    }\n\n    static Builder builder() { return new Builder(); }\n\n    static final class Builder {\n        private String email;\n        private int adults = 1;\n        private int children;\n\n        Builder email(String v) { this.email = v; return this; }\n        Builder adults(int v) { this.adults = v; return this; }\n        Builder children(int v) { this.children = v; return this; }\n\n        Guest build() {\n            if (email == null || !email.contains(\"@\")) {\n                throw new IllegalArgumentException(\"valid customer_email is required\");\n            }\n            if (adults < 1) {\n                throw new IllegalArgumentException(\"at least one adult is required\");\n            }\n            if (children < 0) {\n                throw new IllegalArgumentException(\"children cannot be negative\");\n            }\n            return new Guest(this);\n        }\n    }\n}\n\ntry {\n    Guest.builder().email(\"broken\").adults(2).build();   // throws before an object exists\n} catch (IllegalArgumentException e) {\n    System.out.println(e.getMessage());\n}",
+    "body": "`build()` is the only moment when every field is known, so it is the only place where a rule about two fields at once can be checked. Validating inside each setter also duplicates the code and makes the result depend on which setter ran last. The rule to remember: the builder may hold invalid half state, the built object may not."
+  },
+  {
+    "id": "java-oop-extra-nested-static",
+    "group": "Nested classes",
+    "name": "static nested class",
+    "syntax": "class Outer { static class Nested { } }",
+    "desc": "A class declared inside another class with no link to an outer instance. It is used as Outer.Nested and can be created on its own.",
+    "example": "class Hotel {\n    private final String name;\n    private int reviews;\n\n    Hotel(String name) { this.name = name; }\n\n    void addReview() { reviews++; }\n\n    static class Stats {                  // no outer object required\n        private int hotels;\n        private int reviews;\n\n        void record(Hotel h) {\n            hotels++;\n            reviews += h.reviews;         // the outer object arrives as a parameter\n        }\n\n        @Override\n        public String toString() {\n            return hotels + \" hotels, \" + reviews + \" reviews\";\n        }\n    }\n}\n\nHotel.Stats stats = new Hotel.Stats();   // no Hotel before the dot\nHotel a = new Hotel(\"Danube View\");\na.addReview();\nstats.record(a);\nSystem.out.println(stats);               // 1 hotels, 1 reviews",
+    "body": "A static nested class is a normal class that happens to live under another name. It can read the outer class's `private` members when it is given an instance, but it gets no hidden reference of its own. Use it for helpers that belong to the class by meaning: a `Builder`, a `Stats`, a constant table, a small key type."
+  },
+  {
+    "id": "java-oop-extra-inner-class",
+    "group": "Nested classes",
+    "name": "inner class",
+    "syntax": "class Outer { class Inner { } }",
+    "desc": "A non static nested class. Every instance is bound to one outer instance and can read its fields without a getter.",
+    "example": "class Hotel {\n    private final String name;\n    private int reviews;\n\n    Hotel(String name) { this.name = name; }\n\n    class Review {                        // inner: this Review belongs to this Hotel\n        private final String text;\n\n        Review(String text) { this.text = text; }\n\n        String describe() {\n            return name + \" (\" + reviews + \" reviews): \" + text;   // outer fields, no getter\n        }\n    }\n\n    Review review(String text) {\n        reviews++;\n        return new Review(text);\n    }\n}\n\nHotel a = new Hotel(\"Danube View\");\nHotel.Review r = a.review(\"quiet rooms\");\nSystem.out.println(r.describe());        // Danube View (1 reviews): quiet rooms\n\nHotel b = new Hotel(\"Hilltop\");\nSystem.out.println(b.review(\"good food\").describe());\n\n// The long form of the same creation:\nHotel.Review direct = a.new Review(\"late check in\");",
+    "body": "Constructing an inner class needs an outer object: `a.review(...)` or the explicit `a.new Review(...)`. The inner object holds a hidden pointer to that `Hotel`, so it can read `name` and `reviews` directly, and it keeps the outer object alive for as long as it exists. If that link is not part of the design, make the nested class `static`."
+  },
+  {
+    "id": "java-oop-extra-anonymous-class",
+    "group": "Nested classes",
+    "name": "anonymous class",
+    "syntax": "new Type() { ... }",
+    "desc": "A one-off subclass or interface implementation written where it is used, with no name and no separate file.",
+    "example": "import java.util.ArrayList;\nimport java.util.Comparator;\nimport java.util.List;\n\nrecord Hotel(String name, int stars) { }\n\nList<Hotel> hotels = new ArrayList<>(List.of(\n        new Hotel(\"Hilltop\", 3),\n        new Hotel(\"Danube View\", 5),\n        new Hotel(\"City Inn\", 4)));\n\nComparator<Hotel> byStars = new Comparator<>() {\n    @Override\n    public int compare(Hotel a, Hotel b) {\n        return Integer.compare(b.stars(), a.stars());   // highest first\n    }\n};\n\nhotels.sort(byStars);\nSystem.out.println(hotels.get(0).name());   // Danube View",
+    "body": "The class body can use effectively final locals from the method around it. Since Java 8 a lambda replaces the anonymous class whenever the target type has a single abstract method, so `hotels.sort((a, b) -> ...)` is shorter. Keep the anonymous form when the type has several methods, or when you need a real body with fields."
+  },
+  {
+    "id": "java-oop-extra-record-interface",
+    "group": "Records",
+    "name": "record implementing an interface",
+    "syntax": "record Name(Type a) implements Contract { }",
+    "desc": "A record can satisfy an interface through its generated accessors, so records and classes can share one type in a domain model.",
+    "example": "interface LineItem {\n    String label();\n\n    long amountMinor();\n}\n\nrecord RoomCharge(int hotelId, int nights, long nightlyMinor) implements LineItem {\n    RoomCharge {\n        if (nights < 1) {\n            throw new IllegalArgumentException(\"nights must be at least 1\");\n        }\n    }\n\n    @Override\n    public String label() {\n        return \"hotel \" + hotelId + \" x\" + nights;\n    }\n\n    @Override\n    public long amountMinor() {\n        return nightlyMinor * nights;      // a computed value, the field stays as given\n    }\n}\n\nrecord ExtraCharge(String label, long amountMinor) implements LineItem { }\n// no methods needed: the generated accessors already match the interface\n\nLineItem a = new RoomCharge(12, 3, 9250);\nLineItem b = new ExtraCharge(\"breakfast\", 2400);\nSystem.out.println(a.label() + \" \" + a.amountMinor());   // hotel 12 x3 27750\nSystem.out.println(b.label() + \" \" + b.amountMinor());   // breakfast 2400",
+    "body": "A record is implicitly `final` and already extends `java.lang.Record`, so it cannot extend a class, but it can implement as many interfaces as you like. `ExtraCharge` gets its two methods for free because the component names are the contract. A record can also override a generated accessor, which is how `amountMinor()` above returns a computed total instead of a stored one."
+  },
+  {
+    "id": "java-oop-extra-domain-total",
+    "group": "Domain model",
+    "name": "computed total over line items",
+    "syntax": "long totalMinor() { for (LineItem l : lines) sum += l.amountMinor(); }",
+    "desc": "One small domain model: an immutable invoice sums polymorphic line items and never exposes its internal list.",
+    "example": "import java.util.ArrayList;\nimport java.util.List;\n\nfinal class Invoice {\n    private final String guestEmail;\n    private final List<LineItem> lines;\n\n    Invoice(String guestEmail, List<LineItem> lines) {\n        this.guestEmail = guestEmail;\n        this.lines = List.copyOf(lines);   // own copy, read only\n    }\n\n    long totalMinor() {\n        long sum = 0;\n        for (LineItem line : lines) {\n            sum += line.amountMinor();     // each line knows its own price\n        }\n        return sum;\n    }\n\n    String summary() {\n        StringBuilder sb = new StringBuilder(\"invoice for \" + guestEmail + \"\\n\");\n        for (LineItem line : lines) {\n            sb.append(String.format(\"  %-24s %7d%n\", line.label(), line.amountMinor()));\n        }\n        return sb.append(String.format(\"  %-24s %7d%n\", \"total\", totalMinor())).toString();\n    }\n}\n\n// LineItem is defined in java-oop-extra-record-interface.\nList<LineItem> lines = new ArrayList<>();\nlines.add(new RoomCharge(12, 3, 9250));\nlines.add(new ExtraCharge(\"breakfast\", 2400));\n\nInvoice invoice = new Invoice(\"anna@example.com\", lines);\nlines.clear();                             // the invoice keeps its own copy\nSystem.out.println(invoice.summary());\nSystem.out.println(invoice.totalMinor());  // 30150",
+    "body": "The arithmetic lives in one method, so a new line type only has to implement `label()` and `amountMinor()` to appear on the invoice. The class owns its list, the records own their values, and nothing outside can edit either. Totals are held in minor units as `long` so the sum never picks up a floating point rounding error."
+  }
+]

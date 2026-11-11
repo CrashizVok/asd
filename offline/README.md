@@ -7,7 +7,7 @@ The site has two layers:
 - **Topics** explain a pattern or a language area.
 - **Command index** gives each tag, property, method, hook, or API its own page with syntax and an example.
 
-There are 166 topic pages and 1133 command pages. Everything is local. The site has no external links and does not need the internet.
+There are 167 topic pages and 1240 command pages. Everything is local. The site has no external links and does not need the internet.
 
 | Language | Topic pages | Command pages |
 |---|---|---|
@@ -16,7 +16,7 @@ There are 166 topic pages and 1133 command pages. Everything is local. The site 
 | JavaScript | 35 | 168 |
 | React | 28 | 141 |
 | Node.js | 10 | 151 |
-| Java | 36 | 179 |
+| Java | 37 | 286 |
 | JavaFX | 4 | 88 |
 
 ## Open it

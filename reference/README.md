@@ -1,6 +1,6 @@
 # Offline reference
 
-1133 command pages and 166 topic pages.
+1240 command pages and 167 topic pages.
 
 Every file stands alone. Open the site at `offline/index.html` for search and navigation,
 or read the Markdown files here.
@@ -1529,7 +1529,7 @@ or read the Markdown files here.
 
 ## Java
 
-36 topics · 179 commands
+37 topics · 286 commands
 
 ### Topics
 
@@ -1562,6 +1562,7 @@ or read the Markdown files here.
 - [Common errors](java/topics/java-common-errors.md)
 - [Exam checklist](java/topics/java-exam-checklist.md)
 - [Java collections](java/topics/java-collections-deep.md)
+- [Java core examples](java/topics/java-core-examples.md)
 - [CSV and JSON in Java](java/topics/java-csv-and-json.md)
 - [Java exceptions](java/topics/java-exceptions-deep.md)
 - [Java file input and output](java/topics/java-file-io-deep.md)
@@ -1579,6 +1580,7 @@ or read the Markdown files here.
 - [`var`](java/commands/java-var.md)
 - [`casting`](java/commands/java-casting.md)
 - [`operators`](java/commands/java-operators.md)
+- [`var for local variables`](java/commands/java-core-extra-var-local.md)
 
 ### Control flow
 
@@ -1587,6 +1589,7 @@ or read the Markdown files here.
 - [`for loop`](java/commands/java-for.md)
 - [`for-each loop`](java/commands/java-for-each.md)
 - [`while and do-while`](java/commands/java-while.md)
+- [`switch expression`](java/commands/java-core-extra-switch-expression.md)
 
 ### Strings
 
@@ -1594,6 +1597,9 @@ or read the Markdown files here.
 - [`String methods`](java/commands/java-string-methods.md)
 - [`StringBuilder`](java/commands/java-stringbuilder.md)
 - [`String.format`](java/commands/java-string-format.md)
+- [`String.split()`](java/commands/java-core-extra-string-split.md)
+- [`String.join() and formatted()`](java/commands/java-core-extra-string-join-format.md)
+- [`StringBuilder in a loop`](java/commands/java-core-extra-stringbuilder-loop.md)
 
 ### Numbers
 
@@ -1604,6 +1610,7 @@ or read the Markdown files here.
 
 - [`array`](java/commands/java-array.md)
 - [`Arrays utility`](java/commands/java-arrays.md)
+- [`Arrays.sort() and binarySearch()`](java/commands/java-core-extra-arrays-sort-search.md)
 
 ### Collections
 
@@ -1616,6 +1623,8 @@ or read the Markdown files here.
 - [`List, Map, Set interfaces`](java/commands/java-list-map-set.md)
 - [`Iterator`](java/commands/java-iterator.md)
 - [`Collections.sort and Comparator`](java/commands/java-collections-sort.md)
+- [`HashMap.merge() for counting`](java/commands/java-core-extra-hashmap-merge-count.md)
+- [`HashSet duplicate check`](java/commands/java-core-extra-hashset-duplicates.md)
 - [`ArrayList add, get, size`](java/commands/java-extra-arraylist-basics.md)
 - [`ArrayList removeIf`](java/commands/java-extra-arraylist-removeif.md)
 - [`HashMap getOrDefault`](java/commands/java-extra-hashmap-getdefault.md)
@@ -1637,6 +1646,8 @@ or read the Markdown files here.
 - [`record`](java/commands/java-record.md)
 - [`generics`](java/commands/java-generics.md)
 - [`static`](java/commands/java-static.md)
+- [`record with a compact constructor`](java/commands/java-core-extra-record-compact-constructor.md)
+- [`enum with fields and methods`](java/commands/java-core-extra-enum-fields.md)
 
 ### Exceptions
 
@@ -1644,6 +1655,14 @@ or read the Markdown files here.
 - [`throw and throws`](java/commands/java-throw.md)
 - [`custom exception`](java/commands/java-custom-exception.md)
 - [`try-with-resources`](java/commands/java-try-with-resources.md)
+- [`Multi-catch`](java/commands/java-exceptions-extra-multi-catch.md)
+- [`Checked versus unchecked`](java/commands/java-exceptions-extra-checked-vs-unchecked.md)
+- [`Custom checked exception`](java/commands/java-exceptions-extra-custom-checked.md)
+- [`Custom unchecked exception`](java/commands/java-exceptions-extra-custom-unchecked.md)
+- [`Wrap with the cause`](java/commands/java-exceptions-extra-wrap-cause.md)
+- [`Throwable.addSuppressed()`](java/commands/java-exceptions-extra-add-suppressed.md)
+- [`finally`](java/commands/java-exceptions-extra-finally.md)
+- [`Fail fast validation`](java/commands/java-exceptions-extra-validate-argument.md)
 - [`Throwable hierarchy`](java/commands/java-exception-hierarchy.md)
 - [`Checked and unchecked`](java/commands/java-checked-unchecked.md)
 - [`try / catch`](java/commands/java-try-catch.md)
@@ -1665,6 +1684,8 @@ or read the Markdown files here.
 
 - [`LocalDate`](java/commands/java-localdate.md)
 - [`DateTimeFormatter`](java/commands/java-datetimeformatter.md)
+- [`LocalDate plusDays() and ChronoUnit`](java/commands/java-core-extra-localdate-arithmetic.md)
+- [`DateTimeFormatter.ofPattern()`](java/commands/java-core-extra-date-formatter-pattern.md)
 
 ### Streams
 
@@ -1681,10 +1702,17 @@ or read the Markdown files here.
 - [`Stream filter and map`](java/commands/java-extra-stream-filter-map.md)
 - [`Collectors.groupingBy`](java/commands/java-extra-collectors-groupingby.md)
 - [`Collectors.joining`](java/commands/java-extra-collectors-joining.md)
+- [`filter, map, collect`](java/commands/java-streams-extra-filter-map-collect.md)
+- [`flatMap()`](java/commands/java-streams-extra-flatmap.md)
+- [`max() and min()`](java/commands/java-streams-extra-max-min.md)
+- [`reduce()`](java/commands/java-streams-extra-reduce.md)
+- [`parallelStream()`](java/commands/java-streams-extra-parallel-stream.md)
+- [`Group, sort entries, join`](java/commands/java-streams-extra-report-pipeline.md)
 
 ### Threads
 
 - [`Thread and Runnable`](java/commands/java-thread.md)
+- [`Executors.newFixedThreadPool()`](java/commands/java-core-extra-thread-executor.md)
 
 ### JDBC
 
@@ -1702,21 +1730,10 @@ or read the Markdown files here.
 - [`SQL injection`](java/commands/java-jdbc-injection.md)
 - [`getGeneratedKeys()`](java/commands/java-jdbc-generated-keys.md)
 
-### Lists
-
-- [`ArrayList add, get, size`](java/commands/java-list-add.md)
-- [`removeIf`](java/commands/java-list-removeif.md)
-- [`List.of`](java/commands/java-list-immutable-of.md)
-- [`LinkedList ends`](java/commands/java-linkedlist-deque-ends.md)
-
-### Sorting
-
-- [`List.sort`](java/commands/java-list-sort-lambda.md)
-- [`Sort map entries`](java/commands/java-map-sort-by-value.md)
-- [`Comparator.comparing`](java/commands/java-comparator-chain.md)
-
 ### Maps
 
+- [`merge for counters`](java/commands/java-collections-extra-hashmap-merge-nested.md)
+- [`compute and computeIfPresent`](java/commands/java-collections-extra-hashmap-compute.md)
 - [`HashMap put and get`](java/commands/java-map-put.md)
 - [`getOrDefault`](java/commands/java-map-getordefault.md)
 - [`computeIfAbsent`](java/commands/java-map-computeifabsent.md)
@@ -1724,15 +1741,55 @@ or read the Markdown files here.
 - [`entrySet`](java/commands/java-map-entryset.md)
 - [`TreeMap`](java/commands/java-map-treemap-sorted.md)
 
+### Sorted maps
+
+- [`floorKey and ceilingKey`](java/commands/java-collections-extra-treemap-ceiling-floor.md)
+- [`subMap range view`](java/commands/java-collections-extra-treemap-submap.md)
+
 ### Sets
 
+- [`TreeSet with a tie breaker`](java/commands/java-collections-extra-treeset-comparator-ties.md)
+- [`retainAll and removeAll`](java/commands/java-collections-extra-hashset-retainall.md)
 - [`HashSet add`](java/commands/java-set-hashset-add.md)
 - [`TreeSet`](java/commands/java-set-treeset-navigable.md)
 
+### Lists
+
+- [`ListIterator insert and set`](java/commands/java-collections-extra-linkedlist-listiterator.md)
+- [`ArrayList add, get, size`](java/commands/java-list-add.md)
+- [`removeIf`](java/commands/java-list-removeif.md)
+- [`List.of`](java/commands/java-list-immutable-of.md)
+- [`LinkedList ends`](java/commands/java-linkedlist-deque-ends.md)
+
+### Deques
+
+- [`Deque as a stack`](java/commands/java-collections-extra-deque-stack-push-pop.md)
+
 ### Queues
 
+- [`PriorityQueue order`](java/commands/java-collections-extra-priorityqueue-comparator.md)
 - [`Queue offer and poll`](java/commands/java-queue-offer-poll.md)
 - [`ArrayDeque`](java/commands/java-deque-arraydeque.md)
+
+### Caching
+
+- [`LRU cache with LinkedHashMap`](java/commands/java-collections-extra-linkedhashmap-lru.md)
+
+### Keys
+
+- [`equals and hashCode for a key`](java/commands/java-collections-extra-equals-hashcode-key.md)
+- [`Generated keys by column`](java/commands/java-jdbc-extra-generated-key-name.md)
+
+### Counting
+
+- [`Collections.frequency`](java/commands/java-collections-extra-collections-frequency.md)
+
+### Sorting
+
+- [`List.sort`](java/commands/java-list-sort-lambda.md)
+- [`Sort map entries`](java/commands/java-map-sort-by-value.md)
+- [`Comparator.comparing`](java/commands/java-comparator-chain.md)
+- [`sorted, distinct, limit`](java/commands/java-streams-extra-sorted-distinct-limit.md)
 
 ### Iteration
 
@@ -1744,10 +1801,63 @@ or read the Markdown files here.
 - [`summingInt`](java/commands/java-stream-summingint.md)
 - [`joining`](java/commands/java-stream-joining.md)
 - [`toMap with merge`](java/commands/java-stream-tomap-merge.md)
+- [`groupingBy with a downstream`](java/commands/java-streams-extra-groupingby-downstream.md)
+- [`partitioningBy()`](java/commands/java-streams-extra-partitioningby.md)
+- [`toMap with a merge function`](java/commands/java-streams-extra-tomap-merge.md)
+- [`sum, average, summaryStatistics`](java/commands/java-streams-extra-summing-averaging.md)
 
 ### Optional
 
 - [`Optional map and orElse`](java/commands/java-optional-chain.md)
+- [`Optional map, flatMap, orElse`](java/commands/java-streams-extra-optional-chain.md)
+
+### Input
+
+- [`Scanner nextInt() and nextLine()`](java/commands/java-core-extra-scanner-tokens.md)
+
+### Generics
+
+- [`Generic method with a bound`](java/commands/java-core-extra-generic-method-bound.md)
+
+### CSV
+
+- [`BOM in the header line`](java/commands/java-csv-json-extra-bom-header.md)
+- [`detect the delimiter`](java/commands/java-csv-json-extra-delimiter-sniff.md)
+- [`row width check`](java/commands/java-csv-json-extra-row-width.md)
+- [`typed conversion with defaults`](java/commands/java-csv-json-extra-typed-default.md)
+- [`write CSV rows`](java/commands/java-csv-json-extra-write-rows.md)
+- [`split(",", -1)`](java/commands/java-csv-split-keep-empty.md)
+- [`CSV header to index map`](java/commands/java-csv-header-index.md)
+- [`CSV field quoting`](java/commands/java-csv-quote-field.md)
+- [`CSV parser for quoted fields`](java/commands/java-csv-parse-quoted.md)
+
+### JSON
+
+- [`manual JSON array`](java/commands/java-csv-json-extra-json-array-manual.md)
+- [`numbers, booleans and null by hand`](java/commands/java-csv-json-extra-json-null-number.md)
+- [`pretty print JSON without a library`](java/commands/java-csv-json-extra-json-pretty-hand.md)
+- [`Build JSON with StringBuilder`](java/commands/java-json-write-manual.md)
+- [`JSON string escaping`](java/commands/java-json-escape.md)
+
+### Jackson
+
+- [`readValue with TypeReference`](java/commands/java-csv-json-extra-jackson-list.md)
+- [`walk a JSON array`](java/commands/java-csv-json-extra-jackson-array.md)
+- [`writerWithDefaultPrettyPrinter`](java/commands/java-csv-json-extra-jackson-pretty.md)
+- [`ObjectMapper.readValue()`](java/commands/java-jackson-read-value.md)
+- [`ObjectMapper.readTree()`](java/commands/java-jackson-read-tree.md)
+- [`ObjectMapper.writeValueAsString()`](java/commands/java-jackson-write-value.md)
+- [`Ignore unknown JSON fields`](java/commands/java-jackson-ignore-unknown.md)
+
+### Diagnostics
+
+- [`getStackTrace()`](java/commands/java-exceptions-extra-stacktrace-frames.md)
+- [`setDefaultUncaughtExceptionHandler`](java/commands/java-exceptions-extra-uncaught-handler.md)
+- [`Log once at the boundary`](java/commands/java-exceptions-extra-log-boundary.md)
+
+### Resources
+
+- [`Close order in try-with-resources`](java/commands/java-exceptions-extra-try-with-resources-order.md)
 
 ### Core
 
@@ -1770,6 +1880,35 @@ or read the Markdown files here.
 
 - [`LocalDate parse and plusDays`](java/commands/java-extra-localdate.md)
 - [`DateTimeFormatter`](java/commands/java-extra-datetimeformatter.md)
+
+### Bytes
+
+- [`Files.readAllBytes()`](java/commands/java-file-io-extra-read-all-bytes.md)
+- [`Files.write() with byte[]`](java/commands/java-file-io-extra-write-bytes.md)
+
+### Copy and move
+
+- [`Files.copy()`](java/commands/java-file-io-extra-copy.md)
+- [`Files.move()`](java/commands/java-file-io-extra-move.md)
+- [`Files.deleteIfExists()`](java/commands/java-file-io-extra-delete-if-exists.md)
+
+### Directories
+
+- [`Files.walk()`](java/commands/java-file-io-extra-walk.md)
+- [`Delete a directory tree`](java/commands/java-file-io-extra-delete-tree.md)
+
+### Temp files
+
+- [`Files.createTempFile()`](java/commands/java-file-io-extra-temp-file.md)
+
+### Attributes
+
+- [`Files.readAttributes()`](java/commands/java-file-io-extra-read-attributes.md)
+- [`Files.size()`](java/commands/java-file-io-extra-size.md)
+
+### Compare
+
+- [`Files.mismatch()`](java/commands/java-file-io-extra-mismatch.md)
 
 ### Paths
 
@@ -1797,24 +1936,121 @@ or read the Markdown files here.
 
 - [`StandardCharsets.UTF_8`](java/commands/java-charset-utf8.md)
 
-### CSV
+### Inheritance
 
-- [`split(",", -1)`](java/commands/java-csv-split-keep-empty.md)
-- [`CSV header to index map`](java/commands/java-csv-header-index.md)
-- [`CSV field quoting`](java/commands/java-csv-quote-field.md)
-- [`CSV parser for quoted fields`](java/commands/java-csv-parse-quoted.md)
+- [`protected access`](java/commands/java-inheritance-extra-protected.md)
+- [`extends`](java/commands/java-oop-extends.md)
+- [`super`](java/commands/java-oop-super.md)
+- [`@Override`](java/commands/java-oop-override.md)
+- [`abstract class`](java/commands/java-oop-abstract-class.md)
 
-### JSON
+### Constructors
 
-- [`Build JSON with StringBuilder`](java/commands/java-json-write-manual.md)
-- [`JSON string escaping`](java/commands/java-json-escape.md)
+- [`initialization order`](java/commands/java-inheritance-extra-init-order.md)
+- [`this(...) or super(...)`](java/commands/java-inheritance-extra-this-super-first.md)
+- [`constructor`](java/commands/java-oop-constructor.md)
+- [`this`](java/commands/java-oop-this.md)
+- [`constructor chaining`](java/commands/java-oop-constructor-chain.md)
 
-### Jackson
+### Abstract classes
 
-- [`ObjectMapper.readValue()`](java/commands/java-jackson-read-value.md)
-- [`ObjectMapper.readTree()`](java/commands/java-jackson-read-tree.md)
-- [`ObjectMapper.writeValueAsString()`](java/commands/java-jackson-write-value.md)
-- [`Ignore unknown JSON fields`](java/commands/java-jackson-ignore-unknown.md)
+- [`hook method`](java/commands/java-inheritance-extra-template-hook.md)
+
+### Interfaces
+
+- [`Interface.super.method()`](java/commands/java-inheritance-extra-default-conflict.md)
+- [`static interface method`](java/commands/java-inheritance-extra-interface-static.md)
+- [`private interface method`](java/commands/java-inheritance-extra-interface-private.md)
+- [`interface`](java/commands/java-oop-interface.md)
+- [`default method`](java/commands/java-oop-default-method.md)
+
+### Sealed types
+
+- [`sealed interface`](java/commands/java-inheritance-extra-sealed.md)
+
+### Pattern matching
+
+- [`switch pattern`](java/commands/java-inheritance-extra-switch-pattern.md)
+
+### Composition
+
+- [`composition over inheritance`](java/commands/java-inheritance-extra-composition.md)
+
+### Polymorphism
+
+- [`covariant return type`](java/commands/java-inheritance-extra-covariant-return.md)
+- [`dynamic dispatch`](java/commands/java-oop-polymorphism.md)
+- [`instanceof pattern`](java/commands/java-oop-instanceof.md)
+
+### Connection
+
+- [`JDBC URL parts`](java/commands/java-jdbc-extra-url-anatomy.md)
+- [`setQueryTimeout`](java/commands/java-jdbc-extra-query-timeout.md)
+
+### Transactions
+
+- [`setTransactionIsolation`](java/commands/java-jdbc-extra-isolation.md)
+- [`Savepoint`](java/commands/java-jdbc-extra-savepoint.md)
+
+### Parameters
+
+- [`setNull`](java/commands/java-jdbc-extra-setnull.md)
+- [`setObject with a type`](java/commands/java-jdbc-extra-setobject-date.md)
+
+### Results
+
+- [`ResultSet.wasNull()`](java/commands/java-jdbc-extra-wasnull.md)
+- [`setFetchSize`](java/commands/java-jdbc-extra-fetch-size.md)
+
+### Metadata
+
+- [`DatabaseMetaData.getTables`](java/commands/java-jdbc-extra-metadata-tables.md)
+
+### Batch
+
+- [`clearBatch`](java/commands/java-jdbc-extra-batch-chunk.md)
+
+### Errors
+
+- [`SQLException details`](java/commands/java-jdbc-extra-sqlstate.md)
+
+### Immutability
+
+- [`immutable class`](java/commands/java-oop-extra-immutable-class.md)
+
+### Encapsulation
+
+- [`defensive copy with List.copyOf`](java/commands/java-oop-extra-defensive-copy.md)
+- [`private fields`](java/commands/java-oop-encapsulation.md)
+- [`getter`](java/commands/java-oop-getter.md)
+- [`setter`](java/commands/java-oop-setter.md)
+- [`access modifiers`](java/commands/java-oop-access-modifiers.md)
+
+### Equality
+
+- [`equals override`](java/commands/java-oop-extra-equals-contract.md)
+- [`missing hashCode`](java/commands/java-oop-extra-hashcode-missing.md)
+
+### Builder
+
+- [`builder pattern`](java/commands/java-oop-extra-builder.md)
+- [`validation in build()`](java/commands/java-oop-extra-builder-validate.md)
+
+### Nested classes
+
+- [`static nested class`](java/commands/java-oop-extra-nested-static.md)
+- [`inner class`](java/commands/java-oop-extra-inner-class.md)
+- [`anonymous class`](java/commands/java-oop-extra-anonymous-class.md)
+
+### Records
+
+- [`record implementing an interface`](java/commands/java-oop-extra-record-interface.md)
+- [`record`](java/commands/java-oop-record.md)
+- [`compact constructor`](java/commands/java-oop-record-compact.md)
+
+### Domain model
+
+- [`computed total over line items`](java/commands/java-oop-extra-domain-total.md)
 
 ### Classes
 
@@ -1825,46 +2061,11 @@ or read the Markdown files here.
 - [`toString`](java/commands/java-oop-tostring.md)
 - [`equals and hashCode`](java/commands/java-oop-equals-hashcode.md)
 
-### Constructors
-
-- [`constructor`](java/commands/java-oop-constructor.md)
-- [`this`](java/commands/java-oop-this.md)
-- [`constructor chaining`](java/commands/java-oop-constructor-chain.md)
-
-### Encapsulation
-
-- [`private fields`](java/commands/java-oop-encapsulation.md)
-- [`getter`](java/commands/java-oop-getter.md)
-- [`setter`](java/commands/java-oop-setter.md)
-- [`access modifiers`](java/commands/java-oop-access-modifiers.md)
-
 ### Static
 
 - [`static field`](java/commands/java-oop-static-field.md)
 - [`static method`](java/commands/java-oop-static-method.md)
 - [`static factory method`](java/commands/java-oop-static-factory.md)
-
-### Inheritance
-
-- [`extends`](java/commands/java-oop-extends.md)
-- [`super`](java/commands/java-oop-super.md)
-- [`@Override`](java/commands/java-oop-override.md)
-- [`abstract class`](java/commands/java-oop-abstract-class.md)
-
-### Interfaces
-
-- [`interface`](java/commands/java-oop-interface.md)
-- [`default method`](java/commands/java-oop-default-method.md)
-
-### Polymorphism
-
-- [`dynamic dispatch`](java/commands/java-oop-polymorphism.md)
-- [`instanceof pattern`](java/commands/java-oop-instanceof.md)
-
-### Records
-
-- [`record`](java/commands/java-oop-record.md)
-- [`compact constructor`](java/commands/java-oop-record-compact.md)
 
 ## JavaFX
 

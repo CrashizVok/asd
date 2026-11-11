@@ -84,7 +84,7 @@ The schema creates the `bookings` database, three tables, foreign keys, and a sm
 
 Open `offline/index.html` in a browser. It is a dark, searchable reference covering seven languages: HTML, CSS, JavaScript, React, Node.js, Java, and JavaFX. Search matches topic titles, command names, syntax, explanations, and examples.
 
-The site has 166 topic pages and 1133 command pages. Every tag, property, method, hook, and API has its own page with syntax and an example. It has no external links, so it works on a machine with no internet.
+The site has 167 topic pages and 1240 command pages. Every tag, property, method, hook, and API has its own page with syntax and an example. It has no external links, so it works on a machine with no internet.
 
 The generated `offline/data.js`, `offline/ref-*.js`, and `offline/generated-content.js` files are committed, so there is no `npm install` and no build step. The exam machine only needs the repo after `git pull`.
 
@@ -152,7 +152,7 @@ asd/
   algorithms/    JavaScript and Java algorithm demos
   practice/      exam-style tasks with hints
   content/       Markdown topics and JSON commands: the source for new pages
-  offline/       dark static wiki: 166 topic pages and 1133 command pages
+  offline/       dark static wiki: 167 topic pages and 1240 command pages
   reference/     Markdown export, one file per page
   tools/         dependency-free build and export scripts
   git/           git cheat sheet

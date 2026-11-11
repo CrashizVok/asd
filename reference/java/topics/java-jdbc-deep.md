@@ -685,6 +685,737 @@ Read the program in three passes. First the resource boundaries: every method op
 
 The report query joins `bookings` to `hotels`, groups by hotel, and uses `DATEDIFF` for nights. That is MySQL syntax. In SQLite the equivalent is `julianday(end_date) - julianday(start_date)`, and in PostgreSQL it is `end_date - start_date`. Keep vendor specific date math out of the Java layer.
 
+## More examples
+
+The examples above isolate one call at a time. What follows is the code you actually ship: a row printer that survives unknown columns, a full CRUD cycle around generated keys, savepoints over a batch, a chunked upsert, a metadata probe, and a repository that assembles its WHERE clause from optional filters.
+
+### Example 6: reading any row, NULL included
+
+A generic printer has to work when the query changes next week. `ResultSetMetaData` supplies the labels and the type names, so the loop never hard-codes a column.
+
+```java
+// File: ResultSetNulls.java
+// Data shape: one row -> column label, JDBC type name, boxed value or null.
+// Compile: javac ResultSetNulls.java
+// Running needs a live database; the row walk is the part worth memorising.
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+
+public class ResultSetNulls {
+
+    private static final String URL =
+            "jdbc:mysql://localhost:3306/bookings?useSSL=false&serverTimezone=UTC";
+
+    /** Prints any row without assuming which columns are nullable or what type they are. */
+    static void dumpRow(ResultSet rs) throws SQLException {
+        ResultSetMetaData meta = rs.getMetaData();
+
+        for (int col = 1; col <= meta.getColumnCount(); col++) {
+            String label = meta.getColumnLabel(col);
+            String type = meta.getColumnTypeName(col);
+
+            // getObject hands back null for SQL NULL and the driver's own Java class otherwise.
+            Object value = rs.getObject(col);
+            if (rs.wasNull()) {
+                System.out.printf("%-14s %-10s NULL%n", label, type);
+                continue;
+            }
+            System.out.printf("%-14s %-10s %s%n", label, type, value);
+        }
+    }
+
+    /** A nullable int column needs wasNull, because 0 is a legal star count. */
+    static Integer nullableStars(ResultSet rs) throws SQLException {
+        int raw = rs.getInt("stars");
+        return rs.wasNull() ? null : raw;
+    }
+
+    public static void main(String[] args) throws SQLException {
+        String sql = "SELECT hotel_id, city, name, stars, description "
+                + "FROM hotels WHERE hotel_id = ?";
+
+        // DB_PASSWORD must be exported before the program runs.
+        try (Connection conn = DriverManager.getConnection(URL, "root", System.getenv("DB_PASSWORD"));
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, 1);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    System.out.println("no hotel with id 1");
+                    return;
+                }
+
+                dumpRow(rs);
+
+                Integer stars = nullableStars(rs);
+                System.out.println("stars as Integer: " + (stars == null ? "NULL" : stars));
+
+                // A string column returns null directly, so check before using it.
+                String description = rs.getString("description");
+                System.out.println("description present: " + (description != null && !description.isBlank()));
+            }
+        }
+    }
+}
+```
+
+Three details carry the example. `getColumnLabel` differs from `getColumnName` when the query uses an alias, and the label is what the caller sees. `getObject` returns a boxed value, which is why the NULL test happens after the read and not before. `wasNull` is only meaningful for the getter you just called, so the primitive path keeps the getter and the check next to each other.
+
+The `%s` format works because `getObject` already returned a Java object of the right class. A `DATETIME` column arrives as `java.sql.Timestamp`, a `DECIMAL` as `BigDecimal`. If you need a specific type, ask for it directly with `getObject(col, LocalDate.class)` instead of formatting whatever came back.
+
+### Example 7: a CRUD cycle that trusts the returned counts
+
+The insert asks for the generated key at prepare time, and every later call uses that id. Deleting twice returns false, which is the difference between an idempotent delete and an exception.
+
+```java
+// File: CrudWithKeys.java
+// Data shape: hotel row -> generated int hotel_id -> later lookups by that id.
+// Compile: javac CrudWithKeys.java
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
+
+public class CrudWithKeys {
+
+    private static final String URL =
+            "jdbc:mysql://localhost:3306/bookings?useSSL=false&serverTimezone=UTC";
+
+    /** Inserts one hotel and returns the id the database assigned. */
+    static int insert(Connection conn, String city, String name, String description,
+                      int stars, String ownerEmail) throws SQLException {
+
+        String sql = "INSERT INTO hotels (city, name, description, stars, owner_email) "
+                + "VALUES (?, ?, ?, ?, ?)";
+
+        // RETURN_GENERATED_KEYS is asked for at prepare time, not at execute time.
+        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, city);
+            ps.setString(2, name);
+
+            // A real NULL needs a SQL type, otherwise the driver cannot describe the parameter.
+            if (description == null) {
+                ps.setNull(3, Types.VARCHAR);
+            } else {
+                ps.setString(3, description);
+            }
+
+            ps.setInt(4, stars);
+            ps.setString(5, ownerEmail);
+
+            int rows = ps.executeUpdate();
+            if (rows != 1) {
+                throw new SQLException("insert affected " + rows + " rows");
+            }
+
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (!keys.next()) {
+                    throw new SQLException("insert returned no generated key");
+                }
+                return keys.getInt(1);
+            }
+        }
+    }
+
+    /** Updates one column and returns the affected row count, which is 0 for a missing id. */
+    static int setStars(Connection conn, int hotelId, int stars) throws SQLException {
+        String sql = "UPDATE hotels SET stars = ? WHERE hotel_id = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, stars);
+            ps.setInt(2, hotelId);
+            return ps.executeUpdate();
+        }
+    }
+
+    /** Deletes by primary key. A foreign key still pointing at the row makes this fail. */
+    static boolean delete(Connection conn, int hotelId) throws SQLException {
+        String sql = "DELETE FROM hotels WHERE hotel_id = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, hotelId);
+            return ps.executeUpdate() == 1;
+        }
+    }
+
+    /** Reads one column of one row, or null when the id is gone. */
+    static String name(Connection conn, int hotelId) throws SQLException {
+        String sql = "SELECT name FROM hotels WHERE hotel_id = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, hotelId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("name") : null;
+            }
+        }
+    }
+
+    public static void main(String[] args) throws SQLException {
+        try (Connection conn = DriverManager.getConnection(URL, "root", System.getenv("DB_PASSWORD"))) {
+
+            // 1. CREATE, id comes back from the database so nothing is guessed.
+            int hotelId = insert(conn, "Budapest", "Hotel Sunrise", null, 4, "owner@example.com");
+            System.out.println("created hotel_id " + hotelId);
+
+            // 2. READ, using the key we just received.
+            System.out.println("name: " + name(conn, hotelId));
+
+            // 3. UPDATE, a count of 0 means the id is gone, not that the value was equal.
+            int changed = setStars(conn, hotelId, 5);
+            System.out.println("rows changed: " + changed);
+
+            // 4. DELETE, and prove the row is really gone.
+            System.out.println("deleted: " + delete(conn, hotelId));
+            System.out.println("name after delete: " + name(conn, hotelId));
+
+            // A second delete returns false instead of throwing.
+            System.out.println("deleted again: " + delete(conn, hotelId));
+        }
+    }
+}
+```
+
+One connection serves all five calls, which is right here because the program is single threaded and short lived. In a servlet or a Spring service the connection would come from a pool and every method would have to close it back, so the helper methods would take a `Connection` argument exactly as written rather than open their own.
+
+Note the difference between a NULL `description` and an empty string. The insert binds `setNull(3, Types.VARCHAR)` for the former, and `setString(3, "")` for the latter. MySQL will store both, and a later `WHERE description IS NULL` finds only the first.
+
+### Example 8: savepoints around a batch
+
+A batch is a unit of network work, not a unit of database state. Wrapping it in a savepoint means a rejected batch does not undo the work that came before it in the same transaction.
+
+```java
+// File: SavepointBatch.java
+// Data shape: List<BookingRow> -> int[] batch counts, with a named savepoint as the undo marker.
+// Compile: javac SavepointBatch.java
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Savepoint;
+import java.sql.Statement;
+import java.time.LocalDate;
+import java.util.List;
+
+public class SavepointBatch {
+
+    private static final String URL =
+            "jdbc:mysql://localhost:3306/bookings?useSSL=false&serverTimezone=UTC";
+
+    /** One booking line as it arrives from a file or a form. */
+    record BookingRow(String customerEmail, int hotelId, LocalDate startDate,
+                      LocalDate endDate, int adults, int children) {
+    }
+
+    /**
+     * Inserts the rows as one batch. A failure inside the batch undoes the batch only,
+     * so work that the caller did before the savepoint survives.
+     */
+    static int insertBatch(Connection conn, List<BookingRow> rows) throws SQLException {
+        String sql = "INSERT INTO bookings "
+                + "(customer_email, hotel_id, start_date, end_date, adults, children) "
+                + "VALUES (?, ?, ?, ?, ?, ?)";
+
+        Savepoint beforeBatch = conn.setSavepoint("before_batch");
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (BookingRow row : rows) {
+                ps.setString(1, row.customerEmail());
+                ps.setInt(2, row.hotelId());
+                ps.setDate(3, java.sql.Date.valueOf(row.startDate()));
+                ps.setDate(4, java.sql.Date.valueOf(row.endDate()));
+                ps.setInt(5, row.adults());
+                ps.setInt(6, row.children());
+                ps.addBatch();
+            }
+
+            int[] counts = ps.executeBatch();
+            for (int count : counts) {
+                // A failed element is reported, not thrown, unless you ask for stop-on-error.
+                if (count == Statement.EXECUTE_FAILED) {
+                    throw new SQLException("a batch element failed");
+                }
+            }
+
+            // Success path: the savepoint is no longer needed.
+            conn.releaseSavepoint(beforeBatch);
+            return counts.length;
+        } catch (SQLException e) {
+            // Undo every row of the batch and keep the transaction open for the caller.
+            conn.rollback(beforeBatch);
+            throw e;
+        }
+    }
+
+    public static void main(String[] args) throws SQLException {
+        try (Connection conn = DriverManager.getConnection(URL, "root", System.getenv("DB_PASSWORD"))) {
+
+            conn.setAutoCommit(false);
+
+            try {
+                // Step one that must survive: a parent hotel row.
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO hotels (city, name, description, stars, owner_email) "
+                                + "VALUES (?, ?, ?, ?, ?)",
+                        Statement.RETURN_GENERATED_KEYS)) {
+
+                    ps.setString(1, "Vienna");
+                    ps.setString(2, "Hotel Ring");
+                    ps.setString(3, "Small hotel beside the ring road");
+                    ps.setInt(4, 4);
+                    ps.setString(5, "owner3@example.com");
+                    ps.executeUpdate();
+                }
+
+                // Bad hotel id, the foreign key rejects the batch.
+                try {
+                    insertBatch(conn, List.of(
+                            new BookingRow("anna.kovacs@example.com", 9999,
+                                    LocalDate.of(2024, 7, 1), LocalDate.of(2024, 7, 3), 2, 0)));
+                    System.out.println("batch accepted");
+                } catch (SQLException e) {
+                    // Only the batch was rolled back, the hotel row is still pending.
+                    System.out.println("batch rejected: " + e.getMessage());
+                }
+
+                // A good batch after the failed one proves the transaction is still usable.
+                int accepted = insertBatch(conn, List.of(
+                        new BookingRow("john.smith@example.com", 1,
+                                LocalDate.of(2024, 8, 1), LocalDate.of(2024, 8, 4), 1, 1)));
+                System.out.println("batch rows: " + accepted);
+
+                // One commit for the hotel and the good batch together.
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                // The connection leaves this method in the state it arrived in.
+                conn.setAutoCommit(true);
+            }
+        }
+    }
+}
+```
+
+`releaseSavepoint` sits on the success path only. After `rollback(savepoint)` the driver may treat that savepoint as used up, and calling release on it can throw a second exception that hides the first. MySQL releases the savepoint itself during the rollback, so there is nothing left to clean.
+
+The savepoint name is optional, `setSavepoint()` returns an unnamed one. Names help when a log line has to explain which marker was used, and they must be unique inside the transaction.
+
+### Example 9: chunked batch upsert
+
+A batch of fifty thousand rows is a memory problem on both sides and an expensive retry. Chunking keeps each round trip small and lets you report progress between chunks.
+
+```java
+// File: BatchUpsert.java
+// Data shape: List<String[]> -> int[] per-statement counts, chunked so memory stays flat.
+// Compile: javac BatchUpsert.java
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.List;
+
+public class BatchUpsert {
+
+    private static final String URL =
+            "jdbc:mysql://localhost:3306/bookings?useSSL=false&serverTimezone=UTC";
+
+    private static final int CHUNK = 500;
+
+    /**
+     * MySQL upsert. The unique key on owner_email decides insert versus update.
+     * ON DUPLICATE KEY is MySQL syntax, other vendors use ON CONFLICT or MERGE.
+     */
+    static int[] upsertHotels(Connection conn, List<String[]> rows) throws SQLException {
+        String sql = "INSERT INTO hotels (city, name, description, stars, owner_email) "
+                + "VALUES (?, ?, ?, ?, ?) "
+                + "ON DUPLICATE KEY UPDATE name = VALUES(name), stars = VALUES(stars)";
+
+        int[] lastCounts = new int[0];
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            int pending = 0;
+
+            for (String[] row : rows) {
+                ps.setString(1, row[0]);
+                ps.setString(2, row[1]);
+                ps.setString(3, row[2]);
+                ps.setInt(4, Integer.parseInt(row[3]));
+                ps.setString(5, row[4]);
+                ps.addBatch();
+                pending++;
+
+                // Flush at a fixed size: each chunk is one round trip and one retry unit.
+                if (pending == CHUNK) {
+                    lastCounts = ps.executeBatch();
+                    ps.clearBatch();
+                    pending = 0;
+                }
+            }
+
+            if (pending > 0) {
+                lastCounts = ps.executeBatch();
+            }
+        }
+
+        return lastCounts;
+    }
+
+    /** A count of -2 means the driver refuses to report rows, which is not a failure. */
+    static String describe(int[] counts) {
+        int known = 0;
+        int unknown = 0;
+        for (int count : counts) {
+            if (count == Statement.SUCCESS_NO_INFO) {
+                unknown++;
+            } else if (count >= 0) {
+                known += count;
+            }
+        }
+        return known + " rows changed, " + unknown + " statements without a count";
+    }
+
+    public static void main(String[] args) throws SQLException {
+        List<String[]> rows = List.of(
+                new String[]{"Budapest", "Hotel Sunrise", "Quiet hotel near the river", "4", "owner@example.com"},
+                new String[]{"Vienna", "Hotel Ring", "Small hotel beside the ring road", "4", "owner3@example.com"},
+                new String[]{"Prague", "Hotel Bridge", "View of the old bridge", "5", "owner4@example.com"});
+
+        try (Connection conn = DriverManager.getConnection(URL, "root", System.getenv("DB_PASSWORD"))) {
+            boolean originalAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+
+            try {
+                int[] counts = upsertHotels(conn, rows);
+                conn.commit();
+                System.out.println(describe(counts));
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(originalAutoCommit);
+            }
+        }
+    }
+}
+```
+
+The upsert needs a unique index to have anything to conflict on. In the sample schema from Example 5, add one before running this code:
+
+```sql
+ALTER TABLE hotels ADD UNIQUE KEY uq_owner (owner_email);
+```
+
+`clearBatch` after each flush matters. Without it the driver keeps every parameter set until the next execute, so the memory saving is gone. `VALUES(col)` inside `ON DUPLICATE KEY UPDATE` refers to the value the insert tried to write, which is why the same parameter set can serve both branches.
+
+Two rows in one batch with the same `owner_email` will hit each other inside the same statement. MySQL applies the update twice; a vendor with `ON CONFLICT DO NOTHING` may reject the whole statement instead. Deduplicate the input if that matters.
+
+### Example 10: asking the database what it can do
+
+Metadata is the difference between code that works on one driver and code that refuses cleanly on another. `DatabaseMetaData` describes the server, `ResultSetMetaData` describes one row shape.
+
+```java
+// File: MetadataReport.java
+// Data shape: DatabaseMetaData -> one line per capability; ResultSetMetaData -> one line per column.
+// Compile: javac MetadataReport.java
+
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+
+public class MetadataReport {
+
+    private static final String URL =
+            "jdbc:mysql://localhost:3306/bookings?useSSL=false&serverTimezone=UTC";
+
+    /** Connection level facts: what the server is, and what the driver claims it can do. */
+    static void printDatabase(Connection conn) throws SQLException {
+        DatabaseMetaData meta = conn.getMetaData();
+
+        System.out.println("product: " + meta.getDatabaseProductName()
+                + " " + meta.getDatabaseProductVersion());
+        System.out.println("driver: " + meta.getDriverName()
+                + " " + meta.getDriverVersion());
+        System.out.println("url: " + meta.getURL());
+        System.out.println("user: " + meta.getUserName());
+
+        // Capability flags are cheap to check and avoid writing code the driver cannot run.
+        System.out.println("transactions: " + meta.supportsTransactions()
+                + ", savepoints: " + meta.supportsSavepoints()
+                + ", batch: " + meta.supportsBatchUpdates());
+
+        System.out.println("isolation: " + conn.getTransactionIsolation());
+
+        // isValid answers within the timeout instead of throwing on a dead socket.
+        System.out.println("connection valid: " + conn.isValid(2));
+    }
+
+    /** Lists the tables of the current schema, skipping views and system tables. */
+    static void printTables(Connection conn) throws SQLException {
+        DatabaseMetaData meta = conn.getMetaData();
+
+        // The catalog is the schema name in MySQL and null in SQLite.
+        try (ResultSet tables = meta.getTables(conn.getCatalog(), null, "%",
+                new String[]{"TABLE"})) {
+
+            while (tables.next()) {
+                System.out.println("table: " + tables.getString("TABLE_NAME"));
+            }
+        }
+    }
+
+    /** Describes the columns of one known table without running a query on it. */
+    static void printColumns(Connection conn, String table) throws SQLException {
+        DatabaseMetaData meta = conn.getMetaData();
+
+        try (ResultSet columns = meta.getColumns(conn.getCatalog(), null, table, "%")) {
+            while (columns.next()) {
+                System.out.printf("%-14s %-10s nullable=%s size=%d%n",
+                        columns.getString("COLUMN_NAME"),
+                        columns.getString("TYPE_NAME"),
+                        columns.getString("IS_NULLABLE"),
+                        columns.getInt("COLUMN_SIZE"));
+            }
+        }
+    }
+
+    /** Describes a result set, which is how a generic row printer learns its columns. */
+    static void printResultColumns(Connection conn) throws SQLException {
+        String sql = "SELECT hotel_id, name, stars, description FROM hotels WHERE city = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, "Budapest");
+
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData meta = rs.getMetaData();
+
+                for (int col = 1; col <= meta.getColumnCount(); col++) {
+                    System.out.printf("%d %-14s %-10s nulls=%d%n",
+                            col,
+                            meta.getColumnLabel(col),
+                            meta.getColumnTypeName(col),
+                            meta.isNullable(col));
+                }
+            }
+        }
+    }
+
+    public static void main(String[] args) throws SQLException {
+        try (Connection conn = DriverManager.getConnection(URL, "root", System.getenv("DB_PASSWORD"))) {
+            printDatabase(conn);
+            printTables(conn);
+            printColumns(conn, "hotels");
+            printResultColumns(conn);
+        }
+    }
+}
+```
+
+`getTables` and `getColumns` return ordinary result sets, so they close like any other cursor. The second argument is `null` for the schema, which means "do not filter by schema"; in MySQL the catalog is the database name, so `conn.getCatalog()` is the value you want. Passing `"%_%"` as the table pattern excludes nothing and is a common way to ask for every table.
+
+Case sensitivity is a trap. `getTables` compares patterns in the server's own collation, and MySQL on Linux is case sensitive for table names while Windows is not. A hard-coded `"Hotels"` works on one machine and returns zero rows on another. Store names in lower case and keep them that way.
+
+### Example 11: a repository that builds its own WHERE clause
+
+Optional filters are where concatenation creeps back in. The safe pattern puts a fixed SQL fragment and a matching parameter into the same branch, so the order of placeholders and the order of bindings cannot drift apart.
+
+```java
+// File: HotelSearchRepository.java
+// Data shape: Search(city, minStars, orderBy) -> List<Hotel>; text block SQL with bound filters.
+// Compile: javac HotelSearchRepository.java
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Read side of a small hotel catalogue.
+ *
+ * Sample schema the queries assume:
+ *
+ *   CREATE TABLE hotels (
+ *       hotel_id INT PRIMARY KEY AUTO_INCREMENT,
+ *       city VARCHAR(80) NOT NULL,
+ *       name VARCHAR(120) NOT NULL,
+ *       description TEXT,
+ *       stars INT NOT NULL,
+ *       owner_email VARCHAR(120) NOT NULL,
+ *       UNIQUE KEY uq_owner (owner_email)
+ *   );
+ */
+public class HotelSearchRepository {
+
+    private static final String URL =
+            "jdbc:mysql://localhost:3306/bookings?useSSL=false&serverTimezone=UTC";
+    private static final String USER = "root";
+    private static final String PASSWORD = System.getenv("DB_PASSWORD");
+
+    /** One row, already detached from the connection. */
+    record Hotel(int hotelId, String city, String name, int stars,
+                 String description, String ownerEmail) {
+    }
+
+    /** Optional filters, where null means "do not filter on this". */
+    record Search(String city, Integer minStars, String orderBy) {
+    }
+
+    private Connection connect() throws SQLException {
+        return DriverManager.getConnection(URL, USER, PASSWORD);
+    }
+
+    /** ORDER BY cannot be bound, so the request value maps to a fixed fragment. */
+    private static String orderClause(String requested) {
+        return switch (requested == null ? "" : requested) {
+            case "stars" -> "stars DESC, name";
+            case "name" -> "name";
+            default -> "hotel_id";
+        };
+    }
+
+    /** Builds the WHERE list from the filters that are present, then binds in the same order. */
+    List<Hotel> search(Search search) throws SQLException {
+        StringBuilder sql = new StringBuilder("""
+                SELECT hotel_id, city, name, stars, description, owner_email
+                FROM hotels
+                WHERE 1 = 1
+                """);
+        List<Object> params = new ArrayList<>();
+
+        if (search.city() != null) {
+            sql.append(" AND city = ?");
+            params.add(search.city());
+        }
+        if (search.minStars() != null) {
+            sql.append(" AND stars >= ?");
+            params.add(search.minStars());
+        }
+
+        sql.append(" ORDER BY ").append(orderClause(search.orderBy()));
+
+        List<Hotel> hotels = new ArrayList<>();
+        try (Connection conn = connect();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            // setObject picks the setter from the runtime class, so the list stays untyped.
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    hotels.add(map(rs));
+                }
+            }
+        }
+        return hotels;
+    }
+
+    /** Reads one hotel by primary key. Empty means the row does not exist. */
+    Optional<Hotel> findById(int hotelId) throws SQLException {
+        String sql = "SELECT hotel_id, city, name, stars, description, owner_email "
+                + "FROM hotels WHERE hotel_id = ?";
+
+        try (Connection conn = connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, hotelId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(map(rs)) : Optional.empty();
+            }
+        }
+    }
+
+    /** One line per city with its best rated hotel. A tie returns both hotels. */
+    List<String> bestPerCity() throws SQLException {
+        String sql = """
+                SELECT h.city,
+                       h.name,
+                       h.stars,
+                       (SELECT COUNT(*) FROM bookings b WHERE b.hotel_id = h.hotel_id) AS booking_count
+                FROM hotels h
+                WHERE h.stars = (SELECT MAX(h2.stars) FROM hotels h2 WHERE h2.city = h.city)
+                ORDER BY h.city, h.name
+                """;
+
+        List<String> lines = new ArrayList<>();
+        try (Connection conn = connect();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                lines.add(rs.getString("city") + ": " + rs.getString("name")
+                        + " (" + rs.getInt("stars") + " stars, "
+                        + rs.getInt("booking_count") + " bookings)");
+            }
+        }
+        return lines;
+    }
+
+    /** One place that knows how a result row becomes an object. */
+    private static Hotel map(ResultSet rs) throws SQLException {
+        return new Hotel(
+                rs.getInt("hotel_id"),
+                rs.getString("city"),
+                rs.getString("name"),
+                rs.getInt("stars"),          // NOT NULL in the schema, so no wasNull check
+                rs.getString("description"), // nullable, stays null in the record
+                rs.getString("owner_email"));
+    }
+
+    public static void main(String[] args) throws SQLException {
+        HotelSearchRepository repository = new HotelSearchRepository();
+
+        System.out.println("Budapest, 4 stars or better, best first:");
+        for (Hotel hotel : repository.search(new Search("Budapest", 4, "stars"))) {
+            System.out.println("  " + hotel.hotelId() + " " + hotel.name());
+        }
+
+        System.out.println("all hotels by name:");
+        for (Hotel hotel : repository.search(new Search(null, null, "name"))) {
+            System.out.println("  " + hotel.name() + " in " + hotel.city());
+        }
+
+        repository.findById(1).ifPresentOrElse(
+                hotel -> System.out.println("id 1 is " + hotel.name()),
+                () -> System.out.println("id 1 is missing"));
+
+        System.out.println("best hotel per city:");
+        for (String line : repository.bestPerCity()) {
+            System.out.println("  " + line);
+        }
+    }
+}
+```
+
+`WHERE 1 = 1` looks like a trick until you remove it. Without it, every optional branch has to know whether it is the first condition, and the code grows a boolean or a string strip. With it, every branch appends `AND ...` and the parameter list stays in step with the text.
+
+`setObject` is convenient and slightly loose. It asks the driver to infer the SQL type from the Java class, so `Integer` becomes `INTEGER` and `String` becomes `VARCHAR`. That inference is fine for these two types. For a `LocalDate`, a `BigDecimal`, or a value that has to match a `DATE` column exactly, bind with the specific setter or pass the target type: `ps.setObject(i + 1, value, Types.DATE)`.
+
+The sort whitelist is the part exam graders look for. `orderClause` never returns anything the caller sent. It returns one of three constants, and an unknown value falls through to the primary key. The same rule applies to a column list in a report builder.
+
 ## Common mistakes
 
 - Concatenating user input into SQL. Use `?` and bind.

@@ -1,0 +1,101 @@
+[
+  {
+    "id": "java-file-io-extra-read-all-bytes",
+    "group": "Bytes",
+    "name": "Files.readAllBytes()",
+    "syntax": "byte[] data = Files.readAllBytes(Path.of(\"logo.png\"))",
+    "desc": "Reads the whole file as raw bytes. The right call for an image, a zip, or a PDF, where a charset would corrupt the content.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\npublic class ReadBytes {\n    public static void main(String[] args) throws IOException {\n        // No decoding. The array holds exactly the bytes that sit on disk.\n        byte[] data = Files.readAllBytes(Path.of(\"logo.png\"));\n\n        // Java bytes are signed, so mask one before printing it as 0..255.\n        System.out.println(data.length + \" bytes, first=\" + (data[0] & 0xFF));\n    }\n}",
+    "body": "The file must exist; a missing path throws `NoSuchFileException`. Loading everything is fine for a photo and wrong for a large archive, where `Files.newInputStream` keeps memory flat. When the file does not fit, the failure is `OutOfMemoryError`, not `IOException`, so a catch block for `IOException` will not see it."
+  },
+  {
+    "id": "java-file-io-extra-write-bytes",
+    "group": "Bytes",
+    "name": "Files.write() with byte[]",
+    "syntax": "Files.write(Path.of(\"copy.bin\"), data)",
+    "desc": "Writes a byte array to a file. With no options it creates the file or replaces the existing content.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\npublic class CopyBytes {\n    public static void main(String[] args) throws IOException {\n        Path source = Path.of(\"logo.png\");\n        Path target = Path.of(\"out\", \"logo-copy.png\");\n\n        // Read and write use bytes on both sides, so nothing is decoded.\n        byte[] data = Files.readAllBytes(source);\n        Files.createDirectories(target.getParent());\n        Files.write(target, data);\n\n        System.out.println(Files.size(target) + \" bytes written\");\n    }\n}",
+    "body": "The default options are `CREATE`, `TRUNCATE_EXISTING`, `WRITE`, so the call replaces old content. Pass `StandardOpenOption.APPEND` to add bytes at the end, and remember that `APPEND` alone fails on a missing file, so pair it with `CREATE`. The text overloads of `Files.write` encode characters; this one does not touch a charset."
+  },
+  {
+    "id": "java-file-io-extra-copy",
+    "group": "Copy and move",
+    "name": "Files.copy()",
+    "syntax": "Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING)",
+    "desc": "Copies a file's content to another path. Without REPLACE_EXISTING it fails when the target already exists.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.nio.file.StandardCopyOption;\n\npublic class ArchiveReport {\n    public static void main(String[] args) throws IOException {\n        Path report = Path.of(\"out\", \"report.txt\");\n        Path archive = Path.of(\"out\", \"archive\", \"report.txt\");\n\n        Files.createDirectories(report.getParent());\n        Files.writeString(report, \"rows=3\\n\");\n        Files.createDirectories(archive.getParent());\n\n        // REPLACE_EXISTING turns the second run from an exception into an overwrite.\n        Files.copy(report, archive, StandardCopyOption.REPLACE_EXISTING);\n\n        System.out.println(\"copied \" + Files.size(archive) + \" bytes\");\n    }\n}",
+    "body": "Without the option the call throws `FileAlreadyExistsException`. Content is copied, attributes are not; add `StandardCopyOption.COPY_ATTRIBUTES` when timestamps matter. Copying a directory creates an empty directory at the target and does not recurse. The parent of the target must exist, because `Files.copy` does not create it."
+  },
+  {
+    "id": "java-file-io-extra-move",
+    "group": "Copy and move",
+    "name": "Files.move()",
+    "syntax": "Files.move(source, target, StandardCopyOption.REPLACE_EXISTING)",
+    "desc": "Moves or renames a file. On the same filesystem it is a rename, and the bytes are not rewritten.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.nio.file.StandardCopyOption;\n\npublic class MarkProcessed {\n    public static void main(String[] args) throws IOException {\n        Path inbox = Path.of(\"inbox\", \"bookings.csv\");\n        Path done = Path.of(\"done\", \"bookings.csv\");\n\n        Files.createDirectories(inbox.getParent());\n        Files.writeString(inbox, \"hotel_id,city\\n1,Budapest\\n\");\n        Files.createDirectories(done.getParent());\n\n        // Rename inside one filesystem. REPLACE_EXISTING clears yesterday's file.\n        Files.move(inbox, done, StandardCopyOption.REPLACE_EXISTING);\n\n        System.out.println(Files.exists(inbox) + \" \" + Files.exists(done));\n    }\n}",
+    "body": "`StandardCopyOption.ATOMIC_MOVE` asks for a single step that either happens or does not; it throws `AtomicMoveNotSupportedException` when the filesystem cannot promise that. Across disks the move is a copy followed by a delete, so it costs time proportional to the file size and is not atomic. Moving a non-empty directory fails. `Path.resolveSibling` is the shortest way to rename in place."
+  },
+  {
+    "id": "java-file-io-extra-delete-if-exists",
+    "group": "Copy and move",
+    "name": "Files.deleteIfExists()",
+    "syntax": "boolean removed = Files.deleteIfExists(path)",
+    "desc": "Deletes a file or an empty directory and reports whether something was removed. A missing path is not an error.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\npublic class CleanExports {\n    public static void main(String[] args) throws IOException {\n        Path old = Path.of(\"out\", \"old-report.txt\");\n\n        Files.createDirectories(old.getParent());\n        Files.writeString(old, \"stale\\n\");\n\n        // First call removes the file and returns true.\n        boolean first = Files.deleteIfExists(old);\n\n        // Second call finds nothing, returns false, throws nothing.\n        boolean second = Files.deleteIfExists(old);\n\n        System.out.println(first + \" \" + second + \" exists=\" + Files.exists(old));\n    }\n}",
+    "body": "Use this in cleanup code, where the file may already be gone. `Files.delete` is the strict version: it throws `NoSuchFileException` for a missing path and `DirectoryNotEmptyException` for a folder that still holds files. Neither call uses a recycle bin, so a wrong path is gone for good."
+  },
+  {
+    "id": "java-file-io-extra-walk",
+    "group": "Directories",
+    "name": "Files.walk()",
+    "syntax": "try (Stream<Path> paths = Files.walk(root)) { ... }",
+    "desc": "Returns a Stream of paths under a directory, to a chosen depth. The stream holds a directory handle and must be closed.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.List;\nimport java.util.stream.Collectors;\nimport java.util.stream.Stream;\n\npublic class ListTextFiles {\n    public static void main(String[] args) throws IOException {\n        Path root = Path.of(\"data\");\n        Files.createDirectories(root.resolve(\"2026\"));\n        Files.writeString(root.resolve(\"notes.txt\"), \"a\\n\");\n        Files.writeString(root.resolve(\"2026\").resolve(\"jan.txt\"), \"b\\n\");\n\n        List<Path> files;\n        // Depth 1 means the direct children of root.\n        try (Stream<Path> paths = Files.walk(root, 1)) {\n            files = paths.filter(Files::isRegularFile)\n                         .sorted()\n                         .collect(Collectors.toList());\n        }\n\n        for (Path file : files) {\n            System.out.println(root.relativize(file) + \" \" + Files.size(file));\n        }\n    }\n}",
+    "body": "The two argument form takes a maximum depth: 0 is the root alone, 1 adds its children. The walk does not follow symbolic links unless you pass `FileVisitOption.FOLLOW_LINKS`, which is what stops a link loop from running forever. `sorted()` pulls every path into memory before it emits one, so it belongs on a tree you expect to fit. Collect inside the `try` and work with the list after it; a lazily consumed stream that escapes its block is a file handle leak."
+  },
+  {
+    "id": "java-file-io-extra-delete-tree",
+    "group": "Directories",
+    "name": "Delete a directory tree",
+    "syntax": "Files.walk(root).sorted(Comparator.reverseOrder())",
+    "desc": "Removes every file under a folder and then the folder itself. Deleting children first is what makes each step legal.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.Comparator;\nimport java.util.List;\nimport java.util.stream.Collectors;\nimport java.util.stream.Stream;\n\npublic class DropScratch {\n    public static void main(String[] args) throws IOException {\n        Path root = Path.of(\"scratch\");\n        Files.createDirectories(root.resolve(\"a\").resolve(\"b\"));\n        Files.writeString(root.resolve(\"a\").resolve(\"b\").resolve(\"x.txt\"), \"x\\n\");\n\n        // Collect first. Deleting while the walk stream is open breaks the walk.\n        List<Path> victims;\n        try (Stream<Path> paths = Files.walk(root)) {\n            victims = paths.sorted(Comparator.reverseOrder()).collect(Collectors.toList());\n        }\n\n        int deleted = 0;\n        for (Path path : victims) {\n            try {\n                Files.delete(path);\n                deleted++;\n            } catch (IOException e) {\n                // One locked file must not stop the cleanup of the rest.\n                System.out.println(\"kept \" + path + \": \" + e.getMessage());\n            }\n        }\n\n        System.out.println(\"deleted \" + deleted + \" path(s), root exists=\" + Files.exists(root));\n    }\n}",
+    "body": "Reverse path order puts `a/b/x.txt` before `a/b` and `a` before `scratch`, so `Files.delete` never sees a non-empty directory. A locked file on Windows produces an `IOException` on that path only, which is why the try sits inside the loop. `Files.walk` offers no force delete; there is no one call that removes a non-empty tree."
+  },
+  {
+    "id": "java-file-io-extra-temp-file",
+    "group": "Temp files",
+    "name": "Files.createTempFile()",
+    "syntax": "Path tmp = Files.createTempFile(dir, \"report-\", \".tmp\")",
+    "desc": "Creates a uniquely named empty file in the given directory. The name is generated, so two runs cannot collide.",
+    "example": "import java.io.IOException;\nimport java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.nio.file.StandardCopyOption;\n\npublic class SafeWrite {\n    public static void main(String[] args) throws IOException {\n        Path out = Path.of(\"out\");\n        Files.createDirectories(out);\n\n        // Same folder as the target, so the later move is a rename.\n        Path tmp = Files.createTempFile(out, \"report-\", \".tmp\");\n        try {\n            Files.writeString(tmp, \"rows=3\\n\", StandardCharsets.UTF_8);\n            Files.move(tmp, out.resolve(\"report.txt\"), StandardCopyOption.REPLACE_EXISTING);\n        } finally {\n            // Harmless after a successful move, required after a failed one.\n            Files.deleteIfExists(tmp);\n        }\n\n        System.out.println(Files.readString(out.resolve(\"report.txt\")).trim());\n    }\n}",
+    "body": "Pass no directory and the file lands in `java.io.tmpdir`, which is a different filesystem on many machines and turns the later move into a copy. The file is not deleted when the JVM exits; `deleteOnExit` exists on `File` but it only runs on a normal shutdown and keeps a reference until then. Create it next to the target and clean it in a `finally`."
+  },
+  {
+    "id": "java-file-io-extra-read-attributes",
+    "group": "Attributes",
+    "name": "Files.readAttributes()",
+    "syntax": "Files.readAttributes(path, BasicFileAttributes.class)",
+    "desc": "Returns type, size, and timestamps for one path in a single call, instead of four separate probes.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.nio.file.attribute.BasicFileAttributes;\nimport java.nio.file.attribute.FileTime;\n\npublic class DescribeFile {\n    public static void main(String[] args) throws IOException {\n        Path file = Path.of(\"out\", \"report.txt\");\n        Files.createDirectories(file.getParent());\n        Files.writeString(file, \"rows=3\\n\");\n\n        // One call, one snapshot: type, size and both timestamps.\n        BasicFileAttributes attrs =\n                Files.readAttributes(file, BasicFileAttributes.class);\n\n        FileTime modified = attrs.lastModifiedTime();\n        System.out.println(file.getFileName() + \" \" + attrs.size() + \" bytes\");\n        System.out.println(\"dir=\" + attrs.isDirectory()\n                + \" regular=\" + attrs.isRegularFile()\n                + \" modified=\" + modified.toInstant());\n    }\n}",
+    "body": "For a directory, `size()` is a filesystem specific number and not the total of its contents. The attributes object says what the entry is; it does not carry Unix permission bits. Those need `PosixFileAttributes` and a `PosixFilePermission` set, which is a different call and is not portable to Windows. `Files.readAttributes` follows symbolic links by default; `LinkOption.NOFOLLOW_LINKS` describes the link itself."
+  },
+  {
+    "id": "java-file-io-extra-mismatch",
+    "group": "Compare",
+    "name": "Files.mismatch()",
+    "syntax": "long pos = Files.mismatch(first, second)",
+    "desc": "Returns the index of the first differing byte, or -1 when two files have identical content. Java 12 and later.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.nio.file.StandardCopyOption;\n\npublic class VerifyCopy {\n    public static void main(String[] args) throws IOException {\n        Path original = Path.of(\"out\", \"report.txt\");\n        Path copy = Path.of(\"out\", \"report-copy.txt\");\n\n        Files.createDirectories(original.getParent());\n        Files.writeString(original, \"rows=3\\n\");\n        Files.copy(original, copy, StandardCopyOption.REPLACE_EXISTING);\n\n        // -1 means equal. Any other value is a byte index, not a line number.\n        long diff = Files.mismatch(original, copy);\n        System.out.println(diff == -1 ? \"identical\" : \"differs at byte \" + diff);\n    }\n}",
+    "body": "Both files must exist, otherwise the call throws `NoSuchFileException`. When one file is a prefix of the other, the shorter length is returned, so a truncated copy is reported at the point where it ends. The comparison reads in chunks and never holds either file in memory, which makes it safe for two large files."
+  },
+  {
+    "id": "java-file-io-extra-size",
+    "group": "Attributes",
+    "name": "Files.size()",
+    "syntax": "long bytes = Files.size(path)",
+    "desc": "Returns the length of a file in bytes. For a directory the number is filesystem specific and means nothing useful.",
+    "example": "import java.io.IOException;\nimport java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.nio.file.StandardOpenOption;\n\npublic class SizeCheck {\n    public static void main(String[] args) throws IOException {\n        Path file = Path.of(\"out\", \"accented.txt\");\n        Files.createDirectories(file.getParent());\n\n        // One accented char in UTF-8 takes two bytes.\n        Files.writeString(file, \"caf\\u00E9\\n\", StandardCharsets.UTF_8);\n\n        long bytes = Files.size(file);\n        long chars = Files.readString(file, StandardCharsets.UTF_8).length();\n        System.out.println(\"bytes=\" + bytes + \" chars=\" + chars);\n\n        // Always positive, so it can be used as an append guard.\n        if (Files.size(file) > 0) {\n            Files.writeString(file, \"again\\n\", StandardOpenOption.APPEND);\n        }\n        System.out.println(Files.size(file) + \" bytes after append\");\n    }\n}",
+    "body": "The count is bytes, not characters. In UTF-8 an accented letter or an emoji takes more than one byte, so a limit written in characters will not match a limit written in bytes. A missing file throws `NoSuchFileException`; guard with `Files.exists` when the path is optional. To measure a folder, sum the sizes of the files under it."
+  }
+]

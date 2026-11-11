@@ -1,0 +1,131 @@
+[
+  {
+    "id": "java-core-extra-string-split",
+    "group": "Strings",
+    "name": "String.split()",
+    "syntax": "text.split(regex, limit)",
+    "desc": "Splits a string on a regular expression and returns the fields as an array. The limit argument decides what happens to empty trailing fields.",
+    "example": "// File: SplitRow.java\npublic class SplitRow {\n    public static void main(String[] args) {\n        String row = \"anna@example.com;Budapest;3\";\n        String[] parts = row.split(\";\");\n        System.out.println(parts.length); // 3\n\n        // plain split drops empty trailing fields, limit -1 keeps them\n        String padded = \"Eger;2;\";\n        System.out.println(padded.split(\";\").length);     // 2\n        System.out.println(padded.split(\";\", -1).length); // 3\n\n        // the dot is a regex wildcard, so it needs escaping\n        System.out.println(\"a.b.c\".split(\"\\\\.\").length); // 3\n    }\n}",
+    "body": "The argument is a regex, not a plain separator. Characters with a meaning in a pattern have to be escaped, and `Pattern.quote(separator)` does that for an arbitrary string.\n\nThe limit argument has three useful values. Zero or omitted drops empty trailing fields, which hides a missing column. A negative number keeps every field, so the array length always matches the column count. A positive number splits at most that many times, which is how a field that itself contains the separator survives.\n\nRead the fields with the index you expect only after you check the length. A short row is the normal way a CSV parser throws `ArrayIndexOutOfBoundsException` in an exam."
+  },
+  {
+    "id": "java-core-extra-string-join-format",
+    "group": "Strings",
+    "name": "String.join() and formatted()",
+    "syntax": "String.join(separator, parts) / template.formatted(args)",
+    "desc": "Joins fields with a separator and formats a template with positional arguments. Both replace a hand written StringBuilder for short text.",
+    "example": "// File: FormatRow.java\npublic class FormatRow {\n    public static void main(String[] args) {\n        String[] row = {\"anna@example.com\", \"Budapest\", \"3\"};\n\n        // join puts the separator between fields, never after the last one\n        System.out.println(String.join(\" | \", row));\n\n        // %-24s pads on the right, %s keeps the text as it is\n        System.out.printf(\"%-24s %-10s %s%n\", row[0], row[1], row[2]);\n\n        // formatted is String.format with the template on the left\n        String note = \"%s from %s\".formatted(row[0], row[1]);\n        System.out.println(note); // anna@example.com from Budapest\n    }\n}"
+  },
+  {
+    "id": "java-core-extra-stringbuilder-loop",
+    "group": "Strings",
+    "name": "StringBuilder in a loop",
+    "syntax": "sb.append(value)",
+    "desc": "Appends into one growable buffer instead of copying the string on every pass. Required when a loop builds a report line by line.",
+    "example": "// File: BuildReport.java\nimport java.util.List;\n\npublic class BuildReport {\n    public static void main(String[] args) {\n        List<String> cities = List.of(\"Budapest\", \"Eger\", \"Gyor\");\n\n        // One buffer, three appends per line. Concatenation would copy the\n        // whole text on every pass and allocate a new string each time.\n        StringBuilder report = new StringBuilder();\n        for (int i = 0; i < cities.size(); i++) {\n            report.append(i + 1).append(\": \").append(cities.get(i)).append('\\n');\n        }\n        System.out.print(report);\n\n        // setLength(0) empties the buffer without allocating a new one\n        report.setLength(0);\n        report.append(\"abc\").reverse();\n        System.out.println(report); // cba\n\n        // substring on a builder returns a String\n        System.out.println(new StringBuilder(\"Budapest\").substring(0, 4)); // Buda\n    }\n}",
+    "body": "`append` returns the same builder, so the calls chain. `toString` copies the buffer at that moment: a later append cannot change the string you already took, which is why printing a snapshot and printing the builder differ.\n\nA builder is not thread safe. If two threads append, wrap the writes in a `synchronized` block or use `StringBuffer`, which is the synchronized version of the same class."
+  },
+  {
+    "id": "java-core-extra-arrays-sort-search",
+    "group": "Arrays",
+    "name": "Arrays.sort() and binarySearch()",
+    "syntax": "Arrays.sort(array) / Arrays.binarySearch(array, key)",
+    "desc": "Sorts an array in place and searches a sorted array. The search only works after the sort, and a miss returns a negative insertion point.",
+    "example": "// File: SortScores.java\nimport java.util.Arrays;\n\npublic class SortScores {\n    public static void main(String[] args) {\n        int[] scores = {42, 7, 19, 88};\n\n        // ascending and in place, no new array is returned\n        Arrays.sort(scores);\n        System.out.println(Arrays.toString(scores)); // [7, 19, 42, 88]\n\n        // a hit returns the index, a miss returns -(insertion point) - 1\n        System.out.println(Arrays.binarySearch(scores, 42)); // 2\n        System.out.println(Arrays.binarySearch(scores, 50)); // -4\n\n        // strings sort by natural order, which is uppercase before lowercase\n        String[] cities = {\"eger\", \"Budapest\", \"Gyor\"};\n        Arrays.sort(cities);\n        System.out.println(Arrays.toString(cities)); // [Budapest, Gyor, eger]\n    }\n}",
+    "body": "Primitive arrays take no comparator. For a descending `int[]` there are two normal choices: sort ascending and walk it backwards, or box the values into an `Integer[]` and pass `Comparator.reverseOrder()`.\n\n`Arrays.toString` prints one dimension. A nested array needs `Arrays.deepToString`, otherwise you see the reference of each row."
+  },
+  {
+    "id": "java-core-extra-localdate-arithmetic",
+    "group": "Dates",
+    "name": "LocalDate plusDays() and ChronoUnit",
+    "syntax": "date.plusDays(n) / ChronoUnit.DAYS.between(a, b)",
+    "desc": "Moves a date by a number of days and counts the days between two dates. LocalDate is immutable, so every change returns a new object.",
+    "example": "// File: Nights.java\nimport java.time.LocalDate;\nimport java.time.temporal.ChronoUnit;\n\npublic class Nights {\n    public static void main(String[] args) {\n        LocalDate start = LocalDate.parse(\"2026-05-11\");\n        LocalDate end = start.plusDays(7);\n\n        // the original object never changes\n        System.out.println(start); // 2026-05-11\n        System.out.println(end);   // 2026-05-18\n\n        // a count in days, the usual stay length question\n        System.out.println(ChronoUnit.DAYS.between(start, end)); // 7\n\n        // comparisons are methods, not operators\n        System.out.println(end.isAfter(start));  // true\n        System.out.println(start.isBefore(end)); // true\n    }\n}"
+  },
+  {
+    "id": "java-core-extra-date-formatter-pattern",
+    "group": "Dates",
+    "name": "DateTimeFormatter.ofPattern()",
+    "syntax": "DateTimeFormatter.ofPattern(pattern, locale)",
+    "desc": "Builds a display and parse format from a pattern. The same formatter must be used to read the text back, and a locale fixes month names.",
+    "example": "// File: StampDate.java\nimport java.time.LocalDate;\nimport java.time.format.DateTimeFormatter;\nimport java.util.Locale;\n\npublic class StampDate {\n    public static void main(String[] args) {\n        LocalDate date = LocalDate.of(2026, 5, 18);\n\n        // the locale fixes the month name, so another machine cannot change it\n        DateTimeFormatter display =\n                DateTimeFormatter.ofPattern(\"dd MMM yyyy\", Locale.ENGLISH);\n        System.out.println(date.format(display)); // 18 May 2026\n\n        // parsing needs the same pattern that produced the text\n        System.out.println(LocalDate.parse(\"18 May 2026\", display).equals(date)); // true\n\n        // yyyy is the year, MM the month, dd the day; mm would be minutes\n        System.out.println(date.format(DateTimeFormatter.ISO_LOCAL_DATE)); // 2026-05-18\n    }\n}",
+    "body": "`yyyy` is the calendar year and `YYYY` is the week based year, which can differ around January. `MM` is the month and `mm` is the minute. `dd` is the day of the month and `DD` is the day of the year. Those four swaps produce output that looks right until the date is near a boundary.\n\nFormatting a date and parsing it back with the same formatter is a cheap round trip test. If the parsed value differs, the pattern is missing a field the text carries."
+  },
+  {
+    "id": "java-core-extra-record-compact-constructor",
+    "group": "OOP",
+    "name": "record with a compact constructor",
+    "syntax": "record Name(Type field, ...) { Name { ... } }",
+    "desc": "Declares an immutable data class and validates the components in a compact constructor. The compiler writes the accessors, equals, hashCode, and toString.",
+    "example": "// File: Guest.java\npublic class Guest {\n    record Row(String email, int nights) {\n        // A compact constructor checks the values before the fields are set\n        Row {\n            if (email == null || !email.contains(\"@\")) {\n                throw new IllegalArgumentException(\"bad email\");\n            }\n            if (nights < 1) {\n                throw new IllegalArgumentException(\"bad nights: \" + nights);\n            }\n        }\n\n        // a derived value is a method, not a stored field\n        int price(int nightly) {\n            return nights * nightly;\n        }\n    }\n\n    public static void main(String[] args) {\n        Row row = new Row(\"anna@example.com\", 3);\n        System.out.println(row.email());   // anna@example.com\n        System.out.println(row.price(80)); // 240\n\n        // equals compares the components, so it is data equality\n        System.out.println(row.equals(new Row(\"anna@example.com\", 3))); // true\n        System.out.println(row); // Row[email=anna@example.com, nights=3]\n    }\n}",
+    "body": "The compact form repeats the component list only in the header. Inside the body you assign to the parameter name, and the compiler writes the field assignment after your code, so a normalised value is what gets stored.\n\nRecords cannot extend a class, cannot declare extra instance fields, and are final. They can implement an interface, which is enough for the exam tasks that ask for a sortable or printable row."
+  },
+  {
+    "id": "java-core-extra-scanner-tokens",
+    "group": "Input",
+    "name": "Scanner nextInt() and nextLine()",
+    "syntax": "scanner.nextInt() / scanner.nextLine()",
+    "desc": "Reads whitespace separated tokens or a whole line. The hasNext method guards the read, and nextLine after nextInt needs one extra call.",
+    "example": "// File: ReadTokens.java\nimport java.util.Scanner;\n\npublic class ReadTokens {\n    public static void main(String[] args) {\n        // Scanner splits on whitespace by default\n        Scanner scanner = new Scanner(\"4 12 7\");\n        int count = scanner.nextInt();\n        int sum = 0;\n        while (scanner.hasNextInt()) {\n            sum += scanner.nextInt();\n        }\n        System.out.println(count + \" \" + sum); // 4 19\n        scanner.close();\n\n        // nextInt leaves the line break in the buffer, so clear it first\n        Scanner lines = new Scanner(\"42\\nAnna\");\n        int number = lines.nextInt();\n        lines.nextLine();               // swallows the empty rest of the line\n        System.out.println(number + \" \" + lines.nextLine()); // 42 Anna\n        lines.close();\n    }\n}",
+    "body": "`Scanner` reads tokens, not records. A file with one field per line therefore needs `nextLine` plus a `split` rather than a chain of `next` calls, unless the order of the fields is fixed and the file has no blank lines.\n\nClose a scanner that wraps a file or a stream. Closing a scanner over `System.in` also closes the shared stream, which matters in a program that reads twice."
+  },
+  {
+    "id": "java-core-extra-enum-fields",
+    "group": "OOP",
+    "name": "enum with fields and methods",
+    "syntax": "enum Type { A(1), B(2); private final int x; }",
+    "desc": "Gives each constant its own data through a private constructor. The constant list comes first, fields and methods after it.",
+    "example": "// File: RoomTypes.java\npublic class RoomTypes {\n    enum Type {\n        SINGLE(80), DOUBLE(120); // each constant is an instance\n\n        private final int price; // fields come after the constants\n\n        Type(int price) { // the constructor is implicitly private\n            this.price = price;\n        }\n\n        int total(int nights) {\n            return price * nights;\n        }\n\n        static Type of(String name) { // a clear failure instead of null\n            return Type.valueOf(name.toUpperCase());\n        }\n    }\n\n    public static void main(String[] args) {\n        Type type = Type.of(\"double\");\n        System.out.println(type);                 // DOUBLE\n        System.out.println(type.total(3));        // 360\n        System.out.println(type.ordinal());       // 1\n        System.out.println(Type.values().length); // 2\n    }\n}"
+  },
+  {
+    "id": "java-core-extra-generic-method-bound",
+    "group": "Generics",
+    "name": "Generic method with a bound",
+    "syntax": "static <T extends Comparable<T>> T max(List<T> items)",
+    "desc": "Declares a type parameter and limits it to comparable types, so the body may call compareTo and the return type stays concrete.",
+    "example": "// File: Largest.java\nimport java.util.List;\n\npublic class Largest {\n    // The bound allows compareTo and keeps the return type as T\n    static <T extends Comparable<T>> T largest(List<T> items) {\n        T best = items.get(0);\n        for (T item : items) {\n            if (item.compareTo(best) > 0) {\n                best = item;\n            }\n        }\n        return best;\n    }\n\n    public static void main(String[] args) {\n        System.out.println(largest(List.of(4, 19, 7)));               // 19\n        System.out.println(largest(List.of(\"Eger\", \"Gyor\", \"Baja\"))); // Gyor\n    }\n}",
+    "body": "Without the bound, `compareTo` is not a method of `T` and the body does not compile. With the bound, the compiler knows the argument implements `Comparable` of itself.\n\nType parameters are erased at run time. That is why `new T[]`, `instanceof T`, and `T.class` fail, and why a generic class cannot have a static field of type `T`."
+  },
+  {
+    "id": "java-core-extra-thread-executor",
+    "group": "Threads",
+    "name": "Executors.newFixedThreadPool()",
+    "syntax": "Executors.newFixedThreadPool(n)",
+    "desc": "Runs submitted tasks on a fixed number of reused threads. shutdown and awaitTermination end the pool and wait for the running work.",
+    "example": "// File: Pool.java\nimport java.util.concurrent.ExecutorService;\nimport java.util.concurrent.Executors;\nimport java.util.concurrent.TimeUnit;\n\npublic class Pool {\n    public static void main(String[] args) throws InterruptedException {\n        // Two worker threads, reused for every submitted task\n        ExecutorService pool = Executors.newFixedThreadPool(2);\n        for (int i = 1; i <= 4; i++) {\n            int id = i; // a lambda captures only effectively final values\n            pool.submit(() -> System.out.println(\"task \" + id));\n        }\n\n        // shutdown refuses new tasks, awaitTermination waits for the running ones\n        pool.shutdown();\n        pool.awaitTermination(5, TimeUnit.SECONDS);\n        System.out.println(\"done\"); // always last\n    }\n}"
+  },
+  {
+    "id": "java-core-extra-hashmap-merge-count",
+    "group": "Collections",
+    "name": "HashMap.merge() for counting",
+    "syntax": "map.merge(key, 1, Integer::sum)",
+    "desc": "Adds a value to a key, creating it when absent. It is the shortest counting idiom and removes the get, null check, put sequence.",
+    "example": "// File: CountCities.java\nimport java.util.HashMap;\nimport java.util.Map;\n\npublic class CountCities {\n    public static void main(String[] args) {\n        String[] cities = {\"Budapest\", \"Eger\", \"Budapest\"};\n\n        Map<String, Integer> counts = new HashMap<>();\n        for (String city : cities) {\n            // absent key starts at 1, a present key adds 1 to its value\n            counts.merge(city, 1, Integer::sum);\n        }\n        System.out.println(counts.get(\"Budapest\")); // 2\n\n        // getOrDefault turns a missing key into a usable number\n        System.out.println(counts.getOrDefault(\"Szeged\", 0)); // 0\n\n        // entrySet is the loop when keys and values are both needed\n        for (Map.Entry<String, Integer> entry : counts.entrySet()) {\n            System.out.println(entry.getKey() + \" \" + entry.getValue());\n        }\n    }\n}",
+    "body": "The third argument is a `BiFunction` that receives the old value and the new one. `Integer::sum` is the common case. For a map of lists, `computeIfAbsent(key, k -> new ArrayList<>()).add(value)` is the matching idiom.\n\nA map has no iteration order. Print a report by sorting the entries into a list, not by trusting `entrySet`."
+  },
+  {
+    "id": "java-core-extra-hashset-duplicates",
+    "group": "Collections",
+    "name": "HashSet duplicate check",
+    "syntax": "set.add(value) // false if present",
+    "desc": "Stores unique values and reports a duplicate through the boolean result of add. No order is kept and null is allowed once.",
+    "example": "// File: UniqueEmails.java\nimport java.util.HashSet;\nimport java.util.Set;\n\npublic class UniqueEmails {\n    public static void main(String[] args) {\n        Set<String> seen = new HashSet<>();\n\n        // add returns false when the value was already present\n        System.out.println(seen.add(\"anna@example.com\")); // true\n        System.out.println(seen.add(\"bela@example.com\")); // true\n        System.out.println(seen.add(\"anna@example.com\")); // false\n\n        System.out.println(seen.size());                       // 2\n        System.out.println(seen.contains(\"bela@example.com\")); // true\n\n        // iteration order is not insertion order\n        for (String email : seen) {\n            System.out.println(email);\n        }\n    }\n}"
+  },
+  {
+    "id": "java-core-extra-switch-expression",
+    "group": "Control flow",
+    "name": "switch expression",
+    "syntax": "var x = switch (value) { case A -> ...; }",
+    "desc": "Returns a value from a switch, with no fallthrough. A block case returns with yield, and an enum switch must cover every constant.",
+    "example": "// File: Band.java\npublic class Band {\n    enum Season { LOW, HIGH }\n\n    public static void main(String[] args) {\n        int nights = 5;\n\n        // a comma separates labels, there is no fallthrough and no break\n        String band = switch (nights) {\n            case 1, 2 -> \"weekend\";\n            case 3, 4, 5 -> {\n                String label = \"midweek\";\n                yield label; // a block case returns with yield\n            }\n            default -> \"long\";\n        };\n        System.out.println(band); // midweek\n\n        // over an enum the switch must cover every constant\n        Season season = Season.HIGH;\n        int price = switch (season) {\n            case LOW -> 80;\n            case HIGH -> 160;\n        };\n        System.out.println(price); // 160\n    }\n}"
+  },
+  {
+    "id": "java-core-extra-var-local",
+    "group": "Basics",
+    "name": "var for local variables",
+    "syntax": "var name = initialValue;",
+    "desc": "Infers the type of a local variable from its initialiser. The type is fixed at compile time and the variable stays strongly typed.",
+    "example": "// File: VarUse.java\nimport java.util.ArrayList;\n\npublic class VarUse {\n    public static void main(String[] args) {\n        // the type comes from the right side and is fixed at compile time\n        var cities = new ArrayList<String>();\n        cities.add(\"Eger\");\n\n        // the element type is String, so length() type checks\n        for (var city : cities) {\n            System.out.println(city.length()); // 4\n        }\n\n        var total = 0; // int, not Object and not dynamic\n        total += 3;\n        System.out.println(total); // 3\n\n        // not allowed: no initialiser, a field, or a method parameter\n        // var missing;\n    }\n}",
+    "body": "`var` is syntax for the compiler, not a type. `var x = 0;` declares an `int` and assigning a string later is the same error as with an explicit type.\n\nUse it when the right side already spells the type, as in `var rows = new ArrayList<Booking>()`. Avoid it when the right side hides the type behind a method call, because the reader then has to open that method."
+  }
+]

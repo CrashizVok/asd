@@ -1,0 +1,101 @@
+[
+  {
+    "id": "java-inheritance-extra-protected",
+    "group": "Inheritance",
+    "name": "protected access",
+    "syntax": "protected Type field;",
+    "desc": "Visible in the same package and in subclasses anywhere. Wider than most beginners expect, narrower than public.",
+    "example": "class Booking {\n    protected final int nights;      // subclasses may read it directly\n\n    Booking(int nights) {\n        this.nights = nights;\n    }\n}\n\nclass RoomBooking extends Booking {\n    private final double nightly;\n\n    RoomBooking(int nights, double nightly) {\n        super(nights);\n        this.nightly = nightly;\n    }\n\n    double total() {\n        return nights * nightly;     // no getter needed\n    }\n}\n\nSystem.out.println(new RoomBooking(2, 90.0).total());   // 180.0",
+    "body": "`protected` also exposes the field to every class in the same package, including code that is not a subclass. A `private` field with a `protected` getter gives subclasses read access without giving the whole package write access. Use `protected` for a value a subclass must read to do its job, and keep it `final` so the wider visibility cannot corrupt the object."
+  },
+  {
+    "id": "java-inheritance-extra-init-order",
+    "group": "Constructors",
+    "name": "initialization order",
+    "syntax": "static { }   { }   Constructor() { }",
+    "desc": "Static blocks run once per class, parent first. Instance blocks and constructors run on every object, top of the hierarchy first.",
+    "example": "class Parent {\n    static { System.out.println(\"1 parent static\"); }\n    { System.out.println(\"3 parent instance\"); }\n    Parent() { System.out.println(\"4 parent constructor\"); }\n}\n\nclass Child extends Parent {\n    static { System.out.println(\"2 child static\"); }\n    { System.out.println(\"5 child instance\"); }\n    Child() {                                       // super() runs before this body\n        System.out.println(\"6 child constructor\");\n    }\n}\n\nnew Child();\n// 1 parent static, 2 child static, 3 parent instance,\n// 4 parent constructor, 5 child instance, 6 child constructor",
+    "body": "Static blocks run at first use, and the parent class is initialised before the child, so the parent block prints first. Per object the order is parent instance block, parent constructor body, child instance block, child constructor body. That order is why a method called from a parent constructor sees child fields at their default values, not at the values the child declares."
+  },
+  {
+    "id": "java-inheritance-extra-this-super-first",
+    "group": "Constructors",
+    "name": "this(...) or super(...)",
+    "syntax": "this(args);   super(args);",
+    "desc": "Both must be the first statement of a constructor, so a constructor uses one or the other, never both.",
+    "example": "class Booking {\n    private final int nights;\n\n    Booking(int nights) {\n        if (nights < 1) {\n            throw new IllegalArgumentException(\"nights must be at least 1\");\n        }\n        this.nights = nights;\n    }\n\n    int getNights() { return nights; }\n}\n\nclass RoomBooking extends Booking {\n    private final double nightly;\n    private final double discount;\n\n    RoomBooking(int nights, double nightly) {\n        this(nights, nightly, 0.0);      // chains to the constructor below\n    }\n\n    RoomBooking(int nights, double nightly, double discount) {\n        super(nights);                   // the chain ends in a super call\n        this.nightly = nightly;\n        this.discount = discount;\n    }\n\n    double total() { return getNights() * nightly - discount; }\n}\n\nSystem.out.println(new RoomBooking(2, 90.0).total());          // 180.0\nSystem.out.println(new RoomBooking(2, 90.0, 30.0).total());    // 150.0",
+    "body": "A constructor either delegates to another constructor of the same class with `this(...)` or calls a parent constructor with `super(...)`. The compiler inserts `super()` only when neither is present, and only at the start of the chain. A cycle of `this(...)` calls does not compile. Keep the rules in the longest constructor and let the shorter ones chain into it, so one check covers every path into the class."
+  },
+  {
+    "id": "java-inheritance-extra-template-hook",
+    "group": "Abstract classes",
+    "name": "hook method",
+    "syntax": "protected abstract void step();",
+    "desc": "An abstract method called from a final method in the parent. The parent fixes the skeleton, subclasses fill the gap.",
+    "example": "abstract class ImportJob {\n    // The skeleton is final: order, logging and counting cannot be changed.\n    final void run(String path) {\n        System.out.println(\"start \" + path);\n        int rows = parse(path);\n        afterParse(rows);\n        System.out.println(\"done \" + rows + \" rows\");\n    }\n\n    abstract int parse(String path);          // required, every subclass answers\n\n    void afterParse(int rows) { }             // optional hook, empty by default\n}\n\nclass CsvImport extends ImportJob {\n    @Override int parse(String path) { return 120; }\n\n    @Override void afterParse(int rows) {\n        System.out.println(\"indexing \" + rows + \" rows\");\n    }\n}\n\nclass SilentImport extends ImportJob {\n    @Override int parse(String path) { return 4; }\n}\n\nnew CsvImport().run(\"bookings.csv\");\nnew SilentImport().run(\"cities.csv\");",
+    "body": "A required step is `abstract`; an optional step is a concrete method with an empty body. Subclasses override only what they need. The `final` method in the parent is what turns this into a template: every subclass runs the same sequence, and a new step is added in one place. If a hook must return a value, give it a default rather than making it abstract, or every subclass pays for a step it does not use."
+  },
+  {
+    "id": "java-inheritance-extra-default-conflict",
+    "group": "Interfaces",
+    "name": "Interface.super.method()",
+    "syntax": "Type.super.method();",
+    "desc": "Picks one default method when a class implements two interfaces that declare the same signature.",
+    "example": "interface Billable {\n    double amount();\n\n    default String label() { return \"amount \" + amount(); }\n}\n\ninterface Auditable {\n    String auditRef();\n\n    default String label() { return \"audit \" + auditRef(); }\n}\n\nclass InvoiceLine implements Billable, Auditable {\n    @Override public double amount() { return 277.5; }\n\n    @Override public String auditRef() { return \"INV-7\"; }\n\n    // Without this override the class does not compile, and the error names\n    // both interfaces.\n    @Override\n    public String label() {\n        return Billable.super.label() + \" / \" + Auditable.super.label();\n    }\n}\n\nSystem.out.println(new InvoiceLine().label());\n// amount 277.5 / audit INV-7",
+    "body": "The qualified form is legal only inside a class that implements the interface, and only for a direct superinterface. Outside the class there is no syntax for choosing a default method, which is the reason a conflict must be settled here rather than at the call site. If one interface already extends the other, the more specific default wins and the class needs no override."
+  },
+  {
+    "id": "java-inheritance-extra-interface-static",
+    "group": "Interfaces",
+    "name": "static interface method",
+    "syntax": "static Type name(args) { ... }",
+    "desc": "Called on the interface name. Implementing classes do not inherit it, and it cannot be overridden.",
+    "example": "interface Payable {\n    double amount();\n\n    static Payable of(double amount) {\n        if (amount < 0) {\n            throw new IllegalArgumentException(\"amount cannot be negative\");\n        }\n        return () -> amount;        // one abstract method, so a lambda fits\n    }\n\n    static Payable free() {\n        return of(0.0);\n    }\n}\n\nPayable p = Payable.of(277.5);\nSystem.out.println(p.amount());            // 277.5\nSystem.out.println(Payable.free().amount());   // 0.0\n\n// A static method is not inherited, so there is nothing to override:\n// class Line implements Payable {\n//     @Override public double amount() { return 0; }\n//     @Override public static Payable of(double a) { return null; }   // compile error\n// }",
+    "body": "A static interface method belongs to the interface, so `Payable.of(...)` works and `p.of(...)` does not compile. An implementing class may declare its own static method with the same name, and it hides instead of overrides, so the type in front of the dot decides which one runs. Use this for factories and validation helpers that belong with the contract but need no object state."
+  },
+  {
+    "id": "java-inheritance-extra-interface-private",
+    "group": "Interfaces",
+    "name": "private interface method",
+    "syntax": "private ReturnType helper(args) { ... }",
+    "desc": "Java 9 and later. Shared code for default and static methods, invisible to implementing classes.",
+    "example": "interface Receipt {\n    double amount();\n\n    default String line() {\n        return \"total \" + money(amount());\n    }\n\n    default String depositLine() {\n        return \"deposit \" + money(amount() * 0.3);\n    }\n\n    // Not part of the contract: no implementing class can call or override it.\n    private String money(double value) {\n        return String.format(\"%.2f EUR\", value);\n    }\n}\n\nclass RoomCharge implements Receipt {\n    @Override public double amount() { return 180.0; }\n}\n\nSystem.out.println(new RoomCharge().line());          // total 180.00 EUR\nSystem.out.println(new RoomCharge().depositLine());   // deposit 54.00 EUR",
+    "body": "Before Java 9 the same helper had to be `public static`, which put it into the contract and into the documentation. A private method may also be static, and it may not be abstract. It exists only to stop two default methods from repeating a format, and it is the one member an implementing class cannot see at all."
+  },
+  {
+    "id": "java-inheritance-extra-sealed",
+    "group": "Sealed types",
+    "name": "sealed interface",
+    "syntax": "sealed interface Name permits A, B { }",
+    "desc": "Fixes the set of direct subtypes. Each permitted subtype must be final, sealed, or non-sealed.",
+    "example": "sealed interface RatePlan permits Nightly, Flat, Corporate { }\n\nrecord Nightly(double nightly) implements RatePlan { }   // records are final\n\nfinal class Flat implements RatePlan {                   // branch closed\n    private final double fee;\n\n    Flat(double fee) { this.fee = fee; }\n\n    double fee() { return fee; }\n}\n\n// non-sealed reopens the branch, so anyone may extend it:\nnon-sealed class Corporate implements RatePlan { }\n\nclass OverseasCorporate extends Corporate { }            // legal only for this reason",
+    "body": "A sealed type lists its direct subtypes, and they must sit in the same package, or the same module when a module descriptor is present. Each subtype then says what happens next: `final` stops the branch, `sealed` continues it with another list, `non-sealed` reopens it. The payoff is exhaustiveness: the compiler knows every subtype, so a switch over the sealed type needs no `default` and reports a missing case at build time."
+  },
+  {
+    "id": "java-inheritance-extra-switch-pattern",
+    "group": "Pattern matching",
+    "name": "switch pattern",
+    "syntax": "switch (value) { case Type name -> ...; }",
+    "desc": "Tests the runtime type and binds a variable per arm. Over a sealed type the switch is exhaustive without a default.",
+    "example": "sealed interface RatePlan permits Nightly, Bundle { }\n\nrecord Nightly(double nightly) implements RatePlan { }\n\nrecord Bundle(int nights, double fee, boolean breakfast) implements RatePlan { }\n\ndouble price(RatePlan plan) {\n    return switch (plan) {\n        case Nightly n -> n.nightly() * 3;\n\n        // Record pattern: components bound directly. The guard filters this arm.\n        case Bundle(int nights, double fee, boolean breakfast) when breakfast ->\n                fee + 9.0 * nights;\n\n        case Bundle b -> b.fee();\n    };\n}\n\nSystem.out.println(price(new Nightly(92.5)));             // 277.5\nSystem.out.println(price(new Bundle(3, 250.0, true)));   // 277.0\nSystem.out.println(price(new Bundle(2, 250.0, false)));  // 250.0",
+    "body": "Order matters: the guarded arm goes before the plain one, because the first match wins. A `null` value throws `NullPointerException` unless a `case null` arm exists. Over a type that is not sealed the compiler cannot prove exhaustiveness, so a `default` is required. Record patterns nest, so `case Wrapper(Bundle(int n, double f, boolean b))` reaches two levels in one line."
+  },
+  {
+    "id": "java-inheritance-extra-composition",
+    "group": "Composition",
+    "name": "composition over inheritance",
+    "syntax": "class A { private final B b; }",
+    "desc": "Holds another object and calls it instead of extending it. One class, one reason to change.",
+    "example": "interface RefundPolicy {\n    double refund(double paid, int daysBeforeStart);\n}\n\nclass TieredCancel implements RefundPolicy {\n    @Override public double refund(double paid, int days) {\n        if (days >= 7) return paid;\n        if (days >= 2) return paid * 0.5;\n        return 0.0;\n    }\n}\n\nclass Booking {\n    private final double total;\n    private final RefundPolicy policy;      // has-a, not is-a\n\n    Booking(double total, RefundPolicy policy) {\n        this.total = total;\n        this.policy = policy;\n    }\n\n    double refund(int days) {\n        return policy.refund(total, days);  // delegate, keep the rule outside\n    }\n}\n\nSystem.out.println(new Booking(277.5, new TieredCancel()).refund(3));      // 138.75\nSystem.out.println(new Booking(277.5, (paid, days) -> paid).refund(1));    // 277.5",
+    "body": "The test is the is-a sentence. A booking is not a refund rule, so extending `RefundPolicy` would be wrong even when it saves typing. Composition keeps two axes apart: three booking kinds times three refund rules gives three subclasses when the rule is a field, and nine when the rule is a parent. A lambda often replaces the policy class entirely, which an abstract parent can never do."
+  },
+  {
+    "id": "java-inheritance-extra-covariant-return",
+    "group": "Polymorphism",
+    "name": "covariant return type",
+    "syntax": "@Override Child copy()",
+    "desc": "An override may return a subtype of the parent return type, so a caller through the child type skips the cast.",
+    "example": "class Booking {\n    private final int nights;\n\n    Booking(int nights) { this.nights = nights; }\n\n    Booking withNights(int nights) {          // parent returns Booking\n        return new Booking(nights);\n    }\n\n    int getNights() { return nights; }\n}\n\nclass RoomBooking extends Booking {\n    private final double nightly;\n\n    RoomBooking(int nights, double nightly) {\n        super(nights);\n        this.nightly = nightly;\n    }\n\n    @Override\n    RoomBooking withNights(int nights) {      // narrower return, still an override\n        return new RoomBooking(nights, nightly);\n    }\n\n    double getNightly() { return nightly; }\n}\n\nRoomBooking r = new RoomBooking(2, 90.0).withNights(4);   // no cast here\nSystem.out.println(r.getNights());        // 4\nSystem.out.println(r.getNightly());       // 90.0\n\nBooking b = new RoomBooking(2, 90.0).withNights(4);       // parent type, parent view\nSystem.out.println(b.getClass().getSimpleName());          // RoomBooking",
+    "body": "The return type may shrink, never widen, and never change to an unrelated type. This is why `Object.clone()` and many builder methods declare a subtype in their overrides. A parent typed variable still sees the parent return type, so the narrower type only removes a cast where the compiler can already prove the concrete class."
+  }
+]

@@ -519,6 +519,550 @@ public class BookingImporter {
 
 The control flow is the lesson. `parse` translates low level parser failures into one checked type. `read` owns the resources and lets both exception types escape. `main` is the only place that decides what the user sees, and `finally` handles the message that must always appear.
 
+## More examples
+
+The examples above cover one failure per call. Real code retries, validates a whole row, reads a trace, and cleans up objects that predate AutoCloseable. These five add those shapes, and each one is a complete file you can compile on its own.
+
+### Example 5: bounded retry with logging
+
+A retry loop is the place where exception types start to matter for real. `TransientStoreException` says another attempt may work. `StoreUnavailableException` says it will not, so the loop stops at once instead of burning attempts.
+
+The `Action` interface exists because `Supplier` cannot throw checked exceptions. `retry` logs one line per failed attempt at `WARNING`, then throws a single `RetryFailedException` that keeps the last cause and the number of attempts. The caller logs that one record at `SEVERE` and decides what the user sees.
+
+An `InterruptedException` arrives as a checked exception from `Thread.sleep`. Catching it, restoring the interrupt flag, and throwing an unchecked wrapper is the usual shape when the surrounding method cannot declare `throws InterruptedException`.
+
+```java
+// File: RetryWithLogging.java
+// Data shape: retry(what, maxAttempts, action) returns T,
+//            or throws RetryFailedException { attempts: int, cause: last failure }
+
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * Bounded retry around an unreliable store.
+ *
+ * The point of the example: retry only failures that can heal by themselves,
+ * log the attempt that failed, and keep the last cause when the run gives up.
+ */
+public class RetryWithLogging {
+
+    private static final Logger LOG = Logger.getLogger(RetryWithLogging.class.getName());
+
+    // Checked and retryable: the store hiccupped, the next call may work.
+    static class TransientStoreException extends Exception {
+        TransientStoreException(String message) {
+            super(message);
+        }
+    }
+
+    // Checked and final: another attempt would fail the same way.
+    static class StoreUnavailableException extends Exception {
+        StoreUnavailableException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    // Supplier<T> cannot throw checked exceptions, so the action needs its own type.
+    interface Action<T> {
+        T run() throws TransientStoreException, StoreUnavailableException;
+    }
+
+    // The caller gets the attempt count, because it belongs in the one log line.
+    static class RetryFailedException extends Exception {
+        private final int attempts;
+
+        RetryFailedException(String what, int attempts, Throwable cause) {
+            super(what + " failed after " + attempts + " attempt(s)", cause);
+            this.attempts = attempts;
+        }
+
+        int attempts() {
+            return attempts;
+        }
+    }
+
+    static <T> T retry(String what, int maxAttempts, Action<T> action) throws RetryFailedException {
+        if (maxAttempts < 1) {
+            // A caller bug, not a store failure: unchecked, so no signature noise.
+            throw new IllegalArgumentException("maxAttempts must be at least 1, got " + maxAttempts);
+        }
+
+        TransientStoreException last = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return action.run();
+            } catch (TransientStoreException e) {
+                last = e;
+                // One line per attempt. FINE would hide it, SEVERE would claim the run died.
+                LOG.log(Level.WARNING, what + " attempt " + attempt + "/" + maxAttempts
+                        + " failed: " + e.getMessage());
+                if (attempt < maxAttempts) {
+                    pause(20L * attempt); // Slightly longer wait each time.
+                }
+            } catch (StoreUnavailableException e) {
+                // Retrying cannot help, so stop now and keep the original cause.
+                throw new RetryFailedException(what, attempt, e);
+            }
+        }
+
+        // The loop ended, so every attempt failed. `last` holds the newest failure.
+        throw new RetryFailedException(what, maxAttempts, last);
+    }
+
+    static void pause(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            // Restore the flag first: the next blocking call has to see it.
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("retry paused and was interrupted", e);
+        }
+    }
+
+    // A fake store: fails twice, then answers.
+    static class FlakyStore {
+        private int calls;
+
+        List<String> load(String city) throws TransientStoreException, StoreUnavailableException {
+            calls++;
+            if ("closed".equals(city)) {
+                throw new StoreUnavailableException("hotel in " + city + " is closed", null);
+            }
+            if (calls < 3) {
+                throw new TransientStoreException("timeout on call " + calls);
+            }
+            return List.of("Danube View", "City Loft");
+        }
+
+        int calls() {
+            return calls;
+        }
+    }
+
+    public static void main(String[] args) {
+        FlakyStore store = new FlakyStore();
+
+        try {
+            List<String> hotels = retry("load hotels", 4, () -> store.load("Budapest"));
+            System.out.println("loaded " + hotels.size() + " hotels in " + store.calls() + " calls");
+        } catch (RetryFailedException e) {
+            // Boundary: one log record with the cause attached to it.
+            LOG.log(Level.SEVERE, e.getMessage(), e);
+        }
+
+        try {
+            retry("load closed hotel", 3, () -> store.load("closed"));
+        } catch (RetryFailedException e) {
+            System.out.println(e.getMessage() + ", cause: " + e.getCause().getMessage());
+            System.out.println("attempts spent: " + e.attempts());
+        }
+    }
+}
+```
+
+### Example 6: validation that reports every bad field
+
+A user who typed four wrong values should see four messages, not four attempts. This version collects the failures in a list and throws once, at the end.
+
+Each parse helper takes the error list and returns `null` on failure. That keeps the rest of the checks running: a bad `hotel_id` does not hide a reversed date range. Numbers and dates are parsed inside `try` blocks that catch the parser exception and translate it into a readable message.
+
+The `null` row at the top is handled differently on purpose. `IllegalArgumentException` is unchecked, because a caller that passes `null` has a bug, while a user typing `0` adults has data the import must survive.
+
+```java
+// File: ValidationReport.java
+// Data shape: validate(Row) throws BookingInvalidException { errors: List<String> }
+// Row is raw text, so nothing is parsed until that field has its own check.
+
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ValidationReport {
+
+    record Row(String customerEmail, String hotelId, String startDate,
+               String endDate, String adults) {
+    }
+
+    // Checked: a bad row is an expected outcome of reading a file, and main
+    // decides whether to skip the row or stop the whole import.
+    static class BookingInvalidException extends Exception {
+        private final List<String> errors;
+
+        BookingInvalidException(List<String> errors) {
+            super(errors.size() + " problem(s): " + String.join("; ", errors));
+            this.errors = List.copyOf(errors); // Copy: the caller keeps a stable list.
+        }
+
+        List<String> errors() {
+            return errors;
+        }
+    }
+
+    static void validate(Row row) throws BookingInvalidException {
+        if (row == null) {
+            // A null row is a caller bug, not user data: unchecked on purpose.
+            throw new IllegalArgumentException("row must not be null");
+        }
+
+        List<String> errors = new ArrayList<>();
+
+        if (row.customerEmail() == null || row.customerEmail().isBlank()) {
+            errors.add("customer_email is empty");
+        } else if (!row.customerEmail().contains("@")) {
+            errors.add("customer_email has no @: " + row.customerEmail());
+        }
+
+        Integer hotelId = parseInt(row.hotelId(), "hotel_id", errors);
+        if (hotelId != null && hotelId < 1) {
+            errors.add("hotel_id must be positive, got " + hotelId);
+        }
+
+        LocalDate start = parseDate(row.startDate(), "start_date", errors);
+        LocalDate end = parseDate(row.endDate(), "end_date", errors);
+        if (start != null && end != null && end.isBefore(start)) {
+            errors.add("end_date " + end + " is before start_date " + start);
+        }
+
+        Integer adults = parseInt(row.adults(), "adults", errors);
+        if (adults != null && adults < 1) {
+            errors.add("adults must be at least 1, got " + adults);
+        }
+
+        // One throw at the end, so the user can fix every field in one pass.
+        if (!errors.isEmpty()) {
+            throw new BookingInvalidException(errors);
+        }
+    }
+
+    // Records the failure and returns null: one bad field must not hide the rest.
+    static Integer parseInt(String text, String field, List<String> errors) {
+        if (text == null || text.isBlank()) {
+            errors.add(field + " is empty");
+            return null;
+        }
+        try {
+            return Integer.valueOf(text.trim());
+        } catch (NumberFormatException e) {
+            errors.add(field + " is not a whole number: " + text);
+            return null;
+        }
+    }
+
+    static LocalDate parseDate(String text, String field, List<String> errors) {
+        if (text == null || text.isBlank()) {
+            errors.add(field + " is empty");
+            return null;
+        }
+        try {
+            return LocalDate.parse(text.trim());
+        } catch (DateTimeParseException e) {
+            // Same shape as parseInt: record, return null, carry on.
+            errors.add(field + " is not a date (yyyy-MM-dd): " + text);
+            return null;
+        }
+    }
+
+    public static void main(String[] args) {
+        List<Row> rows = List.of(
+                new Row("anna@example.com", "3", "2026-05-01", "2026-05-04", "2"),
+                new Row("", "x", "2026-05-04", "2026-05-01", "0"));
+
+        int valid = 0;
+
+        for (Row row : rows) {
+            try {
+                validate(row);
+                valid++;
+                System.out.println("row ok: " + row.customerEmail());
+            } catch (BookingInvalidException e) {
+                System.out.println("row rejected, " + e.getMessage());
+                for (String error : e.errors()) {
+                    System.out.println("  - " + error);
+                }
+            }
+        }
+
+        System.out.println(valid + " of " + rows.size() + " rows valid");
+    }
+}
+```
+
+### Example 7: reading a stack trace and its causes
+
+`getStackTrace()` returns only the frames of the throwable you call it on. A wrapped failure therefore prints as several blocks, one per level of the cause chain, and the report below walks that chain.
+
+Frame 0 is where the object was created, which is the `throw` line or the line that called a method that threw. `getLineNumber()` returns a negative value for native frames, and `getFileName()` can be `null`, so a printer has to tolerate both.
+
+The loop over `getSuppressed()` prints failures attached by `close()`. Without it a log shows the primary failure and silently drops the rest.
+
+```java
+// File: TraceReport.java
+// Data shape: report(Throwable) -> List<String>, one line per cause plus frames
+// cause chain: t.getCause() -> ... -> null, each level with its own stack trace
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class TraceReport {
+
+    static class StoreException extends Exception {
+        StoreException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    // No try here: the failure escapes as an unchecked parser exception.
+    static int parseStars(String text) {
+        return Integer.parseInt(text.trim());
+    }
+
+    static int loadStars(String text) throws StoreException {
+        try {
+            return parseStars(text);
+        } catch (NumberFormatException e) {
+            // Wrap once, at the layer that knows what the number was for.
+            throw new StoreException("cannot load stars from '" + text + "'", e);
+        }
+    }
+
+    // One block per cause level, plus the top frames and any suppressed failure.
+    static List<String> report(Throwable t) {
+        List<String> lines = new ArrayList<>();
+        Throwable current = t;
+        int depth = 0;
+
+        while (current != null) {
+            String pad = " ".repeat(depth * 2);
+
+            // getMessage() may be null, so print the class even when the text is empty.
+            lines.add(pad + current.getClass().getName()
+                    + (current.getMessage() == null ? "" : ": " + current.getMessage()));
+
+            StackTraceElement[] frames = current.getStackTrace();
+
+            if (frames.length > 0) {
+                // Frame 0 is where this throwable was created, not where the run began.
+                lines.add(pad + "  thrown at " + frames[0]);
+            }
+
+            for (StackTraceElement frame : frames) {
+                String className = frame.getClassName();
+                if (!className.startsWith("java.") && !className.startsWith("jdk.")) {
+                    // The first non JDK frame is the line a developer can actually change.
+                    if (!frame.equals(frames[0])) {
+                        lines.add(pad + "  app frame " + frame);
+                    }
+                    break;
+                }
+            }
+
+            for (Throwable suppressed : current.getSuppressed()) {
+                lines.add(pad + "  suppressed: " + suppressed);
+            }
+
+            current = current.getCause();
+            depth++;
+        }
+
+        return lines;
+    }
+
+    public static void main(String[] args) {
+        try {
+            System.out.println("stars: " + loadStars("twelve"));
+        } catch (StoreException e) {
+            for (String line : report(e)) {
+                System.out.println(line);
+            }
+
+            // The type names the layer, the cause names the line that broke.
+            Throwable root = e.getCause() == null ? e : e.getCause();
+            System.out.println("root cause type: " + root.getClass().getSimpleName());
+        }
+    }
+}
+```
+
+### Example 8: manual suppression when the class is not AutoCloseable
+
+Some legacy types have `close()` without implementing `AutoCloseable`, so try-with-resources cannot take them. The `finally` block then has to do by hand what the compiler does: keep the body failure primary and attach the close failure to it.
+
+The `primary` variable is assigned inside the `catch` and read inside `finally`, which is why it lives outside the `try`. When nothing was in flight, the close failure is thrown instead, because it is the only failure there is.
+
+The three runs in `main` cover both failures at once, a body failure with a clean close, and a clean body with a failing close. Printing `getSuppressed()` is the check that the attachment worked.
+
+```java
+// File: ManualSuppression.java
+// Data shape: primary RuntimeException, its getSuppressed() array holds close failures
+
+public class ManualSuppression {
+
+    // Legacy style class: it has close(), but it does not implement AutoCloseable,
+    // so try-with-resources cannot take it.
+    static class Pipe {
+        private final String name;
+        private final boolean failOnPump;
+        private final boolean failOnClose;
+        private boolean closed;
+
+        Pipe(String name, boolean failOnPump, boolean failOnClose) {
+            this.name = name;
+            this.failOnPump = failOnPump;
+            this.failOnClose = failOnClose;
+        }
+
+        void pump() {
+            System.out.println("pumping " + name);
+            if (failOnPump) {
+                throw new IllegalStateException(name + " pump failed");
+            }
+        }
+
+        void close() {
+            if (closed) {
+                return; // Closing twice is not an error for this pipe.
+            }
+            closed = true;
+            System.out.println("closing " + name);
+            if (failOnClose) {
+                throw new IllegalStateException(name + " close failed");
+            }
+        }
+    }
+
+    // The hand written version of what try-with-resources generates.
+    static void drain(Pipe pipe) {
+        Throwable primary = null;
+
+        try {
+            pipe.pump();
+        } catch (RuntimeException e) {
+            primary = e; // Remember it: finally runs before the caller sees the failure.
+            throw e;
+        } finally {
+            try {
+                pipe.close();
+            } catch (RuntimeException closeFailure) {
+                if (primary != null) {
+                    // Two failures. The body one is what the caller must see,
+                    // and the close failure stays attached as context.
+                    primary.addSuppressed(closeFailure);
+                } else {
+                    // Nothing in flight, so the close failure is the real news.
+                    throw closeFailure;
+                }
+            }
+        }
+    }
+
+    static void report(String label, Throwable t) {
+        System.out.println(label + " primary: " + t.getMessage());
+        for (Throwable suppressed : t.getSuppressed()) {
+            System.out.println(label + " suppressed: " + suppressed.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+        try {
+            drain(new Pipe("body-and-close", true, true));
+        } catch (RuntimeException e) {
+            report("both failed:", e);
+        }
+
+        try {
+            drain(new Pipe("body-only", true, false));
+        } catch (RuntimeException e) {
+            report("body failed:", e);
+        }
+
+        try {
+            drain(new Pipe("close-only", false, true));
+        } catch (RuntimeException e) {
+            report("close failed:", e);
+        }
+    }
+}
+```
+
+### Example 9: log once, at the boundary
+
+`findHotel` translates an unchecked storage failure into a checked `StoreException` and keeps the cause. It writes nothing to the log. `main` is the only place that knows whether the caller is a user, a batch job, or a test, so it owns the log line.
+
+`IllegalArgumentException` is caught separately, because a bad `hotel_id` is a caller bug rather than a missing record. The two clauses log at different messages while sharing one level, which is as much separation as this small program needs.
+
+`LOG.log(Level.SEVERE, message, throwable)` prints the message, the class, the frames, and the cause. The shorter `LOG.severe(message)` form drops all of that, so the failure becomes a sentence with no line number.
+
+```java
+// File: BoundaryLogging.java
+// Data shape: findHotel(hotel_id) -> Hotel, throws checked StoreException
+// One log record per failure, written by main, nothing below it logs.
+
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+public class BoundaryLogging {
+
+    private static final Logger LOG = Logger.getLogger(BoundaryLogging.class.getName());
+
+    record Hotel(int hotelId, String name, int stars) {
+    }
+
+    static class StoreException extends Exception {
+        StoreException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    // The layer that knows the storage detail. It translates, keeps the cause,
+    // and stays silent: the boundary decides what the user sees.
+    static Hotel findHotel(int hotelId) throws StoreException {
+        if (hotelId < 1) {
+            // Bad argument from the caller: unchecked, fixed in code, not in a log.
+            throw new IllegalArgumentException("hotel_id must be positive, got " + hotelId);
+        }
+        try {
+            return query(hotelId);
+        } catch (IllegalStateException e) {
+            throw new StoreException("hotel " + hotelId + " is missing", e);
+        }
+    }
+
+    // Stands in for JDBC. Unchecked on purpose: the row being absent is not
+    // something the caller of findHotel can repair by retrying.
+    static Hotel query(int hotelId) {
+        if (hotelId == 404) {
+            throw new IllegalStateException("no row for hotel_id " + hotelId);
+        }
+        return new Hotel(hotelId, "Hotel " + hotelId, 3);
+    }
+
+    public static void main(String[] args) {
+        List<Integer> requested = List.of(7, 404, 0);
+
+        for (int hotelId : requested) {
+            try {
+                Hotel hotel = findHotel(hotelId);
+                System.out.println("found " + hotel.name() + " with " + hotel.stars() + " stars");
+            } catch (StoreException e) {
+                // Expected and explainable: one record, cause attached to it.
+                LOG.log(Level.SEVERE, e.getMessage(), e);
+            } catch (IllegalArgumentException e) {
+                // A caller bug. In a service this becomes a 4xx or a failed assertion.
+                LOG.log(Level.SEVERE, "bad request: " + e.getMessage(), e);
+            }
+        }
+
+        // Five failures would have produced five log lines if each layer logged.
+        System.out.println("done");
+    }
+}
+```
+
 ## Common mistakes
 
 - Catching `Exception` around a whole method and printing nothing. The failure disappears and the caller keeps running with broken state.

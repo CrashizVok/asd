@@ -520,6 +520,439 @@ public class PricingDemo {
 
 Read the loop again. `b.amount()` is decided by the object, and `describe()` is inherited from `Booking` while `nights()` and `nightlyRate()` come from the subclass. The parent holds the algorithm, the children hold the numbers. Adding a third product means adding one class and no change to the loop.
 
+## More examples
+
+Each file below compiles on its own. Save it under the name in the `// File:` line, run `javac File.java`, then `java ClassName`. Every one is a full program with a `main`, so the output in the comments can be checked line by line.
+
+### Example 5: three levels, one constructor chain
+
+```java
+// File: BookingChainDemo.java
+// Data shape: Booking { guestEmail, nights } <- RoomBooking { nightly } <- SuiteBooking { suiteFee }
+// Three levels, one constructor chain, and every describe() keeps the parent part.
+
+abstract class Booking {
+    private final String guestEmail;
+    private final int nights;
+
+    Booking(String guestEmail, int nights) {
+        if (guestEmail == null || !guestEmail.contains("@")) {
+            throw new IllegalArgumentException("guest_email must contain @");
+        }
+        if (nights < 1) {
+            throw new IllegalArgumentException("nights must be at least 1");
+        }
+        this.guestEmail = guestEmail;
+        this.nights = nights;
+    }
+
+    // final on the getters: a subclass cannot break the values the rules above approved.
+    final String getGuestEmail() { return guestEmail; }
+
+    final int getNights() { return nights; }
+
+    // Each product knows its own rate, so this stays open.
+    abstract double nightlyRate();
+
+    // Template method: the check and the multiplication happen once, here.
+    final double total() {
+        return getNights() * nightlyRate();
+    }
+
+    String describe() {
+        return getClass().getSimpleName() + " for " + guestEmail
+                + ", " + getNights() + " night(s)";
+    }
+}
+
+class RoomBooking extends Booking {
+    private final double nightly;
+
+    RoomBooking(String guestEmail, int nights, double nightly) {
+        super(guestEmail, nights);          // runs Booking's validation first
+        if (nightly <= 0) {
+            throw new IllegalArgumentException("nightly must be positive");
+        }
+        this.nightly = nightly;
+    }
+
+    @Override
+    double nightlyRate() { return nightly; }
+
+    @Override
+    String describe() {
+        return super.describe() + " at " + nightly + "/night";
+    }
+}
+
+class SuiteBooking extends RoomBooking {
+    private final double suiteFee;          // one-off cleaning fee for the suite
+
+    SuiteBooking(String guestEmail, int nights, double nightly, double suiteFee) {
+        super(guestEmail, nights, nightly);  // one level up, not two
+        this.suiteFee = suiteFee;
+    }
+
+    // The fee is spread over the stay so the inherited total() still works unchanged.
+    @Override
+    double nightlyRate() {
+        return super.nightlyRate() + suiteFee / getNights();
+    }
+
+    @Override
+    String describe() {
+        return super.describe() + " plus suite fee " + suiteFee;
+    }
+}
+
+public class BookingChainDemo {
+
+    public static void main(String[] args) {
+        Booking plain = new RoomBooking("anna@example.com", 3, 92.5);
+        Booking suite = new SuiteBooking("ben@example.com", 2, 100.0, 40.0);
+
+        // super.describe() in SuiteBooking calls RoomBooking, which calls Booking.
+        // super.super.describe() is not legal, but a chain of overrides reaches the top.
+        System.out.println(plain.describe());
+        System.out.println(plain.total());      // 277.5
+
+        System.out.println(suite.describe());
+        System.out.println(suite.total());      // 2 * (100.0 + 40.0 / 2) = 240.0
+    }
+}
+```
+
+`SuiteBooking` calls `super(...)` and lands in `RoomBooking`, which calls `super(...)` again. There is no `super.super.describe()`, but a chain of overrides that each append their own part reaches the grandparent anyway. The rate override uses the same trick on a number: it asks the parent for its rate, then adds the fee spread over the stay. Because `total()` is final, neither subclass can skip the multiplication or drop the validation that ran in `Booking`.
+
+### Example 6: two interfaces with the same default method
+
+```java
+// File: ContractDemo.java
+// Data shape: InvoiceLine { ref, amount } answers two contracts that both declare label().
+
+import java.util.List;
+
+interface Billable {
+    double amount();                                // the only abstract method
+
+    default String label() {
+        return "amount " + euros(amount());
+    }
+
+    default String shortLabel() {
+        return "EUR " + euros(amount());            // shares the helper below
+    }
+
+    private String euros(double value) {            // helper, not part of the contract
+        return String.format("%.2f", value);
+    }
+
+    static Billable zero() {                        // called on the interface name
+        return () -> 0.0;                           // one abstract method, so a lambda works
+    }
+}
+
+interface Auditable {
+    String auditRef();
+
+    default String label() {                        // same signature, different meaning
+        return "audit " + auditRef();
+    }
+}
+
+class InvoiceLine implements Billable, Auditable {
+    private final String ref;
+    private final double amount;
+
+    InvoiceLine(String ref, double amount) {
+        this.ref = ref;
+        this.amount = amount;
+    }
+
+    @Override public double amount() { return amount; }
+
+    @Override public String auditRef() { return ref; }
+
+    // Both interfaces supply label(), so the class must settle the conflict.
+    // Deleting this method makes the file fail to compile, and the message names both types.
+    @Override
+    public String label() {
+        return Billable.super.label() + " / " + Auditable.super.label();
+    }
+}
+
+public class ContractDemo {
+
+    public static void main(String[] args) {
+        InvoiceLine line = new InvoiceLine("INV-7", 277.5);
+
+        System.out.println(line.label());        // amount 277.50 / audit INV-7
+        System.out.println(line.shortLabel());   // EUR 277.50, inherited default
+
+        Billable free = Billable.zero();
+        System.out.println(free.label());        // amount 0.00
+
+        // Two unrelated implementations of one contract go into one list.
+        List<Billable> all = List.of(line, free);
+        double sum = 0;
+        for (Billable b : all) {
+            sum += b.amount();
+        }
+        System.out.println(sum);                 // 277.5
+    }
+}
+```
+
+Two interfaces, one method name, two meanings. Without the override in `InvoiceLine`, the compiler refuses the class and names both interfaces in the error. `Billable.super.label()` is the only syntax that reaches one specific default implementation, and it works only inside the implementing class. The `private` helper shows how an interface keeps shared code out of its contract. `Billable.zero()` shows a static factory reached through the interface name, and a lambda fits it because `amount()` is the only abstract method left.
+
+### Example 7: sealed plans and a switch that cannot miss a case
+
+```java
+// File: RatePlanDemo.java
+// Data shape: sealed RatePlan = Nightly { nightly } | Bundle { nights, fee, breakfast } | Flat { fee }
+
+import java.util.List;
+
+sealed interface RatePlan permits Nightly, Bundle, Flat { }
+
+record Nightly(double nightly) implements RatePlan { }
+
+record Bundle(int nights, double fee, boolean breakfast) implements RatePlan { }
+
+record Flat(double fee) implements RatePlan { }
+
+final class RateCalculator {
+
+    // No default arm. RatePlan is sealed, so the compiler knows the three permitted
+    // records and rejects this file if one case is missing.
+    static double price(RatePlan plan, int nights) {
+        return switch (plan) {
+            case Nightly n -> n.nightly() * nights;
+
+            // Record deconstruction binds the components directly; the guard filters.
+            case Bundle(int bNights, double fee, boolean breakfast) when breakfast ->
+                    fee + 9.0 * bNights;
+
+            case Bundle b -> b.fee();
+
+            case Flat f -> f.fee();
+        };
+    }
+}
+
+// The three modifiers a sealed hierarchy can hand to a child:
+sealed abstract class Plan permits Domestic, International { }
+
+final class Domestic extends Plan { }            // the chain stops here
+
+non-sealed class International extends Plan { }  // reopened, anyone may extend it
+
+class Overseas extends International { }         // legal only because of non-sealed
+
+public class RatePlanDemo {
+
+    public static void main(String[] args) {
+        List<RatePlan> plans = List.of(
+                new Nightly(92.5),
+                new Bundle(3, 250.0, true),
+                new Bundle(2, 250.0, false),
+                new Flat(180.0)
+        );
+
+        for (RatePlan p : plans) {
+            System.out.println(p + " -> " + RateCalculator.price(p, 3));
+        }
+
+        // Add a fourth record to permits and this file stops compiling
+        // until price() handles it. That is the point of sealed.
+    }
+}
+```
+
+Sealed fixes the set of subtypes at compile time. The switch then runs without a `default`, and a new permitted record breaks the build until every arm exists. Record patterns unpack the components straight into the arm, and `when` adds a guard without an `if` inside the body. The three modifiers at the bottom are the whole vocabulary: `final` closes a branch, `non-sealed` reopens it, and a class that is neither must be declared `sealed` again with its own list.
+
+### Example 8: composition when the variation is a rule, not a kind
+
+```java
+// File: CompositionDemo.java
+// Data shape: Booking { guestEmail, nights, nightly } holds a RefundPolicy.
+// Two axes: the kind of booking and the refund rule. Inheritance covers the first,
+// a field covers the second, and the two do not multiply.
+
+import java.util.List;
+
+interface RefundPolicy {
+    double refund(double paid, int daysBeforeStart);
+}
+
+class FreeCancel implements RefundPolicy {
+    @Override
+    public double refund(double paid, int daysBeforeStart) {
+        return paid;                                  // full refund at any time
+    }
+}
+
+class TieredCancel implements RefundPolicy {
+    @Override
+    public double refund(double paid, int daysBeforeStart) {
+        if (daysBeforeStart >= 7) return paid;
+        if (daysBeforeStart >= 2) return paid * 0.5;
+        return 0.0;
+    }
+}
+
+class Booking {
+    private final String guestEmail;
+    private final int nights;
+    private final double nightly;
+    private final RefundPolicy policy;                // composed, not inherited
+
+    Booking(String guestEmail, int nights, double nightly, RefundPolicy policy) {
+        if (nights < 1) throw new IllegalArgumentException("nights must be at least 1");
+        this.guestEmail = guestEmail;
+        this.nights = nights;
+        this.nightly = nightly;
+        this.policy = policy;
+    }
+
+    String getGuestEmail() { return guestEmail; }
+
+    int getNights() { return nights; }
+
+    double total() {
+        return nights * nightly;
+    }
+
+    double refund(int daysBeforeStart) {
+        return policy.refund(total(), daysBeforeStart);   // delegate, do not decide here
+    }
+
+    String describe() {
+        return getClass().getSimpleName() + " for " + guestEmail + ", " + nights + " night(s)";
+    }
+}
+
+class GroupBooking extends Booking {
+    private final int rooms;
+
+    GroupBooking(String guestEmail, int rooms, int nights, double nightly, RefundPolicy policy) {
+        super(guestEmail, rooms * nights, nightly, policy);
+        this.rooms = rooms;
+    }
+
+    @Override
+    double total() {
+        return super.total() * 0.9;      // ten percent for booking several rooms at once
+    }
+
+    int rooms() { return rooms; }
+}
+
+public class CompositionDemo {
+
+    public static void main(String[] args) {
+        List<Booking> bookings = List.of(
+                new Booking("anna@example.com", 3, 92.5, new TieredCancel()),
+                new Booking("ben@example.com", 1, 61.0, new FreeCancel()),
+                new GroupBooking("cara@example.com", 3, 2, 92.5, new TieredCancel())
+        );
+
+        for (Booking b : bookings) {
+            System.out.println(b.describe()
+                    + " total " + b.total()
+                    + " refund in 3 days " + b.refund(3));
+        }
+
+        // A new refund rule is one new RefundPolicy class. No Booking subclass,
+        // no change to total(), no diamond, no second hierarchy.
+        RefundPolicy none = (paid, days) -> 0.0;
+        System.out.println(none.refund(100.0, 30));   // 0.0
+    }
+}
+```
+
+Two kinds of change live in this file. A new booking product is a subclass, because the products really are kinds of booking. A new refund rule is a new `RefundPolicy`, because a rule is not a kind of booking, and multiplying subclasses by rules would give six classes for three of each. `refund()` delegates and decides nothing, so the rule can be swapped at construction or replaced by a lambda. `GroupBooking` still calls `super.total()`, which is the one place inheritance earns its keep here.
+
+### Example 9: what the constructor can see
+
+```java
+// File: InitOrderDemo.java
+// Data shape: Report { title } <- TimedReport { label }, where the parent prints
+// a method the child overrides. The output shows a null field, then the real order.
+
+abstract class Report {
+    private final String title;
+
+    Report(String title) {
+        this.title = title;
+        // Legal, and almost always wrong: the child fields are still at their defaults.
+        System.out.println("Report ctor sees describe() = " + describe());
+    }
+
+    String getTitle() { return title; }
+
+    abstract String describe();
+}
+
+class TimedReport extends Report {
+    // Not a constant expression, so the assignment really runs after super(...).
+    // That is why Report's constructor sees null here, not "timed#2".
+    private final String label = "timed".concat("#2");
+
+    TimedReport(String title) {
+        super(title);
+    }
+
+    @Override
+    String describe() {
+        return "report " + getTitle() + " [" + label + "]";
+    }
+}
+
+// The safe version: no overridable call in the constructor. The child passes the
+// finished text up, so the parent never asks a half built object a question.
+class SafeReport {
+    private final String text;
+
+    SafeReport(String title, String suffix) {
+        this.text = "report " + title + " [" + suffix + "]";
+    }
+
+    @Override
+    public String toString() { return text; }
+}
+
+class Parent {
+    static { System.out.println("1 parent static initializer"); }
+    { System.out.println("3 parent instance initializer"); }
+    Parent() { System.out.println("4 parent constructor"); }
+}
+
+class Child extends Parent {
+    static { System.out.println("2 child static initializer"); }
+    { System.out.println("5 child instance initializer"); }
+    Child() {
+        super();                                // implicit here, written for clarity
+        System.out.println("6 child constructor");
+    }
+}
+
+public class InitOrderDemo {
+
+    public static void main(String[] args) {
+        System.out.println("before new TimedReport");
+        Report r = new TimedReport("Q3 occupancy");   // prints [null] on the first line
+        System.out.println(r.describe());             // now the field is set
+        System.out.println(new SafeReport("Q3 occupancy", "final"));
+
+        System.out.println("before new Child");
+        new Child();
+    }
+}
+```
+
+The first line of the output is the bug. `Report` calls `describe()` before `TimedReport` has assigned `label`, so the override reads null. Making the field `final` does not help, because the assignment still happens after `super(...)`. `SafeReport` shows the fix: build the text and pass it up, or let the caller ask after construction. The numbered lines come from a separate class and show the full order, static initializers above their subclasses, then instance initializers and constructors from the top down.
+
 ## Common mistakes
 
 - Forgetting `super(...)` when the parent has no no argument constructor. The error reads "constructor Booking in class Booking cannot be applied to given types".
