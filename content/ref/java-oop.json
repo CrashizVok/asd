@@ -1,0 +1,236 @@
+[
+  {
+    "id": "java-oop-class",
+    "group": "Classes",
+    "name": "class",
+    "syntax": "class Name { fields; methods; }",
+    "desc": "Declares a type. The class is the blueprint, each object made from it is an instance with its own field values.",
+    "example": "// Data shape: Hotel { name: String, stars: int }\nclass Hotel {\n    private String name;\n    private int stars;\n\n    Hotel(String name, int stars) {\n        this.name = name;\n        this.stars = stars;\n    }\n\n    String label() {\n        return name + \" (\" + stars + \" stars)\";\n    }\n}\n\nHotel h = new Hotel(\"Danube View\", 4);\nSystem.out.println(h.label());   // Danube View (4 stars)",
+    "body": "One file can hold several classes, but only one of them may be `public`, and its name must match the file name. A class with no access modifier is visible only inside its package. Fields belong to each object; a `static` field belongs to the class. Keep the fields `private` and expose behaviour through methods so the object decides what is legal."
+  },
+  {
+    "id": "java-oop-object",
+    "group": "Classes",
+    "name": "new",
+    "syntax": "Type ref = new Type(arguments);",
+    "desc": "Allocates one object on the heap, fills fields with default values, runs a constructor, and returns a reference.",
+    "example": "// Two variables can point at the same object.\nHotel a = new Hotel(\"Hilltop\", 3);\nHotel b = a;\n\na.setStars(5);\nSystem.out.println(b.getStars());   // 5, same object\n\n// A fresh object starts from defaults before the constructor runs:\n// null for objects, 0 for numbers, false for boolean.\nHotel empty = null;                 // no object yet, only a null reference\nSystem.out.println(empty == null);  // true",
+    "body": "`new` returns a reference, not the object itself. Java passes that reference by value into methods, so a method can change the object's fields but cannot make your variable point at something else. Comparing two references with `==` asks whether they point at the same object, not whether their contents match."
+  },
+  {
+    "id": "java-oop-field",
+    "group": "Classes",
+    "name": "instance field",
+    "syntax": "private Type name;",
+    "desc": "A variable stored in every object. A final field is assigned once and cannot change afterwards.",
+    "example": "class Room {\n    private final int number;      // set once in the constructor\n    private int beds = 2;          // default at declaration\n    private double nightly;\n\n    Room(int number, double nightly) {\n        this.number = number;      // final field must be assigned here\n        this.nightly = nightly;\n    }\n\n    int getNumber() { return number; }\n    int getBeds() { return beds; }\n    void setBeds(int beds) { this.beds = beds; }\n}",
+    "body": "A field declared `final` can be assigned where it is declared or in every constructor, nowhere else. That makes it a safe default for identity values such as an id or a name. Without `final`, every public setter is a door into the state, so add one only when the value really has to change."
+  },
+  {
+    "id": "java-oop-method",
+    "group": "Classes",
+    "name": "instance method",
+    "syntax": "ReturnType name(parameters) { body }",
+    "desc": "Behaviour that runs with a this reference to the object it was called on, so it can read and write that object's fields.",
+    "example": "class Hotel {\n    private int stars = 3;\n    private double nightly = 90.0;\n\n    boolean isLuxury() {\n        return stars >= 4;\n    }\n\n    double totalFor(int nights) {\n        if (nights < 1) {\n            throw new IllegalArgumentException(\"nights must be at least 1\");\n        }\n        return nightly * nights;\n    }\n}\n\nHotel h = new Hotel();\nSystem.out.println(h.isLuxury());      // false\nSystem.out.println(h.totalFor(3));     // 270.0",
+    "body": "The signature is the name plus the parameter types. The return type is not part of it, so two methods cannot differ only by return type. A method with no parameters still has access to `this`, which is why `isLuxury()` can read `stars` without receiving the object as an argument."
+  },
+  {
+    "id": "java-oop-constructor",
+    "group": "Constructors",
+    "name": "constructor",
+    "syntax": "ClassName(parameters) { ... }",
+    "desc": "Runs once per object, after the fields get their default values. It has no return type and its job is to leave the object valid.",
+    "example": "class Hotel {\n    private final String name;\n    private int stars;\n\n    Hotel(String name, int stars) {\n        if (name == null || name.isBlank()) {\n            throw new IllegalArgumentException(\"name is required\");\n        }\n        if (stars < 1 || stars > 5) {\n            throw new IllegalArgumentException(\"stars must be 1..5\");\n        }\n        this.name = name;\n        this.stars = stars;\n    }\n}\n\nHotel h = new Hotel(\"Danube View\", 4);\n// new Hotel(\"\", 9);   // throws before the object escapes",
+    "body": "If you write no constructor, the compiler adds a no argument one. The moment you write any constructor, that free one is gone, so `new Hotel()` stops compiling. Validate inside the constructor: an object that throws there never reaches the rest of the program. A constructor has no return type, not even `void`."
+  },
+  {
+    "id": "java-oop-this",
+    "group": "Constructors",
+    "name": "this",
+    "syntax": "this.field = value;   this(args);",
+    "desc": "Refers to the current object. Needed when a parameter has the same name as a field, and as this(...) to chain constructors.",
+    "example": "class Hotel {\n    private String name;\n    private int stars;\n\n    Hotel(String name, int stars) {\n        this.name = name;     // field on the left, parameter on the right\n        this.stars = stars;\n    }\n\n    Hotel(String name) {\n        this(name, 3);        // calls the other constructor, must be line one\n    }\n\n    Hotel copy() {\n        return new Hotel(this.name, this.stars);\n    }\n}",
+    "body": "`this(...)` must be the first statement of a constructor, so a constructor either chains to another one or calls `super(...)`, never both. After a chain, the compiler still inserts one `super()` call at the top of the chain. Forgetting `this` in an assignment such as `name = name` assigns the parameter to itself and leaves the field `null`."
+  },
+  {
+    "id": "java-oop-constructor-chain",
+    "group": "Constructors",
+    "name": "constructor chaining",
+    "syntax": "this(a, b);",
+    "desc": "Calls another constructor of the same class. Keeps validation in one place instead of copying it into every overload.",
+    "example": "class Hotel {\n    private final String name;\n    private final int stars;\n    private final double nightly;\n\n    Hotel(String name, int stars, double nightly) {\n        if (name == null || name.isBlank()) throw new IllegalArgumentException(\"name\");\n        if (stars < 1 || stars > 5) throw new IllegalArgumentException(\"stars\");\n        this.name = name;\n        this.stars = stars;\n        this.nightly = nightly;\n    }\n\n    Hotel(String name) {\n        this(name, 3, 90.0);   // one place holds the rules\n    }\n\n    Hotel(String name, int stars) {\n        this(name, stars, 90.0);\n    }\n}",
+    "body": "Chain toward the constructor with the most parameters and let it do all the work. Every shorter constructor becomes one line, and a new validation rule is added once. The chain must be a straight line; a cycle of `this(...)` calls does not compile."
+  },
+  {
+    "id": "java-oop-encapsulation",
+    "group": "Encapsulation",
+    "name": "private fields",
+    "syntax": "private Type field;",
+    "desc": "Hides state behind the class boundary. Other classes can only change it through the methods you provide.",
+    "example": "class Hotel {\n    private int stars = 3;     // no outside write possible\n\n    int getStars() {\n        return stars;\n    }\n\n    void setStars(int stars) {\n        if (stars < 1 || stars > 5) {\n            throw new IllegalArgumentException(\"stars must be 1..5\");\n        }\n        this.stars = stars;\n    }\n}\n\nHotel h = new Hotel();\nh.setStars(4);\n// System.out.println(h.stars);   // compile error: stars has private access",
+    "body": "Encapsulation keeps one rule in one place. When `stars` can only be written by `setStars`, no future class can store `9` without passing the check. A class with public fields cannot make that promise."
+  },
+  {
+    "id": "java-oop-getter",
+    "group": "Encapsulation",
+    "name": "getter",
+    "syntax": "Type getField() { return field; }",
+    "desc": "Returns a field or a value derived from it. Booleans use the isField() form. Records use the bare component name.",
+    "example": "class Hotel {\n    private final String name;\n    private final boolean open;\n\n    Hotel(String name, boolean open) {\n        this.name = name;\n        this.open = open;\n    }\n\n    String getName() { return name; }\n\n    boolean isOpen() { return open; }\n\n    // A derived getter has no field behind it.\n    String getLabel() { return name + (open ? \" (open)\" : \" (closed)\"); }\n}\n\nHotel h = new Hotel(\"Hilltop\", true);\nSystem.out.println(h.isOpen());    // true\nSystem.out.println(h.getLabel());  // Hilltop (open)",
+    "body": "Do not write a getter for every field by reflex. A getter on a mutable collection hands out the internal list, which lets a caller add items without validation; return `List.copyOf(...)` in that case. A field that never changes after construction should be `final` with a getter and no setter, so the compiler enforces the rule."
+  },
+  {
+    "id": "java-oop-setter",
+    "group": "Encapsulation",
+    "name": "setter",
+    "syntax": "void setField(Type value) { this.field = value; }",
+    "desc": "The single door into a mutable field. It validates before assigning, so no caller can store an invalid value.",
+    "example": "class Room {\n    private int beds;\n    private double nightly;\n\n    Room(int beds, double nightly) {\n        setBeds(beds);        // reuse the rules during construction\n        setNightly(nightly);\n    }\n\n    int getBeds() { return beds; }\n\n    void setBeds(int beds) {\n        if (beds < 1 || beds > 6) {\n            throw new IllegalArgumentException(\"beds must be 1..6\");\n        }\n        this.beds = beds;\n    }\n\n    double getNightly() { return nightly; }\n\n    void setNightly(double nightly) {\n        if (nightly < 0) {\n            throw new IllegalArgumentException(\"nightly cannot be negative\");\n        }\n        this.nightly = nightly;\n    }\n}",
+    "body": "The constructor should call the setters, not assign the fields directly, otherwise the object is validated on one path and not on the other. A setter that only assigns with no check is usually a sign the field should have been `final`. Validation that depends on several fields at once belongs in a method such as `validate()`, not in one setter."
+  },
+  {
+    "id": "java-oop-access-modifiers",
+    "group": "Encapsulation",
+    "name": "access modifiers",
+    "syntax": "private | package-private | protected | public",
+    "desc": "Control who can see a class, field, constructor, or method. Start private and widen only when a caller needs it.",
+    "example": "class Hotel {\n    private int stars = 3;          // this class only\n    int floor;                      // package-private, same package\n    protected String ownerEmail;    // same package plus subclasses\n    public String name;             // everyone\n\n    private void check() { }        // helper, not part of the API\n\n    public int getStars() { return stars; }\n}",
+    "body": "A top level class can only be `public` or package-private. `protected` means the same package plus subclasses, which is wider than most beginners expect. Narrowing visibility in an override is a compile error, so a `public` parent method must stay `public` in every subclass."
+  },
+  {
+    "id": "java-oop-static-field",
+    "group": "Static",
+    "name": "static field",
+    "syntax": "private static Type name;",
+    "desc": "One value shared by the class, not one per object. Initialised once when the class is loaded.",
+    "example": "class Hotel {\n    private static int created;              // one counter for all hotels\n    private static final int MAX_STARS = 5;  // shared constant\n\n    private final String name;\n\n    Hotel(String name) {\n        this.name = name;\n        created++;                            // every object increments it\n    }\n\n    static int createdCount() { return created; }\n}\n\nnew Hotel(\"Danube View\");\nnew Hotel(\"Hilltop\");\nSystem.out.println(Hotel.createdCount());   // 2",
+    "body": "Reach a static field through the class name, `Hotel.created`, not through an object. `static final` on an object type freezes the reference, not the object: a `static final List` can still be added to. Constants use `static final` and upper case names. Static mutable state is global state, so tests that run in one JVM share it."
+  },
+  {
+    "id": "java-oop-static-method",
+    "group": "Static",
+    "name": "static method",
+    "syntax": "static ReturnType name(parameters) { ... }",
+    "desc": "Belongs to the class. It has no this, so it cannot read instance fields or call instance methods directly.",
+    "example": "class Price {\n    private static final double VAT = 0.27;\n\n    static double withVat(double net) {\n        return net * (1 + VAT);\n    }\n\n    static double round2(double value) {\n        return Math.round(value * 100.0) / 100.0;\n    }\n}\n\ndouble gross = Price.withVat(100.0);\nSystem.out.println(gross);              // 127.0\nSystem.out.println(Price.round2(gross));",
+    "body": "`Math.max`, `Integer.parseInt`, and `List.of` are all static. A static method is the right home for a pure calculation that needs no object state. A static method cannot be overridden; a subclass can only declare a new one with the same name, and the variable type decides which runs."
+  },
+  {
+    "id": "java-oop-static-factory",
+    "group": "Static",
+    "name": "static factory method",
+    "syntax": "static Type of(parameters) { return new Type(...); }",
+    "desc": "A named static method that builds objects. It can validate first, cache instances, and return a subtype.",
+    "example": "class Hotel {\n    private final String name;\n    private final int stars;\n\n    private Hotel(String name, int stars) {   // private: use the factory\n        this.name = name;\n        this.stars = stars;\n    }\n\n    static Hotel of(String name, int stars) {\n        if (name == null || name.isBlank()) {\n            throw new IllegalArgumentException(\"name is required\");\n        }\n        if (stars < 1 || stars > 5) {\n            throw new IllegalArgumentException(\"stars must be 1..5\");\n        }\n        return new Hotel(name.trim(), stars);\n    }\n\n    String getName() { return name; }\n    int getStars() { return stars; }\n}\n\nHotel h = Hotel.of(\"  Danube View \", 4);\nSystem.out.println(h.getName());   // Danube View",
+    "body": "A factory can have a readable name (`of`, `from`, `valueOf`, `parse`), while a constructor always carries the class name. It can also return a cached instance or a subclass. The cost is that a private constructor blocks inheritance from outside, which is often the point."
+  },
+  {
+    "id": "java-oop-extends",
+    "group": "Inheritance",
+    "name": "extends",
+    "syntax": "class Child extends Parent { ... }",
+    "desc": "Inherits the parent's non-private fields and methods, and adds or replaces behaviour. Java allows one parent class only.",
+    "example": "class Booking {\n    private final String guestEmail;\n    protected final int nights;\n\n    Booking(String guestEmail, int nights) {\n        this.guestEmail = guestEmail;\n        this.nights = nights;\n    }\n\n    String getGuestEmail() { return guestEmail; }\n\n    double price() { return 0.0; }\n}\n\nclass RoomBooking extends Booking {\n    private final double nightly;\n\n    RoomBooking(String guestEmail, int nights, double nightly) {\n        super(guestEmail, nights);      // parent constructor first\n        this.nightly = nightly;\n    }\n\n    @Override\n    double price() { return nightly * nights; }\n}\n\nBooking b = new RoomBooking(\"anna@example.com\", 3, 92.5);\nSystem.out.println(b.price());          // 277.5",
+    "body": "Private members are not inherited, and a constructor is never inherited. Initialisation order is: parent field defaults, parent constructor, child field defaults, child constructor. A subclass should pass the is-a test; when it only wants the code, composition with a field is the safer design."
+  },
+  {
+    "id": "java-oop-super",
+    "group": "Inheritance",
+    "name": "super",
+    "syntax": "super(args);   super.method();",
+    "desc": "Calls a parent constructor, or the parent version of an overridden method. There is only one level up.",
+    "example": "class Booking {\n    protected final int nights;\n\n    Booking(int nights) {\n        this.nights = nights;\n    }\n\n    String describe() {\n        return nights + \" night(s)\";\n    }\n}\n\nclass RoomBooking extends Booking {\n    private final double nightly;\n\n    RoomBooking(int nights, double nightly) {\n        super(nights);\n        this.nightly = nightly;\n    }\n\n    @Override\n    String describe() {\n        return super.describe() + \", \" + nightly + \"/night\";\n    }\n}\n\nSystem.out.println(new RoomBooking(2, 90.0).describe());\n// 2 night(s), 90.0/night",
+    "body": "`super(...)` must be the first statement of the constructor. `super.method()` can appear anywhere and is the usual way to keep the parent's part of a description or calculation. `super.super.method()` does not exist in Java."
+  },
+  {
+    "id": "java-oop-override",
+    "group": "Inheritance",
+    "name": "@Override",
+    "syntax": "@Override ReturnType name(parameters) { ... }",
+    "desc": "Marks a method that replaces an inherited one. The compiler checks the signature, so a typo fails the build instead of adding a new method.",
+    "example": "class Booking {\n    public double price() { return 0.0; }\n}\n\nclass RoomBooking extends Booking {\n    @Override\n    public double price() { return 180.0; }\n\n    // @Override\n    // public double price(int guests) { return 0; }\n    // compile error: this is an overload, not an override\n\n    // double price() { return 0; }\n    // compile error: cannot reduce visibility from public\n}",
+    "body": "Overriding needs the same name and the same parameter types, at least the same visibility, and a return type that is the same or a subtype. `final`, `static`, and `private` methods cannot be overridden. A static method with the same signature is hidden, and the variable type chooses which one runs. Overloads are chosen at compile time; overrides at runtime."
+  },
+  {
+    "id": "java-oop-abstract-class",
+    "group": "Inheritance",
+    "name": "abstract class",
+    "syntax": "abstract class Name { abstract ReturnType m(); }",
+    "desc": "A class that cannot be instantiated. It holds shared state and forces subclasses to provide the missing methods.",
+    "example": "abstract class Booking {\n    private final String guestEmail;\n\n    Booking(String guestEmail) {\n        this.guestEmail = guestEmail;\n    }\n\n    String getGuestEmail() { return guestEmail; }\n\n    abstract int nights();\n\n    abstract double nightlyRate();\n\n    final double total() {\n        return nights() * nightlyRate();\n    }\n}\n\nclass RoomBooking extends Booking {\n    private final int nights;\n    private final double rate;\n\n    RoomBooking(String guestEmail, int nights, double rate) {\n        super(guestEmail);\n        this.nights = nights;\n        this.rate = rate;\n    }\n\n    @Override int nights() { return nights; }\n\n    @Override double nightlyRate() { return rate; }\n}\n\nSystem.out.println(new RoomBooking(\"anna@example.com\", 2, 90.0).total());  // 180.0",
+    "body": "An abstract class can have fields, constructors, and concrete methods; an interface cannot hold instance state. An abstract method has no body and cannot be `private`, `static`, or `final`. A subclass that misses one abstract method must itself be declared abstract. The `final` template method here fixes the calculation order while subclasses supply the numbers."
+  },
+  {
+    "id": "java-oop-interface",
+    "group": "Interfaces",
+    "name": "interface",
+    "syntax": "interface Name { ReturnType m(); }",
+    "desc": "A contract of methods. A class can implement many interfaces, so one object can be used through several unrelated types.",
+    "example": "interface Payable {\n    double amount();          // public abstract by default\n}\n\ninterface Describable {\n    String describe();\n}\n\nclass InvoiceLine implements Payable, Describable {\n    private final String label;\n    private final double amount;\n\n    InvoiceLine(String label, double amount) {\n        this.label = label;\n        this.amount = amount;\n    }\n\n    @Override public double amount() { return amount; }\n\n    @Override public String describe() { return label + \" = \" + amount; }\n}\n\nPayable p = new InvoiceLine(\"Room 3 nights\", 277.5);\nSystem.out.println(p.amount());                  // 277.5\nSystem.out.println(((Describable) p).describe()); // Room 3 nights = 277.5",
+    "body": "Interface methods are implicitly `public abstract`, and a field in an interface is implicitly `public static final`. The implementing method must be `public`, because the contract is public even when the keyword is absent. Cast between interfaces only when you know the object implements both; a blind cast throws `ClassCastException`."
+  },
+  {
+    "id": "java-oop-default-method",
+    "group": "Interfaces",
+    "name": "default method",
+    "syntax": "default ReturnType name() { ... }",
+    "desc": "A method with a body inside an interface. Implementing classes inherit it and may override it.",
+    "example": "interface Payable {\n    double amount();\n\n    default String receiptLine() {\n        return \"amount due: \" + String.format(\"%.2f\", amount());\n    }\n}\n\nclass RoomBooking implements Payable {\n    private final double total;\n\n    RoomBooking(double total) { this.total = total; }\n\n    @Override public double amount() { return total; }\n\n    // receiptLine() is inherited, no code needed here\n}\n\nSystem.out.println(new RoomBooking(277.5).receiptLine());\n// amount due: 277.50",
+    "body": "A default method lets you add behaviour to an interface without breaking every class that implements it. If two interfaces provide the same default method, the class must override it and pick one with `InterfaceName.super.method()`. An interface can also declare `static` methods, called on the interface name, and private helper methods used only inside the interface."
+  },
+  {
+    "id": "java-oop-polymorphism",
+    "group": "Polymorphism",
+    "name": "dynamic dispatch",
+    "syntax": "Parent p = new Child(); p.method();",
+    "desc": "The method that runs is chosen from the object's real class at runtime, not from the variable's declared type.",
+    "example": "abstract class Booking {\n    abstract double amount();\n\n    String label() {\n        return getClass().getSimpleName() + \": \" + amount();\n    }\n}\n\nclass RoomBooking extends Booking {\n    @Override double amount() { return 180.0; }\n}\n\nclass EventBooking extends Booking {\n    @Override double amount() { return 250.0; }\n}\n\njava.util.List<Booking> all = java.util.List.of(\n    new RoomBooking(),\n    new EventBooking()\n);\n\ndouble sum = 0;\nfor (Booking b : all) {\n    sum += b.amount();       // 180.0 then 250.0\n}\nSystem.out.println(sum);     // 430.0",
+    "body": "A parent typed variable can hold any subclass object. The compiler checks only that the method exists on the variable type; the JVM picks the overriding version from the object. This is why a loop over a list of the parent type needs no `if` on the concrete class. Overloads behave the opposite way: they are resolved at compile time from the declared type."
+  },
+  {
+    "id": "java-oop-instanceof",
+    "group": "Polymorphism",
+    "name": "instanceof pattern",
+    "syntax": "if (obj instanceof Type name) { ... }",
+    "desc": "Tests the runtime type and, when it matches, binds the cast object to a new variable in one step.",
+    "example": "abstract class Booking {\n    abstract double amount();\n}\n\nclass EventBooking extends Booking {\n    private final String room;\n\n    EventBooking(String room) { this.room = room; }\n\n    @Override double amount() { return 250.0; }\n\n    String room() { return room; }\n}\n\nBooking b = new EventBooking(\"Terrace\");\n\nif (b instanceof EventBooking e) {\n    System.out.println(\"event in \" + e.room());   // event in Terrace\n}\n\n// The old form needs a separate cast:\nif (b instanceof EventBooking) {\n    EventBooking e = (EventBooking) b;\n    System.out.println(e.room());\n}",
+    "body": "The pattern variable is in scope only where the test is true, so there is no cast to forget. `instanceof null` is always false, which makes the check safe before any cast. Use it to reach subclass specific state; do not use it to replace dispatch with a chain of type tests, because every new subclass then needs an edit in that chain."
+  },
+  {
+    "id": "java-oop-record",
+    "group": "Records",
+    "name": "record",
+    "syntax": "record Name(Type a, Type b) { }",
+    "desc": "A compact immutable data class. The compiler writes the private final fields, constructor, accessors, toString, equals, and hashCode.",
+    "example": "// Data shape: HotelRow { hotelId: int, name: String, city: String, stars: int }\nrecord HotelRow(int hotelId, String name, String city, int stars) { }\n\nHotelRow row = new HotelRow(12, \"Danube View\", \"Budapest\", 4);\n\nSystem.out.println(row.name());      // Danube View, no get prefix\nSystem.out.println(row);             // HotelRow[hotelId=12, name=Danube View, ...]\n\nHotelRow same = new HotelRow(12, \"Danube View\", \"Budapest\", 4);\nSystem.out.println(row.equals(same));   // true, generated from the components\n\n// row.name(\"Other\");  // no setter exists: records are immutable",
+    "body": "A record is implicitly `final` and extends `java.lang.Record`, so it cannot extend another class. It can implement interfaces and declare extra methods, but not extra instance fields. Accessors are named after the components, `name()` rather than `getName()`. Use a record for a parsed row, a request, or a result that never changes."
+  },
+  {
+    "id": "java-oop-record-compact",
+    "group": "Records",
+    "name": "compact constructor",
+    "syntax": "record Name(Type a) { Name { validation } }",
+    "desc": "A constructor without a parameter list that validates or normalises the components before the fields are assigned.",
+    "example": "record HotelRow(int hotelId, String name, int stars) {\n    HotelRow {                       // no parentheses: compact form\n        if (hotelId <= 0) {\n            throw new IllegalArgumentException(\"hotel_id must be positive\");\n        }\n        if (stars < 1 || stars > 5) {\n            throw new IllegalArgumentException(\"stars must be 1..5\");\n        }\n        name = name == null ? \"\" : name.trim();   // reassignment is allowed here\n    }\n\n    String label() {\n        return name + \" (\" + stars + \")\";\n    }\n}\n\nHotelRow row = new HotelRow(12, \"  Danube View  \", 4);\nSystem.out.println(row.name());     // Danube View\nSystem.out.println(row.label());    // Danube View (4)",
+    "body": "In the compact form you write only the body, and the compiler assigns each field from the matching parameter at the end. Reassigning a parameter changes what gets stored, which is the clean place to trim or default a value. A record can also declare a normal constructor, but then it must delegate to the canonical one with `this(...)`."
+  },
+  {
+    "id": "java-oop-tostring",
+    "group": "Classes",
+    "name": "toString",
+    "syntax": "@Override public String toString() { ... }",
+    "desc": "Returns the text used by println, logging, and string concatenation. Without it the output is a class name and a hash.",
+    "example": "class Hotel {\n    private final String name;\n    private final int stars;\n\n    Hotel(String name, int stars) {\n        this.name = name;\n        this.stars = stars;\n    }\n\n    @Override\n    public String toString() {\n        return \"Hotel[\" + name + \", \" + stars + \" stars]\";\n    }\n}\n\nHotel h = new Hotel(\"Danube View\", 4);\nSystem.out.println(h);                        // Hotel[Danube View, 4 stars]\nSystem.out.println(\"picked: \" + h);           // picked: Hotel[Danube View, 4 stars]\nSystem.out.println(new Hotel(\"Hilltop\", 3));  // calls toString implicitly",
+    "body": "`println` calls `String.valueOf(object)`, which calls `toString()` unless the reference is null. Concatenation does the same. Put the identifying fields in the output, not every field: a log line that dumps a whole object graph is unreadable. Records generate a readable `toString` already, so override only when the default is too noisy."
+  },
+  {
+    "id": "java-oop-equals-hashcode",
+    "group": "Classes",
+    "name": "equals and hashCode",
+    "syntax": "@Override public boolean equals(Object o); @Override public int hashCode();",
+    "desc": "Define value equality and a matching hash. Override both together or the object misbehaves inside HashSet and HashMap.",
+    "example": "import java.util.Objects;\n\nclass Hotel {\n    private final String name;\n    private final int stars;\n\n    Hotel(String name, int stars) {\n        this.name = name;\n        this.stars = stars;\n    }\n\n    @Override\n    public boolean equals(Object other) {\n        if (this == other) return true;\n        if (!(other instanceof Hotel h)) return false;\n        return stars == h.stars && name.equals(h.name);\n    }\n\n    @Override\n    public int hashCode() {\n        return Objects.hash(name, stars);\n    }\n}\n\nHotel a = new Hotel(\"Danube View\", 4);\nHotel b = new Hotel(\"Danube View\", 4);\nSystem.out.println(a == b);        // false, two objects\nSystem.out.println(a.equals(b));  // true, same values\n\njava.util.Set<Hotel> set = new java.util.HashSet<>();\nset.add(a);\nset.add(b);\nSystem.out.println(set.size());    // 1",
+    "body": "The contract: equal objects must have equal hash codes, and `equals` must be reflexive, symmetric, transitive, and consistent. Comparing with `instanceof` allows subclasses to compare equal; `getClass()` is stricter. Records generate both methods, so a record in a `HashSet` deduplicates with no code. Never use a mutable field in `hashCode` while the object sits in a hash based collection."
+  }
+]

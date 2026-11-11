@@ -1,0 +1,244 @@
+[
+  {
+    "id": "java-list-add",
+    "group": "Lists",
+    "name": "ArrayList add, get, size",
+    "syntax": "list.add(value); list.get(index); list.size()",
+    "desc": "Appends an element, reads one back by index, and returns the element count. Index access is constant time on the backing array.",
+    "example": "List<Booking> bookings = new ArrayList<>();\nbookings.add(new Booking(\"anna@example.com\", \"Budapest\", 3));\nbookings.add(new Booking(\"bela@example.com\", \"Vienna\", 1));\n\nBooking first = bookings.get(0);   // constant time, no walk\nint rows = bookings.size();        // 2",
+    "body": "Inserting or removing in the middle shifts the later elements, so that costs time proportional to the list size. `List.of(...)` returns an immutable list; wrap it in `new ArrayList<>(...)` before adding."
+  },
+  {
+    "id": "java-list-removeif",
+    "group": "Lists",
+    "name": "removeIf",
+    "syntax": "list.removeIf(element -> condition)",
+    "desc": "Removes every element that matches the predicate in one pass. Safe where a for-each loop with a remove call would throw ConcurrentModificationException.",
+    "example": "List<Booking> bookings = new ArrayList<>(List.of(\n        new Booking(\"Anna\", 3),\n        new Booking(\"Bela\", 0),\n        new Booking(\"Csilla\", 2)));\n\n// Drop invalid rows before the report runs.\nbookings.removeIf(b -> b.nights() == 0);\nSystem.out.println(bookings.size());   // 2"
+  },
+  {
+    "id": "java-list-sort-lambda",
+    "group": "Sorting",
+    "name": "List.sort",
+    "syntax": "list.sort(Comparator.comparing(Type::key))",
+    "desc": "Sorts the list in place with an external order. The sort is stable, so equal elements keep their input order.",
+    "example": "List<Booking> bookings = new ArrayList<>(rows);\n\n// City ascending, then revenue descending, then hotel name.\nbookings.sort(Comparator\n        .comparing(Booking::city)\n        .thenComparing(Comparator.comparingInt(Booking::total).reversed())\n        .thenComparing(Booking::hotelName));\n\nbookings.forEach(b -> System.out.println(b.hotelName()));",
+    "body": "`list.sort(null)` uses the natural order from `Comparable`. Put `reversed()` at the end when the whole chain should flip; put it on one key's comparator when only that key should."
+  },
+  {
+    "id": "java-list-immutable-of",
+    "group": "Lists",
+    "name": "List.of",
+    "syntax": "List.of(a, b, c)",
+    "desc": "Builds a fixed size, immutable list in one line. Useful for seed data and test fixtures.",
+    "example": "List<String> cities = List.of(\"Budapest\", \"Vienna\", \"Praha\");\n// cities.add(\"Rome\");   // UnsupportedOperationException\n\n// A mutable copy when the report needs to sort or edit it.\nList<String> editable = new ArrayList<>(cities);\neditable.add(\"Rome\");"
+  },
+  {
+    "id": "java-linkedlist-deque-ends",
+    "group": "Lists",
+    "name": "LinkedList ends",
+    "syntax": "list.addFirst(v); list.addLast(v); list.removeFirst();",
+    "desc": "Adds and removes at both ends in constant time. Index access walks the chain, so get(i) inside a loop is quadratic.",
+    "example": "LinkedList<Booking> line = new LinkedList<>();\nline.addLast(new Booking(\"Anna\", 3));\nline.addLast(new Booking(\"Bela\", 1));\n\nBooking next = line.removeFirst();   // Anna, constant time\nBooking last = line.removeLast();    // Bela\nSystem.out.println(line.size());     // 0",
+    "body": "New code should prefer `ArrayDeque` for queue and stack work: one array, no node objects, and `null` is rejected so an empty poll is unambiguous. Keep `LinkedList` when you insert in the middle through a `ListIterator`."
+  },
+  {
+    "id": "java-map-put",
+    "group": "Maps",
+    "name": "HashMap put and get",
+    "syntax": "map.put(key, value); map.get(key)",
+    "desc": "Stores a value under a key and reads it back. Average cost is constant; one null key and null values are allowed.",
+    "example": "Map<String, Integer> nightsByCity = new HashMap<>();\nnightsByCity.put(\"Budapest\", 12);\nnightsByCity.put(\"Vienna\", 7);\n\nint nights = nightsByCity.get(\"Budapest\");   // 12\nboolean hasPraha = nightsByCity.containsKey(\"Praha\");   // false\nSystem.out.println(nightsByCity);",
+    "body": "Iteration order follows the hash and changes after a resize, so never rely on it. A key class needs both `equals` and `hashCode`; a `record` supplies them."
+  },
+  {
+    "id": "java-map-getordefault",
+    "group": "Maps",
+    "name": "getOrDefault",
+    "syntax": "map.getOrDefault(key, fallback)",
+    "desc": "Returns the stored value or the fallback when the key is missing. Removes a null check from counting code.",
+    "example": "Map<String, Integer> countByCity = new HashMap<>();\ncountByCity.put(\"Budapest\", 3);\n\n// Missing keys count as zero, so no branch is needed.\nint vienna = countByCity.getOrDefault(\"Vienna\", 0);\nSystem.out.println(vienna);   // 0"
+  },
+  {
+    "id": "java-map-computeifabsent",
+    "group": "Maps",
+    "name": "computeIfAbsent",
+    "syntax": "map.computeIfAbsent(key, k -> new ArrayList<>()).add(value)",
+    "desc": "Creates the value on first use and returns it, which builds a map of lists without a null check.",
+    "example": "Map<String, List<Booking>> byCity = new HashMap<>();\n\nfor (Booking b : bookings) {\n    // The list is created once per city, then reused.\n    byCity.computeIfAbsent(b.city(), key -> new ArrayList<>()).add(b);\n}\n\nSystem.out.println(byCity.get(\"Budapest\").size());"
+  },
+  {
+    "id": "java-map-merge",
+    "group": "Maps",
+    "name": "merge",
+    "syntax": "map.merge(key, value, Integer::sum)",
+    "desc": "Inserts the value when the key is new and combines it with the old value when it exists.",
+    "example": "Map<String, Integer> revenueByHotel = new HashMap<>();\n\nfor (Booking b : bookings) {\n    revenueByHotel.merge(b.hotelName(), b.total(), Integer::sum);\n}\n\n// Danube View appears three times, the values are added.\nSystem.out.println(revenueByHotel.get(\"Danube View\"));"
+  },
+  {
+    "id": "java-map-entryset",
+    "group": "Maps",
+    "name": "entrySet",
+    "syntax": "for (Map.Entry<K, V> e : map.entrySet())",
+    "desc": "Iterates keys and values together without a second lookup. keySet() and values() cover the other two views.",
+    "example": "Map<String, Integer> revenue = new TreeMap<>();\nrevenue.put(\"Danube View\", 640);\nrevenue.put(\"City Inn\", 180);\n\nfor (Map.Entry<String, Integer> entry : revenue.entrySet()) {\n    System.out.printf(\"%-12s %5d%n\", entry.getKey(), entry.getValue());\n}\n\nint total = 0;\nfor (int value : revenue.values()) {\n    total += value;\n}"
+  },
+  {
+    "id": "java-map-treemap-sorted",
+    "group": "Maps",
+    "name": "TreeMap",
+    "syntax": "new TreeMap<K, V>()",
+    "desc": "Keeps keys sorted at all times, by natural order or a comparator. Lookup and insert cost logarithmic time.",
+    "example": "// Keys must be Comparable, or pass a Comparator to the constructor.\nTreeMap<Integer, Long> byYear = new TreeMap<>();\nbyYear.put(2024, 57L);\nbyYear.put(2023, 41L);\n\nSystem.out.println(byYear.firstKey());        // 2023\nSystem.out.println(byYear.tailMap(2024));     // view from 2024 up",
+    "body": "The navigable methods (`firstKey`, `lastKey`, `headMap`, `tailMap`, `floorKey`, `ceilingKey`) are the reason to pick it over a `HashMap` plus a sort. Natural ordering rejects a `null` key."
+  },
+  {
+    "id": "java-map-sort-by-value",
+    "group": "Sorting",
+    "name": "Sort map entries",
+    "syntax": "entries.sort(Map.Entry.comparingByValue())",
+    "desc": "Sorts a copy of the entry set when the report order is by value. A map itself has no order to sort.",
+    "example": "Map<String, Integer> revenue = new HashMap<>();\nrevenue.put(\"Danube View\", 640);\nrevenue.put(\"City Inn\", 180);\nrevenue.put(\"Alpen Hof\", 380);\n\nList<Map.Entry<String, Integer>> ranking = new ArrayList<>(revenue.entrySet());\nranking.sort(Map.Entry.<String, Integer>comparingByValue().reversed());\n\nranking.forEach(e -> System.out.println(e.getKey() + \" = \" + e.getValue()));",
+    "body": "Add a tie breaker with `.thenComparing(Map.Entry.comparingByKey())`. For a map that stays sorted by value, keep a `TreeMap` keyed by the value instead, or sort on each print."
+  },
+  {
+    "id": "java-set-hashset-add",
+    "group": "Sets",
+    "name": "HashSet add",
+    "syntax": "set.add(value)",
+    "desc": "Stores unique elements. Returns false when the element was already present, which makes duplicate detection a one liner.",
+    "example": "Set<String> guests = new HashSet<>();\nboolean first = guests.add(\"anna@example.com\");    // true\nboolean again = guests.add(\"anna@example.com\");    // false\n\nSystem.out.println(guests.size());   // 1\nSystem.out.println(guests.contains(\"anna@example.com\"));   // true",
+    "body": "The set uses `equals` and `hashCode`. A mutable field that feeds `hashCode` must not change while the object sits in the set, or lookups stop finding it."
+  },
+  {
+    "id": "java-set-treeset-navigable",
+    "group": "Sets",
+    "name": "TreeSet",
+    "syntax": "new TreeSet<E>()",
+    "desc": "Keeps unique elements sorted. Deduplication uses compareTo or the comparator, not equals.",
+    "example": "TreeSet<String> hotels = new TreeSet<>();\nhotels.add(\"Danube View\");\nhotels.add(\"Alpen Hof\");\nhotels.add(\"Danube View\");   // ignored, compare result is 0\n\nSystem.out.println(hotels);        // [Alpen Hof, Danube View]\nSystem.out.println(hotels.first()); // Alpen Hof\nSystem.out.println(hotels.headSet(\"Danube View\"));   // [Alpen Hof]"
+  },
+  {
+    "id": "java-queue-offer-poll",
+    "group": "Queues",
+    "name": "Queue offer and poll",
+    "syntax": "queue.offer(e); queue.poll(); queue.peek()",
+    "desc": "First in, first out. offer returns false when full, poll and peek return null when empty; add, remove, and element throw instead.",
+    "example": "Queue<Booking> checkIn = new ArrayDeque<>();\ncheckIn.offer(new Booking(\"Anna\", 3));\ncheckIn.offer(new Booking(\"Bela\", 1));\n\nBooking next = checkIn.poll();   // Anna, null when empty\nBooking peeked = checkIn.peek(); // Bela, still queued\nSystem.out.println(checkIn.size());   // 1"
+  },
+  {
+    "id": "java-deque-arraydeque",
+    "group": "Queues",
+    "name": "ArrayDeque",
+    "syntax": "Deque<E> d = new ArrayDeque<>()",
+    "desc": "Double ended queue for both FIFO lines and LIFO stacks. addFirst, addLast, pollFirst, pollLast, push, and pop cover both ends.",
+    "example": "Deque<String> history = new ArrayDeque<>();\nhistory.push(\"list\");    // add to the front\nhistory.push(\"map\");\nhistory.push(\"stream\");\n\nSystem.out.println(history.pop());     // stream\nSystem.out.println(history.peek());    // map\nSystem.out.println(history.size());    // 2",
+    "body": "`ArrayDeque` rejects `null`, so a `null` from `poll` can only mean empty. It is faster than the legacy synchronized `Stack` for stack work."
+  },
+  {
+    "id": "java-iterator-remove",
+    "group": "Iteration",
+    "name": "Iterator remove",
+    "syntax": "it.remove()",
+    "desc": "Removes the element returned by the last next() call. The only legal way to delete while walking a fail-fast collection.",
+    "example": "Iterator<Booking> it = bookings.iterator();\nwhile (it.hasNext()) {\n    Booking b = it.next();\n    if (b.nights() == 0) {\n        it.remove();   // legal removal through the iterator\n    }\n}\n\n// A for-each loop would throw ConcurrentModificationException here.",
+    "body": "`removeIf` does the same job in one line. `ListIterator` adds `previous`, `set`, and `add` for editing during the walk."
+  },
+  {
+    "id": "java-comparator-chain",
+    "group": "Sorting",
+    "name": "Comparator.comparing",
+    "syntax": "Comparator.comparing(Type::key).thenComparing(Type::other)",
+    "desc": "Builds a multi key order outside the class. The first key decides, later keys break ties.",
+    "example": "Comparator<Booking> report = Comparator\n        .comparing(Booking::city)\n        .thenComparing(Booking::hotelName)\n        .thenComparingInt(Booking::nights);\n\nbookings.sort(report);\n\n// Whole chain reversed: nights descending first.\nbookings.sort(Comparator.comparingInt(Booking::nights).reversed());",
+    "body": "Use `comparingInt`, `comparingLong`, and `comparingDouble` for numbers to avoid boxing on each comparison. `nullsFirst` and `nullsLast` wrap a comparator for nullable fields. `Comparable` is the class's own order; a `Comparator` is an outside opinion and a class can have many."
+  },
+  {
+    "id": "java-stream-filter-map-collect",
+    "group": "Streams",
+    "name": "filter, map, collect",
+    "syntax": "stream.filter(p).map(f).collect(Collectors.toList())",
+    "desc": "The three step pipeline: keep some rows, transform each row, store the result. Intermediate steps are lazy until the terminal call runs.",
+    "example": "List<String> labels = bookings.stream()\n        .filter(b -> b.nights() >= 2)          // keep longer stays\n        .map(b -> b.hotelName() + \" \" + b.nights())\n        .collect(Collectors.toList());\n\nSystem.out.println(labels);",
+    "body": "`toList()` returns an unmodifiable list, while `collect(Collectors.toList())` returns a mutable one in current JDKs. The source list is never changed by the pipeline."
+  },
+  {
+    "id": "java-stream-maptoint-sum",
+    "group": "Streams",
+    "name": "mapToInt and sum",
+    "syntax": "stream.mapToInt(Type::number).sum()",
+    "desc": "Converts to a primitive stream, then totals it without boxing. Also unlocks average, min, max, and summaryStatistics.",
+    "example": "int revenue = bookings.stream()\n        .mapToInt(Booking::total)\n        .sum();\n\ndouble avgNights = bookings.stream()\n        .mapToInt(Booking::nights)\n        .average()\n        .orElse(0);\n\nSystem.out.println(revenue + \" / \" + avgNights);",
+    "body": "`sum()` returns 0 for an empty stream. `average()` returns `OptionalDouble`, because an empty stream has no average."
+  },
+  {
+    "id": "java-stream-groupingby-count",
+    "group": "Collectors",
+    "name": "groupingBy with counting",
+    "syntax": "collect(groupingBy(Type::key, counting()))",
+    "desc": "Builds a map from key to number of rows. The plain one argument form gives key to List instead.",
+    "example": "Map<String, Long> countByCity = bookings.stream()\n        .collect(Collectors.groupingBy(\n                Booking::city,\n                TreeMap::new,          // sorted keys\n                Collectors.counting()));\n\nSystem.out.println(countByCity);   // {Budapest=3, Praha=1, Vienna=1}",
+    "body": "Without the map factory the result is a `HashMap`, so group order is arbitrary. A `null` key from the classifier throws `NullPointerException`."
+  },
+  {
+    "id": "java-stream-summingint",
+    "group": "Collectors",
+    "name": "summingInt",
+    "syntax": "collect(groupingBy(Type::key, summingInt(Type::number)))",
+    "desc": "Adds a numeric field per group, so one pass produces a map of totals.",
+    "example": "Map<String, Integer> revenueByCity = bookings.stream()\n        .collect(Collectors.groupingBy(\n                Booking::city,\n                TreeMap::new,\n                Collectors.summingInt(Booking::total)));\n\nrevenueByCity.forEach((city, total) ->\n        System.out.printf(\"%-9s %6d%n\", city, total));",
+    "body": "Related downstreams: `summingLong`, `summingDouble`, `averagingInt`, and `summarizingInt`. Use them after grouping; `mapToInt` is no longer reachable at that point."
+  },
+  {
+    "id": "java-stream-joining",
+    "group": "Collectors",
+    "name": "joining",
+    "syntax": "collect(joining(delimiter, prefix, suffix))",
+    "desc": "Joins stream elements into one string with a delimiter. No trailing comma, unlike a manual loop.",
+    "example": "String cities = bookings.stream()\n        .map(Booking::city)\n        .distinct()\n        .sorted()\n        .collect(Collectors.joining(\", \", \"[\", \"]\"));\n\nSystem.out.println(cities);   // [Budapest, Praha, Vienna]"
+  },
+  {
+    "id": "java-stream-tomap-merge",
+    "group": "Collectors",
+    "name": "toMap with merge",
+    "syntax": "collect(toMap(keyMapper, valueMapper, mergeFunction))",
+    "desc": "Builds a map from stream elements. The merge function decides what happens when two rows share a key.",
+    "example": "Map<String, Integer> revenueByHotel = bookings.stream()\n        .collect(Collectors.toMap(\n                Booking::hotelName,\n                Booking::total,\n                Integer::sum,      // duplicates are added, not thrown\n                TreeMap::new));\n\nSystem.out.println(revenueByHotel);",
+    "body": "Without the merge function a duplicate key throws `IllegalStateException: Duplicate key`. A fourth argument picks the map implementation, for example `TreeMap::new` for sorted keys."
+  },
+  {
+    "id": "java-stream-flatmap",
+    "group": "Streams",
+    "name": "flatMap",
+    "syntax": "stream.flatMap(e -> e.list().stream())",
+    "desc": "Turns each element into a stream and joins the results, which flattens a field that holds a list.",
+    "example": "// Each booking holds the names of every guest on the reservation.\nString everyone = bookings.stream()\n        .flatMap(b -> b.guests().stream())\n        .distinct()\n        .sorted()\n        .collect(Collectors.joining(\", \"));\n\nSystem.out.println(everyone);   // Anna, Bela, Csilla, Dora",
+    "body": "`map` would give a stream of lists here. Inside `collect`, `Collectors.flatMapping` does the same job as a downstream collector."
+  },
+  {
+    "id": "java-optional-chain",
+    "group": "Optional",
+    "name": "Optional map and orElse",
+    "syntax": "optional.map(f).orElse(fallback)",
+    "desc": "Transforms the value when present and supplies a fallback when empty, without a null check.",
+    "example": "Optional<Booking> best = bookings.stream()\n        .max(Comparator.comparingInt(Booking::total));\n\nString label = best\n        .map(b -> b.hotelName() + \" = \" + b.total())\n        .orElse(\"no bookings\");\n\nSystem.out.println(label);",
+    "body": "`orElse` evaluates its argument either way; use `orElseGet(() -> ...)` for anything expensive. Avoid `get()` without `isPresent()`, and avoid `Optional` as a field or parameter type."
+  },
+  {
+    "id": "java-stream-sorted-reversed",
+    "group": "Streams",
+    "name": "sorted with a comparator",
+    "syntax": "stream.sorted(Comparator.comparingInt(Type::number).reversed())",
+    "desc": "Sorts the stream for the rest of the pipeline. A custom comparator is needed whenever the element is not Comparable or the order is not natural.",
+    "example": "List<String> top = bookings.stream()\n        .sorted(Comparator.comparingInt(Booking::total).reversed())\n        .limit(3)\n        .map(b -> b.hotelName() + \" (\" + b.total() + \")\")\n        .toList();\n\nSystem.out.println(top);"
+  },
+  {
+    "id": "java-stream-summarystatistics",
+    "group": "Streams",
+    "name": "summaryStatistics",
+    "syntax": "stream.mapToInt(Type::number).summaryStatistics()",
+    "desc": "Computes count, sum, min, max, and average in one pass over the data.",
+    "example": "IntSummaryStatistics stats = bookings.stream()\n        .mapToInt(Booking::nights)\n        .summaryStatistics();\n\nSystem.out.println(stats.getCount());\nSystem.out.println(stats.getSum());\nSystem.out.println(stats.getMin() + \" - \" + stats.getMax());\nSystem.out.printf(\"%.2f%n\", stats.getAverage());",
+    "body": "The collector form is `Collectors.summarizingInt`. On an empty stream the count and sum are 0 and the average is `0.0`, so guard the division if the report divides by the count."
+  }
+]

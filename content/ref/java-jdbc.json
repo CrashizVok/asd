@@ -1,0 +1,164 @@
+[
+  {
+    "id": "java-exception-hierarchy",
+    "group": "Exceptions",
+    "name": "Throwable hierarchy",
+    "syntax": "Throwable -> Error / Exception -> RuntimeException",
+    "desc": "Every catchable failure is a Throwable. Error is fatal, Exception splits into checked and unchecked branches.",
+    "example": "// Data shape: e.getClass(), e.getMessage(), e.getCause(), e.getStackTrace()\nclass HierarchyDemo {\n    static void unchecked() {\n        try {\n            Object value = null;\n            value.toString();\n        } catch (RuntimeException e) {\n            // RuntimeException and its subclasses need no throws clause.\n            System.out.println(e.getClass().getSimpleName()); // NullPointerException\n            System.out.println(e.getMessage());               // may be null\n            System.out.println(e.getCause());                 // null unless wrapped\n        }\n    }\n\n    // A checked type is part of the method contract.\n    static void checked() throws java.io.IOException {\n        throw new java.io.IOException(\"disk unavailable\");\n    }\n}",
+    "body": "The compiler only forces handling for the checked branch. Error and RuntimeException are unchecked, so a method can throw them without declaring anything. IOException, SQLException, and InterruptedException are checked and must be caught or declared.\n\nWhen you catch, put the narrowest type first. A catch for Exception before IOException is a compile error because the second clause can never be reached."
+  },
+  {
+    "id": "java-checked-unchecked",
+    "group": "Exceptions",
+    "name": "Checked and unchecked",
+    "syntax": "void read() throws IOException",
+    "desc": "Checked exceptions must be caught or declared. Unchecked exceptions do not, and usually signal a bug or bad input.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\nclass CheckedDemo {\n    // Checked: every caller must catch IOException or declare it too.\n    static String read(Path path) throws IOException {\n        return Files.readString(path);\n    }\n\n    // Unchecked: no throws clause, and callers are not forced to catch.\n    static int parseStars(String text) {\n        int stars = Integer.parseInt(text); // NumberFormatException is unchecked\n        if (stars < 1 || stars > 5) {\n            throw new IllegalArgumentException(\"stars must be 1..5\");\n        }\n        return stars;\n    }\n\n    public static void main(String[] args) {\n        try {\n            System.out.println(read(Path.of(\"bookings-sample.csv\")).length());\n        } catch (IOException e) {\n            System.out.println(\"read failed: \" + e.getMessage());\n        }\n    }\n}",
+    "body": "A useful rule: checked exceptions describe failures outside your control, such as a missing file or a refused connection. Unchecked exceptions describe mistakes inside your code, such as a null reference or an index out of range.\n\nDo not turn every checked exception into a RuntimeException just to avoid a signature. Translate only at a layer boundary, and pass the original exception as the cause."
+  },
+  {
+    "id": "java-try-catch",
+    "group": "Exceptions",
+    "name": "try / catch",
+    "syntax": "try { ... } catch (Type e) { ... }",
+    "desc": "Runs a block and handles a matching exception instead of letting it leave the method.",
+    "example": "// Data shape: catch parameter e is the thrown object, already filled with a stack trace.\nString text = \"4\";\n\ntry {\n    int stars = Integer.parseInt(text);\n    System.out.println(\"stars: \" + stars);\n} catch (NumberFormatException e) {\n    System.out.println(\"not a number: \" + text);\n    System.out.println(\"detail: \" + e.getMessage());\n}\n\n// A try block can have several handlers. First match wins.\ntry {\n    int[] values = new int[2];\n    values[5] = 1;\n} catch (ArrayIndexOutOfBoundsException e) {\n    System.out.println(\"index out of range\");\n} catch (RuntimeException e) {\n    System.out.println(\"other runtime problem\");\n}",
+    "body": "The catch block runs only when the exception type matches or is a supertype. After it finishes, execution continues after the whole try statement, not inside the try block where the failure happened.\n\nKeep the try block short. A wide block that catches Exception hides which line failed and makes the handler guess."
+  },
+  {
+    "id": "java-multi-catch",
+    "group": "Exceptions",
+    "name": "Multi-catch",
+    "syntax": "catch (NumberFormatException | DateTimeParseException e)",
+    "desc": "Handles several unrelated exception types with one block. The parameter is effectively final.",
+    "example": "import java.time.LocalDate;\nimport java.time.format.DateTimeParseException;\n\nString start = \"2024-13-01\";\nString adults = \"two\";\n\ntry {\n    LocalDate date = LocalDate.parse(start);\n    int count = Integer.parseInt(adults);\n    System.out.println(date + \" \" + count);\n} catch (DateTimeParseException | NumberFormatException e) {\n    // Both failures mean the row is malformed, so one message is enough.\n    System.out.println(\"bad booking row: \" + e.getMessage());\n}",
+    "body": "The alternatives must be unrelated. Writing IOException together with FileNotFoundException does not compile, because the second is a subclass of the first.\n\nThe variable type becomes the closest common supertype of the alternatives, so you can call only members that all of them share. Assigning to the parameter is not allowed."
+  },
+  {
+    "id": "java-finally",
+    "group": "Exceptions",
+    "name": "finally",
+    "syntax": "try { ... } catch (Type e) { ... } finally { ... }",
+    "desc": "Runs cleanup on every exit path: normal end, handled exception, unhandled exception, return, break, or continue.",
+    "example": "import java.util.Scanner;\n\nclass FinallyDemo {\n    static void readEmail() {\n        Scanner scanner = new Scanner(System.in);\n        try {\n            System.out.print(\"customer_email: \");\n            String email = scanner.nextLine();\n            System.out.println(\"checking \" + email);\n            if (email.isBlank()) {\n                return; // finally still runs before the return completes\n            }\n            System.out.println(\"accepted\");\n        } finally {\n            scanner.close();\n            System.out.println(\"scanner closed\");\n        }\n    }\n\n    // Trap: a return in finally discards the pending exception and earlier return.\n    static int broken() {\n        try {\n            return 1;\n        } finally {\n            return 2; // Always 2, and any exception from try vanishes.\n        }\n    }\n}",
+    "body": "Use finally for cleanup that has no AutoCloseable form, or for a counter or log line that must always run. When the resource implements AutoCloseable, try-with-resources is the better tool because it keeps the original exception and attaches close failures as suppressed.\n\nSystem.exit skips finally blocks. A JVM crash or a killed process skips them too."
+  },
+  {
+    "id": "java-try-resources-syntax",
+    "group": "Exceptions",
+    "name": "try-with-resources",
+    "syntax": "try (Resource a = ...; Resource b = ...) { ... }",
+    "desc": "Closes every AutoCloseable resource at block end, in reverse declaration order, even when the body throws.",
+    "example": "import java.io.BufferedReader;\nimport java.io.IOException;\nimport java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\nPath file = Path.of(\"bookings-sample.csv\");\n\n// reader is closed before the catch block runs.\ntry (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {\n    String line = reader.readLine();\n    while (line != null) {\n        System.out.println(line);\n        line = reader.readLine();\n    }\n} catch (IOException e) {\n    System.out.println(\"cannot read \" + file + \": \" + e.getMessage());\n}\n\n// Java 9 form for an effectively final variable declared earlier.\nBufferedReader other = Files.newBufferedReader(file);\ntry (other) {\n    System.out.println(other.readLine());\n}",
+    "body": "Multiple resources close in reverse order. Declare Connection, then PreparedStatement, then ResultSet, and the ResultSet closes first, which is what the database expects.\n\nThe resource variable is in scope only inside the try block. A catch clause cannot read it."
+  },
+  {
+    "id": "java-suppressed-exceptions",
+    "group": "Exceptions",
+    "name": "Suppressed exceptions",
+    "syntax": "for (Throwable t : e.getSuppressed()) { ... }",
+    "desc": "When the body throws and close also throws, the body failure stays primary and the close failure is attached as suppressed.",
+    "example": "import java.io.IOException;\n\nclass SuppressedDemo {\n\n    static class FailingClose implements AutoCloseable {\n        private final String name;\n\n        FailingClose(String name) {\n            this.name = name;\n        }\n\n        @Override\n        public void close() throws IOException {\n            throw new IOException(name + \" close failed\");\n        }\n    }\n\n    public static void main(String[] args) {\n        try (FailingClose first = new FailingClose(\"first\");\n             FailingClose second = new FailingClose(\"second\")) {\n            throw new IllegalStateException(\"body failed\");\n        } catch (Exception e) {\n            System.out.println(\"primary: \" + e); // IllegalStateException\n            for (Throwable suppressed : e.getSuppressed()) {\n                System.out.println(\"suppressed: \" + suppressed); // second, then first\n            }\n        }\n    }\n}",
+    "body": "A hand-written finally that calls close would replace the body exception with the close exception, and the real cause would be lost. Try-with-resources avoids that by suppressing instead of replacing.\n\nCall addSuppressed only when you are already handling the primary exception. Adding the primary to itself throws IllegalArgumentException."
+  },
+  {
+    "id": "java-throw-vs-throws",
+    "group": "Exceptions",
+    "name": "throw and throws",
+    "syntax": "throw new Type(message);  /  void m() throws Type",
+    "desc": "throw raises one exception object. throws declares which checked types may leave the method.",
+    "example": "class Stars {\n    // throws is part of the contract: callers must handle it or declare it.\n    static void validate(int stars) throws IllegalArgumentException {\n        if (stars < 1 || stars > 5) {\n            // throw ends this path immediately with an object that carries data.\n            throw new IllegalArgumentException(\"stars must be 1..5, got \" + stars);\n        }\n    }\n\n    static String label(int stars) throws Exception {\n        validate(stars);\n        if (stars == 5) {\n            throw new Exception(\"five star hotels need a manual review\");\n        }\n        return stars + \" stars\";\n    }\n\n    public static void main(String[] args) {\n        try {\n            System.out.println(label(5));\n        } catch (Exception e) {\n            System.out.println(e.getMessage());\n        }\n    }\n}",
+    "body": "Declaring IllegalArgumentException in a throws clause is legal but pointless, because it is unchecked. Exam answers usually expect throws only for checked types such as IOException or SQLException.\n\nA method can declare a supertype, but then callers cannot catch the narrow type the compiler knows about. Declare the most specific checked types that can actually escape."
+  },
+  {
+    "id": "java-custom-exception-class",
+    "group": "Exceptions",
+    "name": "Custom exception",
+    "syntax": "class MyException extends Exception { ... }",
+    "desc": "Defines a failure type the caller can distinguish, optionally carrying fields that the handler needs.",
+    "example": "// Checked: the caller must decide what to do with a bad row.\nclass InvalidBookingException extends Exception {\n    private final int lineNumber;\n    private final String rawLine;\n\n    InvalidBookingException(int lineNumber, String rawLine, String message) {\n        super(\"line \" + lineNumber + \": \" + message);\n        this.lineNumber = lineNumber;\n        this.rawLine = rawLine;\n    }\n\n    InvalidBookingException(int lineNumber, String rawLine, String message, Throwable cause) {\n        super(\"line \" + lineNumber + \": \" + message, cause);\n        this.lineNumber = lineNumber;\n        this.rawLine = rawLine;\n    }\n\n    int lineNumber() {\n        return lineNumber;\n    }\n\n    String rawLine() {\n        return rawLine;\n    }\n}\n\nclass Importer {\n    static void parse(String line) throws InvalidBookingException {\n        if (!line.contains(\",\")) {\n            throw new InvalidBookingException(7, line, \"missing separator\");\n        }\n    }\n\n    public static void main(String[] args) {\n        try {\n            parse(\"broken row\");\n        } catch (InvalidBookingException e) {\n            System.out.println(e.getMessage());\n            System.out.println(\"raw: \" + e.rawLine());\n        }\n    }\n}",
+    "body": "Extend Exception for a recoverable, expected failure. Extend RuntimeException for a programming error or invalid argument that every caller would only rethrow.\n\nAlways provide a constructor that takes a cause. Without it, callers wrap the original failure in a new exception and lose the stack trace that explains the root."
+  },
+  {
+    "id": "java-jdbc-connect",
+    "group": "JDBC",
+    "name": "DriverManager.getConnection()",
+    "syntax": "DriverManager.getConnection(url, user, password)",
+    "desc": "Opens a physical database connection for a JDBC URL. Close it when the unit of work ends.",
+    "example": "import java.sql.Connection;\nimport java.sql.DriverManager;\nimport java.sql.SQLException;\n\nString url = \"jdbc:mysql://localhost:3306/bookings?useSSL=false&serverTimezone=UTC\";\nString user = \"root\";\nString password = System.getenv(\"DB_PASSWORD\");\n\ntry (Connection conn = DriverManager.getConnection(url, user, password)) {\n    System.out.println(\"connected: \" + conn.getMetaData().getDatabaseProductName());\n    System.out.println(\"autoCommit: \" + conn.getAutoCommit()); // true by default\n} catch (SQLException e) {\n    // SQLState is standard, error code is vendor specific.\n    System.out.println(\"SQLState \" + e.getSQLState() + \", code \" + e.getErrorCode());\n    System.out.println(e.getMessage());\n}",
+    "body": "Each call returns a new physical connection unless a pool sits behind the driver. Opening one per query is slow and can exhaust the server's connection limit under load.\n\nCredentials belong in the method arguments, not in the URL, because URLs end up in logs and shell history."
+  },
+  {
+    "id": "java-jdbc-driver-class",
+    "group": "JDBC",
+    "name": "Driver class and jar",
+    "syntax": "Class.forName(\"com.mysql.cj.jdbc.Driver\")",
+    "desc": "The driver jar must be on the classpath. Modern JDBC loads it through ServiceLoader, so Class.forName is usually unnecessary.",
+    "example": "// Compile and run with the driver jar on the classpath.\n// javac -cp mysql-connector-j-8.4.0.jar App.java\n// java -cp .:mysql-connector-j-8.4.0.jar App\n\nimport java.sql.Connection;\nimport java.sql.DriverManager;\n\npublic class App {\n    public static void main(String[] args) throws Exception {\n        // Only needed for old drivers or custom class loaders.\n        Class.forName(\"com.mysql.cj.jdbc.Driver\");\n\n        String url = \"jdbc:mysql://localhost:3306/bookings?serverTimezone=UTC\";\n        try (Connection conn = DriverManager.getConnection(url, \"root\", \"password\")) {\n            System.out.println(\"driver loaded, connection open\");\n        }\n    }\n}\n\n// SQLite needs org.sqlite.JDBC and a URL such as jdbc:sqlite:bookings.db.",
+    "body": "No suitable driver found is a classpath problem, not a SQL problem. Check the jar name, the classpath separator, and the URL prefix in that order.\n\nThe JDBC 4 service file inside the jar names the driver class, which is why explicit loading is not required in normal applications."
+  },
+  {
+    "id": "java-jdbc-prepared-statement",
+    "group": "JDBC",
+    "name": "Connection.prepareStatement()",
+    "syntax": "conn.prepareStatement(sqlWithQuestionMarks)",
+    "desc": "Creates a statement with placeholders. Binding values separately prevents injection and lets the driver handle quoting.",
+    "example": "String sql = \"SELECT hotel_id, name, stars FROM hotels \"\n        + \"WHERE city = ? AND stars >= ? ORDER BY stars DESC\";\n\ntry (Connection conn = DriverManager.getConnection(url, user, password);\n     PreparedStatement ps = conn.prepareStatement(sql)) {\n\n    ps.setString(1, \"Budapest\"); // indexes start at 1\n    ps.setInt(2, 4);\n\n    try (ResultSet rs = ps.executeQuery()) {\n        while (rs.next()) {\n            System.out.println(rs.getInt(\"hotel_id\") + \" \" + rs.getString(\"name\"));\n        }\n    }\n}\n\n// NULL needs a type, not setString(index, null).\nps.setNull(3, java.sql.Types.VARCHAR);",
+    "body": "Placeholders stand for values only. A table name, a column name, or ASC and DESC cannot be bound, so build those from a fixed whitelist in Java.\n\nUnbound parameters fail at execute time. The driver message names the missing index, which is usually enough to find the bug."
+  },
+  {
+    "id": "java-jdbc-resultset-read",
+    "group": "JDBC",
+    "name": "ResultSet.next()",
+    "syntax": "while (rs.next()) { rs.getInt(\"column\"); }",
+    "desc": "Moves the cursor to the next row and returns false after the last one. The cursor starts before the first row.",
+    "example": "String sql = \"SELECT hotel_id, name, stars FROM hotels ORDER BY hotel_id\";\n\ntry (Connection conn = DriverManager.getConnection(url, user, password);\n     PreparedStatement ps = conn.prepareStatement(sql);\n     ResultSet rs = ps.executeQuery()) {\n\n    while (rs.next()) {\n        int id = rs.getInt(\"hotel_id\");\n        String name = rs.getString(\"name\");\n        int stars = rs.getInt(\"stars\");\n\n        // getInt returns 0 for SQL NULL, so 0 and NULL look identical here.\n        Integer nullableStars = stars;\n        if (rs.wasNull()) {\n            nullableStars = null;\n        }\n\n        System.out.println(id + \" \" + name + \" \" + nullableStars);\n    }\n}",
+    "body": "Read by label when the query is stable, by index when two columns share a label. Both are 1-based for indexes and case-insensitive in most drivers.\n\nThe result set closes when its statement closes, but closing it explicitly returns the cursor to the server sooner."
+  },
+  {
+    "id": "java-jdbc-crud",
+    "group": "JDBC",
+    "name": "Insert, update, delete",
+    "syntax": "ps.executeUpdate()",
+    "desc": "Returns the number of affected rows. Use it to detect a missing row, because a matched-nothing update returns 0.",
+    "example": "String insert = \"INSERT INTO hotels (city, name, description, stars, owner_email) \"\n        + \"VALUES (?, ?, ?, ?, ?)\";\nString update = \"UPDATE hotels SET stars = ? WHERE hotel_id = ?\";\nString delete = \"DELETE FROM bookings WHERE booking_id = ?\";\n\ntry (Connection conn = DriverManager.getConnection(url, user, password)) {\n\n    try (PreparedStatement ps = conn.prepareStatement(insert)) {\n        ps.setString(1, \"Budapest\");\n        ps.setString(2, \"Hotel Sunrise\");\n        ps.setString(3, \"Quiet hotel near the river\");\n        ps.setInt(4, 4);\n        ps.setString(5, \"owner@example.com\");\n        System.out.println(\"inserted: \" + ps.executeUpdate());\n    }\n\n    try (PreparedStatement ps = conn.prepareStatement(update)) {\n        ps.setInt(1, 5);\n        ps.setInt(2, 1);\n        int changed = ps.executeUpdate();\n        if (changed == 0) {\n            System.out.println(\"no hotel with id 1\");\n        }\n    }\n\n    try (PreparedStatement ps = conn.prepareStatement(delete)) {\n        ps.setInt(1, 7);\n        System.out.println(\"deleted: \" + ps.executeUpdate());\n    }\n}",
+    "body": "executeUpdate is for INSERT, UPDATE, DELETE, and DDL. executeQuery is for SELECT. Calling the wrong one throws SQLException with a message about the result type.\n\nA foreign key violation arrives as SQLIntegrityConstraintViolationException, a subclass of SQLException. Catch it only when the code can actually recover, such as reporting a duplicate email to the user."
+  },
+  {
+    "id": "java-jdbc-transaction",
+    "group": "JDBC",
+    "name": "commit and rollback",
+    "syntax": "conn.setAutoCommit(false); ... conn.commit(); ... conn.rollback();",
+    "desc": "Groups statements into one unit of work. A failure rolls back every statement in the transaction.",
+    "example": "try (Connection conn = DriverManager.getConnection(url, user, password)) {\n    boolean originalAutoCommit = conn.getAutoCommit();\n    conn.setAutoCommit(false);\n\n    try {\n        try (PreparedStatement debit = conn.prepareStatement(\n                \"UPDATE accounts SET balance = balance - ? WHERE id = ?\");\n             PreparedStatement credit = conn.prepareStatement(\n                \"UPDATE accounts SET balance = balance + ? WHERE id = ?\")) {\n\n            debit.setInt(1, 100);\n            debit.setInt(2, 1);\n            debit.executeUpdate();\n\n            credit.setInt(1, 100);\n            credit.setInt(2, 2);\n            credit.executeUpdate();\n        }\n\n        conn.commit();\n        System.out.println(\"transfer done\");\n    } catch (SQLException e) {\n        conn.rollback();\n        throw e;\n    } finally {\n        // Required when the connection is pooled and will be reused.\n        conn.setAutoCommit(originalAutoCommit);\n    }\n}",
+    "body": "MySQL commits DDL implicitly. A CREATE TABLE in the middle of a transaction ends it, so keep schema changes outside the unit of work.\n\nA savepoint rolls back only part of the transaction. Call setSavepoint before the optional step, then rollback(savepoint) on failure and commit the rest."
+  },
+  {
+    "id": "java-jdbc-batch",
+    "group": "JDBC",
+    "name": "addBatch and executeBatch",
+    "syntax": "ps.addBatch(); int[] counts = ps.executeBatch();",
+    "desc": "Sends many parameter sets in one round trip. The returned array holds one count per statement.",
+    "example": "String sql = \"INSERT INTO bookings \"\n        + \"(customer_email, hotel_id, start_date, end_date, adults, children) \"\n        + \"VALUES (?, ?, ?, ?, ?, ?)\";\n\ntry (Connection conn = DriverManager.getConnection(url, user, password);\n     PreparedStatement ps = conn.prepareStatement(sql)) {\n\n    conn.setAutoCommit(false);\n    try {\n        for (int i = 0; i < rows.size(); i++) {\n            String[] row = rows.get(i);\n            ps.setString(1, row[0]);\n            ps.setInt(2, Integer.parseInt(row[1]));\n            ps.setDate(3, java.sql.Date.valueOf(row[2]));\n            ps.setDate(4, java.sql.Date.valueOf(row[3]));\n            ps.setInt(5, Integer.parseInt(row[4]));\n            ps.setInt(6, Integer.parseInt(row[5]));\n            ps.addBatch();\n        }\n\n        int[] counts = ps.executeBatch();\n        conn.commit();\n        System.out.println(\"statements: \" + counts.length);\n\n        // SUCCESS_NO_INFO (-2) means the driver will not report a count.\n        for (int count : counts) {\n            if (count == java.sql.Statement.SUCCESS_NO_INFO) {\n                System.out.println(\"count unknown\");\n            }\n        }\n    } catch (SQLException e) {\n        conn.rollback();\n        throw e;\n    }\n}",
+    "body": "Batch without a transaction still commits row by row in autoCommit mode, which defeats part of the purpose. Disable autoCommit, add every row, execute, then commit once.\n\nMySQL performs better with rewriteBatchedStatements=true in the URL. Keep batches in the hundreds or low thousands; huge batches are hard to retry after a failure."
+  },
+  {
+    "id": "java-jdbc-injection",
+    "group": "JDBC",
+    "name": "SQL injection",
+    "syntax": "SELECT ... WHERE city = ?   // never string concatenation",
+    "desc": "Concatenated input can change the SQL grammar. A placeholder binds the value as data and never as code.",
+    "example": "// BROKEN: the input can close the quote and add its own condition.\nString city = request.getParameter(\"city\");\nString bad = \"SELECT hotel_id, name FROM hotels WHERE city = '\" + city + \"'\";\n// Input: Budapest' OR '1'='1\n// Result: WHERE city = 'Budapest' OR '1'='1'\n\n// FIXED: one placeholder, one value, no matter what the value contains.\nString sql = \"SELECT hotel_id, name FROM hotels WHERE city = ?\";\ntry (Connection conn = DriverManager.getConnection(url, user, password);\n     PreparedStatement ps = conn.prepareStatement(sql)) {\n\n    ps.setString(1, city);\n    try (ResultSet rs = ps.executeQuery()) {\n        while (rs.next()) {\n            System.out.println(rs.getInt(\"hotel_id\") + \" \" + rs.getString(\"name\"));\n        }\n    }\n}\n\n// Identifiers cannot be bound. Use a whitelist, never the raw request value.\nString sortColumn = switch (request.getParameter(\"sort\")) {\n    case \"stars\" -> \"stars\";\n    case \"name\" -> \"name\";\n    default -> \"hotel_id\";\n};",
+    "body": "The driver escapes the value and the server parses the SQL before the value arrives, so quotes inside the value cannot become syntax. That is the whole defense.\n\nA prepared query still needs an authorization condition. A user who can pass any customer_email can read another customer's rows if the WHERE clause does not also filter by the logged-in owner."
+  },
+  {
+    "id": "java-jdbc-generated-keys",
+    "group": "JDBC",
+    "name": "getGeneratedKeys()",
+    "syntax": "conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)",
+    "desc": "Returns auto-increment values created by the statement, without a second query.",
+    "example": "String sql = \"INSERT INTO hotels (city, name, description, stars, owner_email) \"\n        + \"VALUES (?, ?, ?, ?, ?)\";\n\ntry (Connection conn = DriverManager.getConnection(url, user, password);\n     PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {\n\n    ps.setString(1, \"Vienna\");\n    ps.setString(2, \"Hotel Park\");\n    ps.setString(3, \"Family hotel with a large garden\");\n    ps.setInt(4, 5);\n    ps.setString(5, \"owner2@example.com\");\n\n    int rows = ps.executeUpdate();\n    if (rows != 1) {\n        throw new SQLException(\"expected one row, got \" + rows);\n    }\n\n    try (ResultSet keys = ps.getGeneratedKeys()) {\n        if (keys.next()) {\n            int hotelId = keys.getInt(1);\n            System.out.println(\"new hotel_id: \" + hotelId);\n        }\n    }\n}",
+    "body": "Use the key result set instead of SELECT LAST_INSERT_ID(). The second query can run on a different pooled connection and return another session's id.\n\nThe key result set has one column in most drivers, so getInt(1) is the portable read. Some drivers also allow the column name."
+  }
+]

@@ -1,0 +1,194 @@
+[
+  {
+    "id": "node-extra-fs-readfile",
+    "group": "File system",
+    "name": "fs.readFile",
+    "syntax": "await readFile(path, 'utf8')",
+    "desc": "Reads a whole file into memory. Without an encoding it returns a Buffer, which is the usual reason console.log prints numbers.",
+    "example": "// File: src/read-hotels.js\nimport { readFile } from \"node:fs/promises\";\n\n// The encoding must be passed, otherwise you get a Buffer\nconst text = await readFile(\"data/hotels.csv\", \"utf8\");\n\nconst rows = text.trim().split(\"\\n\");\nconst header = rows[0].split(\",\");\nconsole.log(header);      // [\"name\",\"city\",\"stars\"]\nconsole.log(rows.length); // includes the header\n\n// A missing file rejects with code ENOENT\ntry {\n  await readFile(\"data/missing.csv\", \"utf8\");\n} catch (error) {\n  console.log(error.code); // \"ENOENT\"\n}"
+  },
+  {
+    "id": "node-extra-fs-writefile",
+    "group": "File system",
+    "name": "fs.writeFile",
+    "syntax": "await writeFile(path, data, 'utf8')",
+    "desc": "Writes data and creates or replaces the file. Pass flag 'a' to append instead of truncating.",
+    "example": "// File: src/write-report.js\nimport { writeFile } from \"node:fs/promises\";\n\nconst lines = [\"name,city,stars\", \"Danube View,Budapest,4\", \"City Loft,Budapest,5\"];\n\n// The array is joined with newlines before writing\nawait writeFile(\"out/hotels.csv\", lines.join(\"\\n\") + \"\\n\", \"utf8\");\n\n// Append keeps the existing content\nawait writeFile(\"out/hotels.csv\", \"Lake Garden,Eger,3\\n\", { flag: \"a\" });\n\n// The parent directory must exist, writeFile does not create it\n// Use mkdir with recursive: true first when unsure"
+  },
+  {
+    "id": "node-extra-fs-readdir",
+    "group": "File system",
+    "name": "fs.readdir",
+    "syntax": "await readdir(path, { withFileTypes: true })",
+    "desc": "Lists directory entries. withFileTypes returns Dirent objects, so files and folders can be told apart without another stat call.",
+    "example": "// File: src/list-data.js\nimport { readdir } from \"node:fs/promises\";\n\nconst entries = await readdir(\"data\", { withFileTypes: true });\n\nconst files = entries\n  .filter((entry) => entry.isFile())\n  .map((entry) => entry.name);\n\nconst folders = entries\n  .filter((entry) => entry.isDirectory())\n  .map((entry) => entry.name);\n\nconsole.log(files);   // [\"hotels.csv\",\"cities.csv\"]\nconsole.log(folders); // [\"archive\"]\n\n// The default form returns names only, no type information\nconsole.log(await readdir(\"data\"));"
+  },
+  {
+    "id": "node-extra-fs-mkdir",
+    "group": "File system",
+    "name": "fs.mkdir",
+    "syntax": "await mkdir(path, { recursive: true })",
+    "desc": "Creates a directory. recursive creates missing parents and does not throw when the directory already exists.",
+    "example": "// File: src/ensure-out.js\nimport { mkdir, writeFile } from \"node:fs/promises\";\nimport path from \"node:path\";\n\n// recursive avoids ENOENT for out/2026/may\nawait mkdir(\"out/2026/may\", { recursive: true });\n\nconst target = path.join(\"out\", \"2026\", \"may\", \"report.txt\");\nawait writeFile(target, \"hotels: 12\\n\", \"utf8\");\n\n// Without recursive, a missing parent rejects with ENOENT\n// and an existing directory rejects with EEXIST\ntry {\n  await mkdir(\"out/2026/may\");\n} catch (error) {\n  console.log(error.code); // \"EEXIST\"\n}"
+  },
+  {
+    "id": "node-extra-fs-stat",
+    "group": "File system",
+    "name": "fs.stat",
+    "syntax": "await stat(path)",
+    "desc": "Returns metadata for a path: size in bytes, timestamps, and type checks. It follows symlinks, lstat does not.",
+    "example": "// File: src/file-info.js\nimport { stat } from \"node:fs/promises\";\n\nconst info = await stat(\"data/hotels.csv\");\n\nconsole.log(info.size);          // bytes, not characters\nconsole.log(info.isFile());      // true\nconsole.log(info.isDirectory()); // false\nconsole.log(info.mtime);         // Date of the last write\n\n// Days since the last change\nconst days = (Date.now() - info.mtime.getTime()) / 86400000;\nconsole.log(Math.floor(days));\n\n// A missing path rejects, check with a try or use access first"
+  },
+  {
+    "id": "node-extra-fs-rm",
+    "group": "File system",
+    "name": "fs.rm",
+    "syntax": "await rm(path, { recursive: true, force: true })",
+    "desc": "Deletes a file or directory. recursive removes a tree and force ignores a missing path, so the call is safe to repeat.",
+    "example": "// File: src/clean-build.js\nimport { rm } from \"node:fs/promises\";\n\n// force makes a missing target a no op, recursive removes folders\nawait rm(\"out\", { recursive: true, force: true });\n\n// Deleting one file needs no flags\nawait rm(\"out/report.txt\", { force: true });\n\n// fs.rm replaces the deprecated fs.rmdir for recursive deletes\n// Without force, a missing path rejects with ENOENT\ntry {\n  await rm(\"out/missing.txt\");\n} catch (error) {\n  console.log(error.code); // \"ENOENT\"\n}"
+  },
+  {
+    "id": "node-extra-path-join",
+    "group": "Path",
+    "name": "path.join",
+    "syntax": "path.join(...parts)",
+    "desc": "Joins path segments with the platform separator and normalizes dots. It never produces a leading slash unless a part is absolute.",
+    "example": "// File: src/paths.js\nimport path from \"node:path\";\n\n// On Linux the separator is /, on Windows it is \\\nconst file = path.join(\"data\", \"2026\", \"hotels.csv\");\nconsole.log(file); // \"data/2026/hotels.csv\"\n\n// Redundant separators and dot segments are cleaned up\nconsole.log(path.join(\"data\", \"..\", \"data\", \"hotels.csv\"));\n// \"data/hotels.csv\"\n\n// join does not resolve an absolute root, that is path.resolve\nconsole.log(path.join(\"data\", \"/etc\", \"passwd\"));\n// \"data/etc/passwd\" on Linux"
+  },
+  {
+    "id": "node-extra-path-resolve",
+    "group": "Path",
+    "name": "path.resolve",
+    "syntax": "path.resolve(...parts)",
+    "desc": "Builds an absolute path from the current working directory. Later absolute parts replace everything before them.",
+    "example": "// File: src/absolute.js\nimport path from \"node:path\";\n\n// The result depends on process.cwd()\nconst target = path.resolve(\"data\", \"hotels.csv\");\nconsole.log(target); // \"/home/student/app/data/hotels.csv\"\n\n// An absolute part resets the chain\nconsole.log(path.resolve(\"data\", \"/tmp/hotels.csv\")); // \"/tmp/hotels.csv\"\n\n// Useful to compare two paths built in different ways\nconst a = path.resolve(\"data\", \"..\", \"data\", \"hotels.csv\");\nconst b = path.resolve(\"data/hotels.csv\");\nconsole.log(a === b); // true"
+  },
+  {
+    "id": "node-extra-path-parts",
+    "group": "Path",
+    "name": "path.basename, dirname, extname",
+    "syntax": "path.basename(file), path.dirname(file), path.extname(file)",
+    "desc": "Splits a path into its pieces without touching the disk. basename takes an optional suffix to strip.",
+    "example": "// File: src/split-path.js\nimport path from \"node:path\";\n\nconst file = \"/srv/app/data/hotels.csv\";\n\nconsole.log(path.basename(file));        // \"hotels.csv\"\nconsole.log(path.basename(file, \".csv\")); // \"hotels\"\nconsole.log(path.dirname(file));         // \"/srv/app/data\"\nconsole.log(path.extname(file));         // \".csv\"\n\n// Swap the extension when building an output name\nconst target = path.join(\n  path.dirname(file),\n  path.basename(file, \".csv\") + \".json\"\n);\nconsole.log(target); // \"/srv/app/data/hotels.json\"\n\n// A dotfile has no extension by this rule\nconsole.log(path.extname(\".env\")); // \"\""
+  },
+  {
+    "id": "node-extra-process-argv",
+    "group": "Process",
+    "name": "process.argv",
+    "syntax": "process.argv.slice(2)",
+    "desc": "The command line arguments as an array. The first two entries are the Node binary and the script path, so slice them off.",
+    "example": "// File: src/import.js, run with: node src/import.js hotels.csv 2026\nconst args = process.argv.slice(2);\nconst [fileName, year] = args;\n\nconsole.log(process.argv[0]); // \"/usr/bin/node\"\nconsole.log(process.argv[1]); // \"/srv/app/src/import.js\"\n\nif (!fileName) {\n  console.error(\"Usage: node src/import.js <file> [year]\");\n  process.exit(1);\n}\n\nconsole.log(\"importing \" + fileName + \" for \" + (year || \"all years\"));"
+  },
+  {
+    "id": "node-extra-process-env",
+    "group": "Process",
+    "name": "process.env",
+    "syntax": "process.env.NAME",
+    "desc": "Reads environment variables as strings. A missing variable is undefined, so validate the ones the app cannot run without.",
+    "example": "// File: src/db.js\n// Start with: DATABASE_URL=mysql://user:pass@localhost/app node src/db.js\nimport knex from \"knex\";\n\nconst connection = process.env.DATABASE_URL;\n\nif (!connection) {\n  // Fail fast instead of connecting to nothing\n  throw new Error(\"DATABASE_URL is not set\");\n}\n\nexport const db = knex({ client: \"mysql2\", connection });\n\n// Every value is a string, numbers need parsing\nconst port = Number(process.env.PORT || 3000);\nconsole.log(port);"
+  },
+  {
+    "id": "node-extra-express-router",
+    "group": "Express",
+    "name": "express.Router",
+    "syntax": "const router = Router(); app.use('/api/hotels', router)",
+    "desc": "Groups routes for one resource in a separate file. Paths inside the router are relative to the mount point.",
+    "example": "// File: routes/hotels.js\nimport { Router } from \"express\";\n\nconst router = Router();\n\nrouter.get(\"/\", (req, res) => {\n  res.json([{ hotel_id: 1, name: \"Danube View\", stars: 4 }]);\n});\n\nrouter.get(\"/:hotel_id\", (req, res) => {\n  res.json({ hotel_id: Number(req.params.hotel_id), name: \"Danube View\" });\n});\n\nrouter.post(\"/\", (req, res) => {\n  res.status(201).json({ hotel_id: 2, name: req.body.name });\n});\n\nexport default router;\n\n// File: app.js\n// import hotels from \"./routes/hotels.js\";\n// app.use(\"/api/hotels\", hotels);"
+  },
+  {
+    "id": "node-extra-express-middleware",
+    "group": "Express",
+    "name": "Custom middleware",
+    "syntax": "app.use((req, res, next) => { ... })",
+    "desc": "Runs before the route handlers. Call next to continue, send a response to stop, and never do both.",
+    "example": "// File: app.js\nimport express from \"express\";\n\nconst app = express();\n\n// Logs every request with its method, url, and duration\napp.use((req, res, next) => {\n  const started = Date.now();\n\n  res.on(\"finish\", () => {\n    console.log(req.method, req.originalUrl, res.statusCode, Date.now() - started + \"ms\");\n  });\n\n  next(); // without this the request hangs\n});\n\n// A middleware can also stop the chain\napp.use(\"/admin\", (req, res, next) => {\n  if (req.headers[\"x-api-key\"] !== process.env.API_KEY) {\n    return res.status(401).json({ error: \"unauthorized\" });\n  }\n  next();\n});\n\napp.get(\"/api/hotels\", (req, res) => res.json([]));"
+  },
+  {
+    "id": "node-extra-express-error-handler",
+    "group": "Express",
+    "name": "Express error handler",
+    "syntax": "app.use((err, req, res, next) => { ... })",
+    "desc": "The only middleware with four arguments, which is how Express recognises it. It must be registered after every route.",
+    "example": "// File: app.js\nimport express from \"express\";\n\nconst app = express();\napp.use(express.json());\n\napp.get(\"/api/hotels/:hotel_id\", async (req, res, next) => {\n  try {\n    const hotel = await findHotel(req.params.hotel_id);\n    if (!hotel) {\n      // A thrown error reaches the handler below\n      const error = new Error(\"Hotel not found\");\n      error.status = 404;\n      throw error;\n    }\n    res.json(hotel);\n  } catch (error) {\n    next(error); // async errors are not caught by Express automatically\n  }\n});\n\n// Four parameters, so Express treats it as the error handler\napp.use((err, req, res, next) => {\n  console.error(err.message);\n  res.status(err.status || 500).json({ error: err.message });\n});"
+  },
+  {
+    "id": "node-extra-express-static",
+    "group": "Express",
+    "name": "express.static",
+    "syntax": "app.use('/assets', express.static('public'))",
+    "desc": "Serves files from a folder without a route per file. The mount path is optional and defaults to the site root.",
+    "example": "// File: app.js\nimport express from \"express\";\nimport path from \"node:path\";\n\nconst app = express();\n\n// /assets/logo.png maps to public/logo.png\napp.use(\"/assets\", express.static(path.join(process.cwd(), \"public\")));\n\n// Options matter for caching and dotfiles\napp.use(\n  \"/uploads\",\n  express.static(\"uploads\", {\n    maxAge: \"1d\",\n    dotfiles: \"ignore\",\n    index: false\n  })\n);\n\n// A file that does not exist falls through to the next middleware\napp.use((req, res) => res.status(404).json({ error: \"not found\" }));"
+  },
+  {
+    "id": "node-extra-express-json",
+    "group": "Express",
+    "name": "express.json",
+    "syntax": "app.use(express.json())",
+    "desc": "Parses JSON request bodies into req.body. Without it req.body stays undefined and every POST handler breaks.",
+    "example": "// File: app.js\nimport express from \"express\";\n\nconst app = express();\n\n// The parser runs before the routes, a limit protects memory\napp.use(express.json({ limit: \"100kb\" }));\n\n// Form posts use express.urlencoded instead\napp.use(express.urlencoded({ extended: true }));\n\napp.post(\"/api/hotels\", (req, res) => {\n  const { name, city, stars } = req.body;\n\n  if (!name || !city) {\n    return res.status(400).json({ error: \"name and city are required\" });\n  }\n\n  // Malformed JSON is rejected by the parser with a 400 before this runs\n  res.status(201).json({ name, city, stars: Number(stars) });\n});"
+  },
+  {
+    "id": "node-extra-express-params",
+    "group": "Express",
+    "name": "Route params and query",
+    "syntax": "req.params.id, req.query.city",
+    "desc": "Params come from the path pattern and query values come from the URL. Both arrive as strings.",
+    "example": "// File: routes/hotels.js\nimport { Router } from \"express\";\n\nconst router = Router();\n\n// GET /api/hotels/7?city=Budapest&stars=4\nrouter.get(\"/:hotel_id\", (req, res) => {\n  const hotelId = Number(req.params.hotel_id);\n  const { city, stars } = req.query;\n\n  if (Number.isNaN(hotelId)) {\n    return res.status(400).json({ error: \"hotel_id must be a number\" });\n  }\n\n  // Compare loosely, because stars is the string \"4\"\n  const filters = {\n    hotel_id: hotelId,\n    city: city || null,\n    minStars: stars ? Number(stars) : 0\n  };\n\n  res.json(filters);\n});\n\nexport default router;"
+  },
+  {
+    "id": "node-extra-knex-select",
+    "group": "Knex",
+    "name": "Knex select and where",
+    "syntax": "db('hotels').select(...).where(...)",
+    "desc": "Builds a SELECT query as a chain and returns a promise. Selecting columns by name keeps the payload small.",
+    "example": "// File: src/hotels.js\nimport knex from \"knex\";\n\nconst db = knex({ client: \"mysql2\", connection: process.env.DATABASE_URL });\n\n// SELECT hotel_id, name, stars FROM hotels WHERE city = ? ORDER BY stars DESC LIMIT 10\nconst hotels = await db(\"hotels\")\n  .select(\"hotel_id\", \"name\", \"stars\")\n  .where(\"city\", \"Budapest\")\n  .orderBy(\"stars\", \"desc\")\n  .limit(10);\n\nconsole.log(hotels.length);\n\n// where with an object adds AND conditions\nconst one = await db(\"hotels\").where({ hotel_id: 1 }).first();\nconsole.log(one ? one.name : \"missing\");"
+  },
+  {
+    "id": "node-extra-knex-insert",
+    "group": "Knex",
+    "name": "Knex insert",
+    "syntax": "await db('hotels').insert(row)",
+    "desc": "Inserts one row or an array of rows. MySQL returns the new id as the first element of the result.",
+    "example": "// File: src/create-hotel.js\nimport knex from \"knex\";\n\nconst db = knex({ client: \"mysql2\", connection: process.env.DATABASE_URL });\n\n// Column names must match the table, Knex does not map them\nconst [hotelId] = await db(\"hotels\").insert({\n  name: \"Danube View\",\n  city: \"Budapest\",\n  stars: 4,\n  owner_email: \"owner@example.com\"\n});\n\nconsole.log(hotelId); // 12\n\n// An array inserts several rows in one statement\nawait db(\"hotels\").insert([\n  { name: \"City Loft\", city: \"Budapest\", stars: 5 },\n  { name: \"Valley Inn\", city: \"Eger\", stars: 3 }\n]);\n\n// Truncate is a schema operation and cannot be undone"
+  },
+  {
+    "id": "node-extra-knex-update",
+    "group": "Knex",
+    "name": "Knex update",
+    "syntax": "await db('hotels').where(...).update(values)",
+    "desc": "Updates matching rows and resolves with the affected row count. A missing where clause updates every row.",
+    "example": "// File: src/update-hotel.js\nimport knex from \"knex\";\n\nconst db = knex({ client: \"mysql2\", connection: process.env.DATABASE_URL });\n\nconst affected = await db(\"hotels\")\n  .where({ hotel_id: 7 })\n  .update({ stars: 5, city: \"Budapest\" });\n\nconsole.log(affected); // 1, or 0 when nothing matched\n\n// Always check the count before reporting success\nif (affected === 0) {\n  console.log(\"no hotel with id 7\");\n}\n\n// An update without where changes the whole table\n// await db(\"hotels\").update({ city: \"Budapest\" }); // avoid"
+  },
+  {
+    "id": "node-extra-knex-delete",
+    "group": "Knex",
+    "name": "Knex delete",
+    "syntax": "await db('hotels').where(...).del()",
+    "desc": "Deletes matching rows and resolves with the count. del is the method name because delete is a reserved word.",
+    "example": "// File: src/delete-hotel.js\nimport knex from \"knex\";\n\nconst db = knex({ client: \"mysql2\", connection: process.env.DATABASE_URL });\n\nconst deleted = await db(\"hotels\").where({ hotel_id: 7 }).del();\nconsole.log(deleted); // 1\n\n// Deleting an owner usually needs the hotels handled first\n// when a foreign key points at owners(owner_email)\ntry {\n  await db(\"owners\").where({ owner_email: \"owner@example.com\" }).del();\n} catch (error) {\n  console.log(error.code); // \"ER_ROW_IS_REFERENCED_2\"\n}\n\n// Without where, every row is removed\n// await db(\"hotels\").del();"
+  },
+  {
+    "id": "node-extra-knex-join",
+    "group": "Knex",
+    "name": "Knex join",
+    "syntax": "db('hotels').join('owners', 'owners.owner_email', 'hotels.owner_email')",
+    "desc": "Adds an inner join. Qualify column names once two tables share a name, and select explicitly to avoid collisions.",
+    "example": "// File: src/hotels-with-owner.js\nimport knex from \"knex\";\n\nconst db = knex({ client: \"mysql2\", connection: process.env.DATABASE_URL });\n\nconst rows = await db(\"hotels\")\n  .join(\"owners\", \"owners.owner_email\", \"hotels.owner_email\")\n  .select(\n    \"hotels.hotel_id\",\n    \"hotels.name as hotel_name\",\n    \"owners.first_name\",\n    \"owners.last_name\"\n  )\n  .where(\"hotels.city\", \"Budapest\");\n\nconsole.log(rows);\n// [{ hotel_id: 1, hotel_name: \"Danube View\", first_name: \"Anna\", last_name: \"Kovacs\" }]\n\n// leftJoin keeps hotels without an owner row\nconst all = await db(\"hotels\")\n  .leftJoin(\"owners\", \"owners.owner_email\", \"hotels.owner_email\")\n  .select(\"hotels.name\", \"owners.first_name\");"
+  },
+  {
+    "id": "node-extra-knex-transaction",
+    "group": "Knex",
+    "name": "Knex transaction",
+    "syntax": "await db.transaction(async (trx) => { ... })",
+    "desc": "Runs several statements as one unit. A thrown error rolls everything back, so a half written booking cannot survive.",
+    "example": "// File: src/book.js\nimport knex from \"knex\";\n\nconst db = knex({ client: \"mysql2\", connection: process.env.DATABASE_URL });\n\nexport async function book(hotelId, email) {\n  return db.transaction(async (trx) => {\n    // The same trx object must be used for every statement\n    const hotel = await trx(\"hotels\").where({ hotel_id: hotelId }).first();\n\n    if (!hotel) {\n      throw new Error(\"Hotel not found\"); // rollback, nothing is written\n    }\n\n    const [bookingId] = await trx(\"bookings\").insert({\n      hotel_id: hotelId,\n      customer_email: email,\n      adults: 2,\n      children: 0\n    });\n\n    return bookingId;\n  });\n}"
+  },
+  {
+    "id": "node-extra-http-server",
+    "group": "HTTP",
+    "name": "http.createServer",
+    "syntax": "createServer((req, res) => { ... }).listen(port)",
+    "desc": "The built in HTTP server behind Express. It handles every request with one callback and leaves routing to you.",
+    "example": "// File: server.js\nimport { createServer } from \"node:http\";\n\nconst server = createServer((req, res) => {\n  // req.url includes the query string\n  if (req.method === \"GET\" && req.url === \"/api/health\") {\n    res.writeHead(200, { \"content-type\": \"application/json\" });\n    res.end(JSON.stringify({ ok: true }));\n    return;\n  }\n\n  // Every response must end, otherwise the client waits\n  res.writeHead(404, { \"content-type\": \"application/json\" });\n  res.end(JSON.stringify({ error: \"not found\" }));\n});\n\nserver.listen(3000, () => {\n  console.log(\"listening on http://localhost:3000\");\n});\n\n// POST bodies arrive as a stream, collect them with for await (const chunk of req)"
+  }
+]

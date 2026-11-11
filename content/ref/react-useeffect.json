@@ -1,0 +1,128 @@
+[
+  {
+    "id": "react-useeffect",
+    "group": "Effects",
+    "name": "useEffect()",
+    "syntax": "useEffect(callback, [deps])",
+    "desc": "Runs the callback after React commits the render. Use it for work outside React: network, timers, listeners, the document. Return a cleanup function for anything the callback started.",
+    "example": "import { useEffect, useState } from \"react\";\n\n// Data shape: count: number\nexport default function Counter() {\n  const [count, setCount] = useState(0);\n\n  // Runs after the first render and after every render where count changed.\n  useEffect(() => {\n    document.title = `Clicked ${count} times`;\n    // No cleanup: this effect starts nothing.\n  }, [count]);\n\n  return (\n    <button onClick={() => setCount((value) => value + 1)}>\n      Clicked {count} times\n    </button>\n  );\n}",
+    "body": "The hook needs two things to be correct: a callback that only touches the outside world, and an array listing every value the callback reads from the component.\n\n### The three array shapes\n\n```jsx\nuseEffect(() => { /* once after mount */ }, []);\nuseEffect(() => { /* mount and when id changes */ }, [id]);\nuseEffect(() => { /* after every render, usually a bug */ });\n```\n\nReact compares dependency values with `Object.is`. Objects, arrays and functions declared during render are new references on every render, so they make the effect run every time. Move them out of the component, wrap them in `useMemo` or `useCallback`, or declare the function inside the effect.\n\nIf a value can be computed during render, compute it there. An effect that copies a prop into state is one render behind and doubles the work."
+  },
+  {
+    "id": "react-useeffect-deps",
+    "group": "Effects",
+    "name": "dependency array",
+    "syntax": "useEffect(fn, [a, b])",
+    "desc": "Lists the values the callback reads. Empty array means once, a filled array means after the first render and whenever one value changes, no array means every render.",
+    "example": "// Run once, on mount. Correct for an initial load with no parameters.\nuseEffect(() => {\n  loadHotels();\n}, []);\n\n// Run again when the route parameter changes.\nuseEffect(() => {\n  loadBookings(id);\n}, [id]);\n\n// Stale closure: the effect runs once and keeps the first city it ever saw.\n// The header updates, the list does not.\nuseEffect(() => {\n  loadHotels(city);\n}, []); // wrong",
+    "body": "Every component value the callback reads belongs in the array. The lint rule `exhaustive-deps` exists for this and it is usually right.\n\nA missing dependency produces a stale closure: the effect holds the values from the render that created it. The visible symptom is a list for the previous id, a total that only refreshes after a click, or a counter stuck at its first value.\n\nAn extra dependency is rarely fatal but it re-runs the effect more often than needed. A new object literal in the array is the common case:\n\n```jsx\nuseEffect(() => {\n  load({ page, word });\n}, [{ page, word }]); // new object every render, runs every render\n```\n\nPass the fields instead: `[page, word]`."
+  },
+  {
+    "id": "react-useeffect-cleanup",
+    "group": "Effects",
+    "name": "cleanup function",
+    "syntax": "useEffect(() => { ...; return () => { ... }; }, [deps])",
+    "desc": "The returned function runs before the next run of the same effect and once on unmount. Use it to stop whatever the effect started.",
+    "example": "useEffect(() => {\n  const id = setInterval(() => setTick((n) => n + 1), 1000);\n\n  // Called before the next run and on unmount. Without it the timer keeps\n  // running on a component that no longer exists.\n  return () => clearInterval(id);\n}, []);",
+    "body": "The cleanup has to own the same resource the setup created. A timer id must be cleared, a controller aborted, a listener removed with the same function reference, a socket closed.\n\n```jsx\nuseEffect(() => {\n  function onResize() {\n    setWidth(window.innerWidth);\n  }\n\n  window.addEventListener(\"resize\", onResize);\n  return () => window.removeEventListener(\"resize\", onResize);\n}, []);\n```\n\nThe reference matters: `removeEventListener` with an anonymous arrow removes nothing. Declare the handler inside the effect and pass the same name to both calls.\n\nBefore the effect runs again, React calls the previous cleanup first. That ordering is what lets a subscription move from one room to the next without a gap: leave the old room, enter the new one."
+  },
+  {
+    "id": "react-useeffect-strictmode",
+    "group": "Effects",
+    "name": "StrictMode double run",
+    "syntax": "<StrictMode>{/* app */}</StrictMode>",
+    "desc": "In development StrictMode mounts, runs effects, runs cleanups, then runs effects again. Production runs them once. A corrected effect must survive both runs.",
+    "example": "// StrictMode: setup, cleanup, setup again. The first request is aborted,\n// so only one response can set state.\nuseEffect(() => {\n  const controller = new AbortController();\n\n  fetch(\"/api/hotels\", { signal: controller.signal })\n    .then((response) => response.json())\n    .then(setHotels)\n    .catch((error) => {\n      if (error.name !== \"AbortError\") setError(\"Could not load hotels.\");\n    });\n\n  return () => controller.abort();\n}, []);",
+    "body": "Two log lines in the console during development are not a bug in your component. They are the point of StrictMode: it exposes effects that are unsafe to run twice.\n\nSymptoms that show up under StrictMode and nowhere else:\n\n- The list is fetched twice and the server logs two GET requests, because nothing aborts the first one.\n- The counter jumps by two after one click, because the effect registered two listeners or two intervals.\n- A POST creates the booking twice, because there is no idempotency key and no cleanup that cancels it.\n\nDo not delete StrictMode from `main.jsx`. Fix the effect: abort the request, remove the listener, or guard the write with a flag that the cleanup flips. A component that survives the double run also survives fast refresh and a real remount in production."
+  },
+  {
+    "id": "react-useeffect-fetch-abort",
+    "group": "Effects",
+    "name": "fetch with AbortController",
+    "syntax": "const controller = new AbortController(); fetch(url, { signal: controller.signal })",
+    "desc": "Aborts the request when the effect is cleaned up. Stops the response from setting state after unmount and stops a slow response from overwriting a newer one.",
+    "example": "import { useEffect, useState } from \"react\";\n\n// Data shape: hotels = [{ hotel_id, name, city, stars }]\nexport default function Hotels({ city }) {\n  const [hotels, setHotels] = useState([]);\n  const [error, setError] = useState(\"\");\n\n  useEffect(() => {\n    const controller = new AbortController();\n\n    async function load() {\n      try {\n        const response = await fetch(\n          `/api/hotels?city=${encodeURIComponent(city)}`,\n          { signal: controller.signal }\n        );\n        if (!response.ok) throw new Error(`HTTP ${response.status}`);\n        setHotels(await response.json());\n      } catch (caught) {\n        if (caught.name !== \"AbortError\") setError(\"Could not load hotels.\");\n      }\n    }\n\n    load();\n    return () => controller.abort();\n  }, [city]);\n\n  return error ? <p className=\"error\">{error}</p> : <List items={hotels} />;\n}",
+    "body": "`abort()` makes the pending `fetch` reject with a `DOMException` whose `name` is `AbortError`. That rejection is expected and must not be shown to the user, which is why the catch checks the name before setting an error message.\n\nOne controller per effect run. A controller created outside the effect is shared by every run and aborts requests it does not own.\n\nAborting does not remove the need for the `response.ok` check. A 404 resolves normally, with `ok` set to false, and calling `response.json()` on it usually gives an error object that your list rendering will choke on."
+  },
+  {
+    "id": "react-useeffect-race-guard",
+    "group": "Effects",
+    "name": "race condition guard",
+    "syntax": "let ignore = false; ... if (ignore) return; return () => { ignore = true; };",
+    "desc": "Keeps an older response from overwriting a newer one when the user changes the input faster than the network answers.",
+    "example": "// Data shape: results = [{ hotel_id, name }]\nuseEffect(() => {\n  let ignore = false; // one flag per run, closed over by the handlers\n\n  fetch(`/api/search?word=${encodeURIComponent(word)}`)\n    .then((response) => response.json())\n    .then((data) => {\n      if (!ignore) setResults(data);\n    });\n\n  return () => {\n    ignore = true; // this run was replaced, drop its response\n  };\n}, [word]);",
+    "body": "Type `bu`, the request for `bu` is slow. Type `bud`, the request for `bud` answers first and fills the list. Then `bu` answers and overwrites it. The input says `bud` and the list shows hotels from `bu`.\n\nThe flag fixes the order, the controller fixes the wasted bandwidth. Use both when the payload is large, the flag alone when you only care about correctness.\n\n```jsx\nuseEffect(() => {\n  const controller = new AbortController();\n\n  async function load() {\n    const response = await fetch(url, { signal: controller.signal });\n    const data = await response.json();\n    setRows(data); // unreachable for an aborted run\n  }\n\n  load().catch(() => {});\n  return () => controller.abort();\n}, [url]);\n```\n\nA guard without a cleanup is not a guard. The flag has to be flipped by the cleanup, because that is the only place React tells you the run is over."
+  },
+  {
+    "id": "react-useeffect-async-inner",
+    "group": "Effects",
+    "name": "async work inside an effect",
+    "syntax": "useEffect(() => { async function load() {} load(); }, [deps])",
+    "desc": "The effect callback must not be async. An async function returns a Promise, and React expects nothing or a cleanup function.",
+    "example": "// Wrong: the callback returns a Promise, so React never gets a cleanup.\nuseEffect(async () => {\n  const data = await getHotels();\n  setHotels(data);\n}, []);\n\n// Right: an inner async function, called and not awaited.\nuseEffect(() => {\n  async function load() {\n    const data = await getHotels();\n    setHotels(data);\n  }\n\n  load();\n  return () => { /* cleanup stays reachable */ };\n}, []);",
+    "body": "The inner function also gives you a natural place for `try` and `catch`. An unhandled rejection in the effect body becomes a console error and a spinner that never stops.\n\nIf the effect needs to wait for its own cleanup, that is a sign the state should live in a parent or in a store. The effect model expects fire and forget plus a cleanup.\n\nDo not `await` the inner call either. Awaiting would make the callback async again and delay the cleanup until the request finished, which may be after unmount."
+  },
+  {
+    "id": "react-useeffect-interval",
+    "group": "Effects",
+    "name": "interval in an effect",
+    "syntax": "useEffect(() => { const id = setInterval(fn, ms); return () => clearInterval(id); }, [])",
+    "desc": "Starts a repeating timer after mount and clears it on unmount. Use the functional state update inside the tick to avoid a stale value.",
+    "example": "// Data shape: seconds: number\nexport default function Stopwatch() {\n  const [seconds, setSeconds] = useState(0);\n  const [running, setRunning] = useState(false);\n\n  useEffect(() => {\n    if (!running) return;\n\n    const id = setInterval(() => {\n      // Functional update: the interval never reads a frozen seconds value.\n      setSeconds((value) => value + 1);\n    }, 1000);\n\n    return () => clearInterval(id);\n  }, [running]);\n\n  return (\n    <>\n      <p>{seconds} s</p>\n      <button onClick={() => setRunning(!running)}>\n        {running ? \"Stop\" : \"Start\"}\n      </button>\n    </>\n  );\n}",
+    "body": "`setSeconds(seconds + 1)` inside the interval reads `seconds` from the render that created the timer, which is `0`. The display counts 0, 1, 1, 1 and looks frozen. The functional form receives the current value and has no stale read.\n\nThe conditional `return` before the setup is legal: the hook is called on every render, only the body changes. What must never be conditional is the `useEffect` call itself.\n\nWith `[running]` in the array, starting and stopping creates and clears exactly one interval. With `[]`, pressing Start twice leaves two intervals running and the counter speeds up."
+  },
+  {
+    "id": "react-useeffect-subscription",
+    "group": "Effects",
+    "name": "subscribe and unsubscribe",
+    "syntax": "useEffect(() => { target.addEventListener(type, handler); return () => target.removeEventListener(type, handler); }, [deps])",
+    "desc": "Adds a listener or store subscription after mount and removes it on unmount and before every re-run. The handler must be the same reference in both calls.",
+    "example": "import { useEffect, useState } from \"react\";\n\n// Data shape: online: boolean\nfunction useOnline() {\n  const [online, setOnline] = useState(navigator.onLine);\n\n  useEffect(() => {\n    function update() {\n      setOnline(navigator.onLine);\n    }\n\n    window.addEventListener(\"online\", update);\n    window.addEventListener(\"offline\", update);\n\n    return () => {\n      window.removeEventListener(\"online\", update);\n      window.removeEventListener(\"offline\", update);\n    };\n  }, []);\n\n  return online;\n}",
+    "body": "Declaring the handler inside the effect keeps it out of the dependency array and gives both `add` and `remove` the same reference. A handler declared in the component body is a new function every render, so `[update]` resubscribes on every render.\n\nWhen the handler reads a component value, that value goes in the array:\n\n```jsx\nuseEffect(() => {\n  function onMessage(event) {\n    append(event.data, roomId);\n  }\n\n  socket.on(\"message\", onMessage);\n  return () => socket.off(\"message\", onMessage);\n}, [roomId]);\n```\n\nWithout `[roomId]` the first room id is captured forever. The user switches rooms, the socket stays in the old one, and the bug looks like a server problem."
+  },
+  {
+    "id": "react-useeffect-websocket",
+    "group": "Effects",
+    "name": "WebSocket in an effect",
+    "syntax": "const socket = new WebSocket(url); return () => socket.close();",
+    "desc": "Opens the socket after mount, closes it in the cleanup, and depends on the room or url so a change reconnects to the right place.",
+    "example": "import { useEffect, useState } from \"react\";\n\n// Data shape: messages = [{ id, text }]\nexport default function Room({ roomId }) {\n  const [messages, setMessages] = useState([]);\n  const [status, setStatus] = useState(\"connecting\");\n\n  useEffect(() => {\n    const socket = new WebSocket(`ws://localhost:4000/rooms/${roomId}`);\n\n    socket.addEventListener(\"open\", () => setStatus(\"open\"));\n    socket.addEventListener(\"message\", (event) => {\n      const next = JSON.parse(event.data);\n      setMessages((current) => [...current, next]);\n    });\n    socket.addEventListener(\"close\", () => setStatus(\"closed\"));\n\n    // Closes the socket for this run only. The next run opens a fresh one.\n    return () => socket.close();\n  }, [roomId]);\n\n  return (\n    <>\n      <p>{status}</p>\n      {messages.map((message) => <p key={message.id}>{message.text}</p>)}\n    </>\n  );\n}",
+    "body": "A socket left open keeps the server connection and the component state alive. Ten room changes leave ten sockets and ten copies of every message.\n\nThe `close` event fires during cleanup too. Guard the status update if a closed socket would flash the UI on the way out:\n\n```jsx\nreturn () => {\n  socket.onclose = null; // stop the handler before closing\n  socket.close();\n};\n```\n\nReconnect logic does not belong in the render. If you need retries, put a `setTimeout` inside the effect and clear it in the cleanup, or use a small custom hook that owns the whole lifecycle."
+  },
+  {
+    "id": "react-useeffect-derived-state",
+    "group": "Effects",
+    "name": "derived value, no effect",
+    "syntax": "const total = items.reduce(...)",
+    "desc": "A value computed from props or state is calculated during render. Copying it into state with an effect costs a render and lags one step behind.",
+    "example": "// Wrong: an extra state and an extra render, and the copy is one step behind.\nconst [total, setTotal] = useState(0);\nuseEffect(() => {\n  setTotal(items.reduce((sum, item) => sum + item.price, 0));\n}, [items]);\n\n// Right: plain calculation during render.\nconst total = items.reduce((sum, item) => sum + item.price, 0);\n\n// Also right: skip the recalculation when items did not change.\nconst total = useMemo(\n  () => items.reduce((sum, item) => sum + item.price, 0),\n  [items]\n);",
+    "body": "The first version renders once with the old total, then again with the new one. On a slow machine that flicker is visible. It also creates a second source of truth, and the exam question about \"why does the total not update\" is usually this pattern.\n\nThe same rule covers filtering, sorting, counting, formatting a date, and building a query string.\n\nOne case that does need state: a value the user can edit which starts from a prop. Keep the prop as the source and store only the edit:\n\n```jsx\nconst [draft, setDraft] = useState(null);\nconst value = draft ?? customer.first_name;\n```\n\n`useMemo` is for an expensive calculation, not for correctness. A cheap `reduce` over fifty rows does not need it."
+  },
+  {
+    "id": "react-useeffect-reload-counter",
+    "group": "Effects",
+    "name": "manual reload of an effect",
+    "syntax": "const [reload, setReload] = useState(0); useEffect(..., [reload])",
+    "desc": "An effect runs when a dependency changes. To run it on demand, add a counter state and bump it from a Retry handler.",
+    "example": "const [reload, setReload] = useState(0);\n\nuseEffect(() => {\n  const controller = new AbortController();\n  load(reload, controller.signal).catch(() => {});\n  return () => controller.abort();\n}, [reload]);\n\nreturn <button onClick={() => setReload((n) => n + 1)}>Retry</button>;",
+    "body": "Calling the loader directly from the click handler is also valid and often simpler, because a retry is a user action, not a state change. Use the counter when the loader needs the same setup, cleanup and guards as the automatic run, and duplicating it in the handler would mean two copies of the abort logic.\n\nThe functional increment `setReload((n) => n + 1)` is required. `setReload(reload + 1)` works only while the value is fresh, which it usually is, but the functional form has no such condition.\n\nDo not reach for this pattern when the effect only exists because a flag changed. A handler that posts a booking is a handler, not an effect with a `submitted` dependency."
+  },
+  {
+    "id": "react-useeffect-response-ok",
+    "group": "Effects",
+    "name": "check response.ok",
+    "syntax": "if (!response.ok) throw new Error(`HTTP ${response.status}`)",
+    "desc": "fetch resolves on 404 and 500, so a missing ok check turns a server error into an empty list.",
+    "example": "async function load() {\n  const response = await fetch(\"/api/hotels\");\n\n  if (!response.ok) {\n    // 404 and 500 land here. Without the check the error body is parsed as hotels.\n    throw new Error(`HTTP ${response.status}`);\n  }\n\n  setHotels(await response.json());\n}",
+    "body": "Only a network failure rejects the promise. A 404, a 401 or a 500 all resolve, with `ok` false and a body that is usually an error object. Rendering that body as a list gives `undefined` rows and a blank screen instead of an error message.\n\nThe four states of a data component:\n\n```jsx\nif (loading) return <p>Loading...</p>;\nif (error) return <p className=\"error\">{error}</p>;\nif (!hotels.length) return <p>No hotels.</p>;\nreturn <List items={hotels} />;\n```\n\nAxios behaves the other way: it rejects on 4xx and 5xx, so its `catch` covers both cases and the `ok` check is unnecessary."
+  },
+  {
+    "id": "react-useeffect-route-param",
+    "group": "Effects",
+    "name": "effect on a route parameter",
+    "syntax": "useEffect(() => { load(id); }, [id])",
+    "desc": "The route parameter is the dependency. Without it, navigating between two ids keeps the data of the first one, because the component does not remount.",
+    "example": "import { useEffect, useState } from \"react\";\nimport { useParams } from \"react-router-dom\";\n\n// Data shape: bookings = [{ booking_id, start_date, end_date, adults }]\nexport default function HotelBookings() {\n  const { id } = useParams(); // always a string\n  const [bookings, setBookings] = useState([]);\n\n  useEffect(() => {\n    const controller = new AbortController();\n\n    getBookingsByHotel(Number(id), controller.signal)\n      .then(setBookings)\n      .catch((error) => {\n        if (error.name !== \"AbortError\") setBookings([]);\n      });\n\n    return () => controller.abort();\n  }, [id]);\n\n  return <List items={bookings} />;\n}",
+    "body": "A route like `/hotels/:id/bookings` keeps the same component mounted when the id changes, so `useState` keeps the old array. Only the effect can notice the new parameter.\n\nA common wrong fix is a `key` prop on the route element, which forces a remount and drops all state. It works, but it is a blunt tool: every navigation loses scroll position and form input. The dependency array is the precise one.\n\n`useParams` returns strings. Convert to a number when the API expects one, or the request goes out as `/api/hotels/7/bookings` in one place and `/api/hotels/\"7\"/bookings` in another."
+  }
+]

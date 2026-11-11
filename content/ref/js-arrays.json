@@ -1,0 +1,226 @@
+[
+  {
+    "id": "js-array-literal",
+    "group": "Creation",
+    "name": "Array literal",
+    "syntax": "const list = [value1, value2]",
+    "desc": "Creates a new array from the values between the brackets, in order.",
+    "example": "// Data shape: ordered list of numbers, indexes 0..2\nconst scores = [12, 7, 30];\n\nconsole.log(scores[0]);     // 12\nconsole.log(scores.length); // 3\nconsole.log(Array.isArray(scores)); // true\n\n// A literal can hold mixed values, but a single type is easier to work with\nconst mixed = ['Vienna', 4, true];"
+  },
+  {
+    "id": "js-array-from",
+    "group": "Creation",
+    "name": "Array.from()",
+    "syntax": "Array.from(source, mapFn?)",
+    "desc": "Builds a real array from any iterable or array-like value, with an optional mapping function.",
+    "example": "// Data shape: string, Set, or array-like input\nconst letters = Array.from('abc');            // ['a', 'b', 'c']\nconst unique = Array.from(new Set([1, 1, 2])); // [1, 2]\n\n// Second argument maps while building, index included\nconst even = Array.from({ length: 4 }, (_, index) => index * 2);\nconsole.log(even); // [0, 2, 4, 6]",
+    "body": "The source can be a string, a `Set`, a `Map`, another array, a `NodeList`, or any object with a `length` property. The second argument receives the value and the index, so a fill loop becomes one call. `Array.from` copies, so the new array and the source do not share elements changed later at the top level."
+  },
+  {
+    "id": "js-array-of",
+    "group": "Creation",
+    "name": "Array.of()",
+    "syntax": "Array.of(...values)",
+    "desc": "Creates an array with exactly the arguments as elements, including a single number.",
+    "example": "// Data shape: one value becomes one element\nconsole.log(Array.of(7));       // [7]\nconsole.log(Array.of(7, 8, 9)); // [7, 8, 9]\n\n// The trap this avoids:\nconsole.log(new Array(7).length); // 7, but the array is empty of values\nconsole.log(Array.of(7).length);  // 1",
+    "body": "`new Array(7)` treats a single numeric argument as a length and creates seven holes. `Array.of` treats every argument as an element, so `Array.of(7)` has length one. Use `Array.of` when the value comes from a variable and might be a number."
+  },
+  {
+    "id": "js-array-length",
+    "group": "Index and length",
+    "name": "length",
+    "syntax": "array.length",
+    "desc": "Reads the number of slots, which is one more than the highest index. Assigning it truncates or extends the array.",
+    "example": "// Data shape: list of city names\nconst cities = ['Vienna', 'Graz', 'Linz'];\n\nconsole.log(cities.length);              // 3\nconsole.log(cities[cities.length - 1]);  // 'Linz'\n\ncities[6] = 'Salzburg';   // writes past the end\nconsole.log(cities.length); // 7, indexes 3 to 5 are holes\n\ncities.length = 2;        // truncates, 'Linz' and the rest are gone\nconsole.log(cities);      // ['Vienna', 'Graz']",
+    "body": "`length` is not the count of values when the array has holes. Setting it smaller deletes every element at or above the new length, and setting it larger adds empty slots. Both are silent, so a wrong assignment can destroy data without an error."
+  },
+  {
+    "id": "js-array-at",
+    "group": "Index and length",
+    "name": "at()",
+    "syntax": "array.at(index)",
+    "desc": "Reads one element by index and accepts negative numbers to count from the end.",
+    "example": "// Data shape: ordered list of stops\nconst stops = ['A', 'B', 'C'];\n\nconsole.log(stops.at(0));   // 'A'\nconsole.log(stops.at(-1));  // 'C', the last element\nconsole.log(stops.at(-2));  // 'B'\nconsole.log(stops.at(9));   // undefined, no error\n\n// The old form still works and still needs the arithmetic:\nconsole.log(stops[stops.length - 1]); // 'C'",
+    "body": "Bracket access with a negative number does not read from the end; it looks up a property named `-1` and returns `undefined`. `at` is the method form that handles the offset. On a string it returns a character the same way."
+  },
+  {
+    "id": "js-array-push",
+    "group": "Add and remove",
+    "name": "push()",
+    "syntax": "array.push(...values)",
+    "desc": "Adds values at the end and returns the new length.",
+    "example": "// Data shape: list of guest names\nconst guests = ['Ana', 'Bela'];\n\nconst size = guests.push('Csilla');\nconsole.log(size);   // 3, the return value is a number\nconsole.log(guests); // ['Ana', 'Bela', 'Csilla']\n\n// Several values at once, in argument order\nguests.push('Dora', 'Emil');\nconsole.log(guests.length); // 5",
+    "body": "`push` mutates the array and returns the new length, not the array. Chaining `push` therefore gives you a number, not something you can push again. For a new array instead of a mutation, use `[...guests, 'Csilla']`."
+  },
+  {
+    "id": "js-array-pop",
+    "group": "Add and remove",
+    "name": "pop()",
+    "syntax": "array.pop()",
+    "desc": "Removes the last element and returns it. Returns undefined when the array is empty.",
+    "example": "// Data shape: stack of page names\nconst stack = ['home', 'hotels', 'detail'];\n\nconst last = stack.pop();\nconsole.log(last);  // 'detail'\nconsole.log(stack); // ['home', 'hotels']\n\nconsole.log([].pop()); // undefined, no throw\n\n// A stack loop that stops on the empty case\nwhile (stack.length > 0) {\n  console.log(stack.pop());\n}",
+    "body": "`pop` and `push` together make a stack: last in, first out. Both work at the end of the array, so neither moves the other elements and both stay fast on large lists."
+  },
+  {
+    "id": "js-array-shift",
+    "group": "Add and remove",
+    "name": "shift()",
+    "syntax": "array.shift()",
+    "desc": "Removes the first element and returns it, moving every remaining element one place left.",
+    "example": "// Data shape: queue of ticket ids\nconst queue = [101, 102, 103];\n\nconst first = queue.shift();\nconsole.log(first); // 101\nconsole.log(queue); // [102, 103]\n\nconsole.log([].shift()); // undefined\n\n// A queue drain\nwhile (queue.length > 0) {\n  console.log(queue.shift());\n}",
+    "body": "Every call moves the remaining elements to a lower index, which costs time proportional to the length. Draining a list of ten thousand items with `shift` is much slower than walking it with a `for` loop. Use `shift` on short lists or keep an index pointer for long ones."
+  },
+  {
+    "id": "js-array-unshift",
+    "group": "Add and remove",
+    "name": "unshift()",
+    "syntax": "array.unshift(...values)",
+    "desc": "Adds values at the front and returns the new length. Every existing element moves up.",
+    "example": "// Data shape: list of recent searches, newest first\nconst recent = ['Graz'];\n\nconst size = recent.unshift('Vienna');\nconsole.log(size);   // 2\nconsole.log(recent); // ['Vienna', 'Graz']\n\nrecent.unshift('Linz', 'Salzburg');\nconsole.log(recent); // ['Linz', 'Salzburg', 'Vienna', 'Graz']",
+    "body": "The values keep their argument order, so `unshift('a', 'b')` puts `a` before `b`. Like `shift`, it moves the whole array, so it is the expensive end. If the list is only read from the front, `push` plus a reverse at the end is cheaper."
+  },
+  {
+    "id": "js-array-splice",
+    "group": "Add and remove",
+    "name": "splice()",
+    "syntax": "array.splice(start, deleteCount, ...items)",
+    "desc": "Removes elements from a position, optionally inserts new ones, and returns the removed elements.",
+    "example": "// Data shape: ordered list of stop names\nconst stops = ['A', 'B', 'C', 'D'];\n\nconst removed = stops.splice(1, 2);\nconsole.log(removed); // ['B', 'C']\nconsole.log(stops);   // ['A', 'D']\n\n// Insert without deleting\nstops.splice(1, 0, 'X', 'Y');\nconsole.log(stops); // ['A', 'X', 'Y', 'D']\n\n// Negative start counts from the end\nstops.splice(-1, 1);\nconsole.log(stops); // ['A', 'X', 'Y']",
+    "body": "The start position, the number to delete, then the values to insert. Omitting `deleteCount` deletes to the end, so `splice(0)` empties the array and returns everything. The method mutates the original and returns a new array of removed elements. Keep it apart from `slice`, which copies and mutates nothing."
+  },
+  {
+    "id": "js-array-slice",
+    "group": "Copy and combine",
+    "name": "slice()",
+    "syntax": "array.slice(start, end)",
+    "desc": "Returns a shallow copy from start up to but not including end. The original is unchanged.",
+    "example": "// Data shape: list of scores in order\nconst scores = [10, 20, 30, 40, 50];\n\nconsole.log(scores.slice(1, 3)); // [20, 30]\nconsole.log(scores.slice(2));    // [30, 40, 50]\nconsole.log(scores.slice(-2));   // [40, 50]\nconsole.log(scores.slice());     // full shallow copy\nconsole.log(scores.slice(3, 1)); // []\n\nscores.slice(0, 2)[0] = 99;\nconsole.log(scores[0]); // 10, the copy was separate",
+    "body": "`slice()` with no arguments is the shortest way to copy an array. The copy is shallow, so objects inside are shared with the original. `slice` never mutates its input, which is the opposite of `splice` in both name and behaviour."
+  },
+  {
+    "id": "js-array-concat",
+    "group": "Copy and combine",
+    "name": "concat()",
+    "syntax": "array.concat(other)",
+    "desc": "Returns a new array with the elements of the original followed by the elements of each argument.",
+    "example": "// Data shape: two lists of tags\nconst a = ['red', 'green'];\nconst b = ['blue'];\n\nconsole.log(a.concat(b));     // ['red', 'green', 'blue']\nconsole.log(a);               // ['red', 'green'], unchanged\nconsole.log(a.concat(b, ['x'])); // three groups appended\n\n// Nested arrays are not flattened\nconsole.log([1].concat([2, [3]])); // [1, 2, [3]]\n\n// The spread form most code uses now\nconsole.log([...a, ...b]); // ['red', 'green', 'blue']",
+    "body": "`concat` flattens one level of array arguments. Non-array arguments are appended as single elements. It always returns a new array, so chaining it is safe."
+  },
+  {
+    "id": "js-array-join",
+    "group": "Strings",
+    "name": "join()",
+    "syntax": "array.join(separator)",
+    "desc": "Builds one string from all elements, placing the separator between them.",
+    "example": "// Data shape: list of city names\nconst cities = ['Vienna', 'Graz', 'Linz'];\n\nconsole.log(cities.join(', ')); // 'Vienna, Graz, Linz'\nconsole.log(cities.join(' | ')); // 'Vienna | Graz | Linz'\nconsole.log(cities.join(''));    // 'ViennaGrazLinz'\n\n// Missing values become empty text\nconsole.log([1, null, 3].join('-')); // '1--3'\nconsole.log([].join(','));           // ''",
+    "body": "The default separator is a comma, so `join()` and `join(',')` give the same result. `null` and `undefined` elements become empty strings rather than the words. `join` is the usual last step of a `map` chain that prints output."
+  },
+  {
+    "id": "js-array-includes",
+    "group": "Search",
+    "name": "includes()",
+    "syntax": "array.includes(value)",
+    "desc": "Returns true when the array contains the value, comparing with SameValueZero.",
+    "example": "// Data shape: list of room numbers\nconst rooms = [101, 205, 309];\n\nconsole.log(rooms.includes(205)); // true\nconsole.log(rooms.includes(999)); // false\n\n// NaN is found, unlike with indexOf\nconsole.log([NaN].includes(NaN)); // true\nconsole.log([NaN].indexOf(NaN));  // -1\n\n// Objects are compared by reference, not by content\nconst a = { hotel_id: 1 };\nconsole.log([a].includes({ hotel_id: 1 })); // false\nconsole.log([a].includes(a));               // true",
+    "body": "Use `includes` for primitives and for a yes or no answer. For an array of objects, the value must be the same reference, so a freshly built object never matches. Use `some` with a predicate in that case."
+  },
+  {
+    "id": "js-array-indexof",
+    "group": "Search",
+    "name": "indexOf()",
+    "syntax": "array.indexOf(value, fromIndex?)",
+    "desc": "Returns the index of the first strict match, or -1 when nothing matches.",
+    "example": "// Data shape: list of hotel ids\nconst ids = [10, 11, 12, 11];\n\nconsole.log(ids.indexOf(11));      // 1, first match only\nconsole.log(ids.indexOf(11, 2));   // 3, start searching at index 2\nconsole.log(ids.indexOf(99));      // -1\n\n// The -1 result is a common bug when used as an index\nconst position = ids.indexOf(99);\nconsole.log(ids[position]); // undefined\n\nif (position !== -1) {\n  console.log('found at', position);\n}",
+    "body": "`indexOf` uses strict equality, so it never finds `NaN` and never matches two objects with equal contents. Always test against `-1` before using the result as an index. `lastIndexOf` searches from the end."
+  },
+  {
+    "id": "js-array-find-record",
+    "group": "Search",
+    "name": "find()",
+    "syntax": "array.find(callback)",
+    "desc": "Returns the first element for which the callback returns true, or undefined.",
+    "example": "// Data shape: list of booking objects\nconst bookings = [\n  { booking_id: 1, city: 'Vienna', adults: 2 },\n  { booking_id: 2, city: 'Graz', adults: 1 },\n];\n\nconst found = bookings.find((item) => item.city === 'Graz');\nconsole.log(found); // { booking_id: 2, city: 'Graz', adults: 1 }\n\nconsole.log(bookings.find((item) => item.city === 'Linz')); // undefined\n\n// Guard before reading a property\nconst linz = bookings.find((item) => item.city === 'Linz');\nconsole.log(linz?.booking_id); // undefined, no throw",
+    "body": "The callback gets the element, the index, and the array. `find` stops at the first true, so put the most likely match first only if that ordering is meaningful; otherwise it is just an early exit. `findIndex` returns the position instead of the element."
+  },
+  {
+    "id": "js-array-findindex",
+    "group": "Search",
+    "name": "findIndex()",
+    "syntax": "array.findIndex(callback)",
+    "desc": "Returns the index of the first element that passes the test, or -1.",
+    "example": "// Data shape: list of hotel objects\nconst hotels = [\n  { name: 'Ring', stars: 5 },\n  { name: 'Park', stars: 3 },\n];\n\nconst position = hotels.findIndex((hotel) => hotel.name === 'Park');\nconsole.log(position); // 1\n\nconsole.log(hotels.findIndex((hotel) => hotel.name === 'Garden')); // -1\n\n// Remove the found record with splice\nif (position !== -1) {\n  hotels.splice(position, 1);\n}\nconsole.log(hotels.length); // 1",
+    "body": "`findIndex` is the object-aware version of `indexOf`: it takes a test instead of a value. The `-1` result must be checked before using it in `splice`, because `splice(-1, 1)` removes the last element rather than doing nothing."
+  },
+  {
+    "id": "js-array-filter-records",
+    "group": "Transform",
+    "name": "filter()",
+    "syntax": "array.filter(callback)",
+    "desc": "Returns a new array with the elements for which the callback returns true.",
+    "example": "// Data shape: list of booking objects with a total\nconst bookings = [\n  { booking_id: 1, total: 480, city: 'Vienna' },\n  { booking_id: 2, total: 150, city: 'Graz' },\n  { booking_id: 3, total: 910, city: 'Vienna' },\n];\n\nconst big = bookings.filter((item) => item.total >= 480);\nconsole.log(big.length); // 2\nconsole.log(big.map((item) => item.booking_id)); // [1, 3]\n\nconst vienna = bookings.filter((item) => item.city === 'Vienna');\nconsole.log(vienna.length); // 2\n\nconsole.log(bookings.length); // 3, the input is untouched",
+    "body": "The result is always a new array, possibly empty, never `undefined`. The callback should be a pure test; pushing into an outside array from inside `filter` defeats the point and makes the result confusing. Combine with `map` for the common keep then reshape chain."
+  },
+  {
+    "id": "js-array-map-reshape",
+    "group": "Transform",
+    "name": "map()",
+    "syntax": "array.map(callback)",
+    "desc": "Returns a new array with one output per input, in the same order.",
+    "example": "// Data shape: list of prices in euros\nconst prices = [40, 15, 90];\n\nconst withTax = prices.map((price) => price * 1.2);\nconsole.log(withTax); // [48, 18, 108]\nconsole.log(prices);  // [40, 15, 90], unchanged\n\n// Reshape objects, keeping only what is needed\nconst hotels = [\n  { hotel_id: 1, name: 'Ring', stars: 5 },\n  { hotel_id: 2, name: 'Park', stars: 3 },\n];\nconst labels = hotels.map((hotel) => `${hotel.name} (${hotel.stars})`);\nconsole.log(labels); // ['Ring (5)', 'Park (3)']\n\n// Index is available as the second argument\nconsole.log(prices.map((price, index) => index + ':' + price));",
+    "body": "`map` keeps the length. Elements where the callback returns `undefined` stay in the result as `undefined`, so filter first if the output must be dense. Use `map` for the value it returns; use `forEach` when the point is a side effect."
+  },
+  {
+    "id": "js-array-reduce-group",
+    "group": "Transform",
+    "name": "reduce()",
+    "syntax": "array.reduce(callback, initialValue)",
+    "desc": "Folds the array into one value by carrying an accumulator from element to element.",
+    "example": "// Data shape: array of booking totals in euros\nconst totals = [240, 120, 380];\n\nconst sum = totals.reduce((acc, value) => acc + value, 0);\nconsole.log(sum); // 740\n\n// The accumulator can be any type, here an object\nconst cities = ['Vienna', 'Graz', 'Vienna'];\nconst counts = cities.reduce((acc, city) => {\n  acc[city] = (acc[city] || 0) + 1;\n  return acc;\n}, {});\nconsole.log(counts); // { Vienna: 2, Graz: 1 }\n\n// Max without sorting\nconst max = totals.reduce((acc, value) => Math.max(acc, value), 0);\nconsole.log(max); // 380",
+    "body": "The callback receives the accumulator, the current element, the index, and the array, and must return the next accumulator. Without the starting value, `reduce` uses the first element as the seed and begins at index 1, and throws `TypeError` on an empty array. Pass a starting value for sums, counts, grouping and any case where the array can be empty."
+  },
+  {
+    "id": "js-array-some",
+    "group": "Test",
+    "name": "some()",
+    "syntax": "array.some(callback)",
+    "desc": "Returns true when at least one element passes the test, and stops at the first pass.",
+    "example": "// Data shape: list of booking objects\nconst bookings = [\n  { adults: 2, children: 0 },\n  { adults: 1, children: 2 },\n];\n\nconsole.log(bookings.some((item) => item.children > 0)); // true\nconsole.log(bookings.some((item) => item.adults > 5));   // false\n\n// Empty array: no element can pass\nconsole.log([].some((value) => value > 0)); // false\n\n// Early exit is visible in the log\n[1, 2, 3].some((value) => {\n  console.log('check', value);\n  return value === 2;\n}); // logs 1 and 2 only",
+    "body": "`some` answers whether a match exists without building an array. It short circuits, so callbacks with side effects run only until the first true. On an empty array it returns `false`."
+  },
+  {
+    "id": "js-array-every",
+    "group": "Test",
+    "name": "every()",
+    "syntax": "array.every(callback)",
+    "desc": "Returns true only when every element passes the test, and stops at the first failure.",
+    "example": "// Data shape: list of hotel objects\nconst hotels = [\n  { name: 'Ring', stars: 5 },\n  { name: 'Park', stars: 3 },\n];\n\nconsole.log(hotels.every((hotel) => hotel.stars >= 3)); // true\nconsole.log(hotels.every((hotel) => hotel.stars === 5)); // false\n\n// Empty array: vacuously true\nconsole.log([].every((hotel) => hotel.stars > 5)); // true\n\n// Guard a form before sending it\nconst valid = hotels.every((hotel) => hotel.name && hotel.stars > 0);\nconsole.log(valid); // true",
+    "body": "`every` on an empty array returns `true`, which follows from the definition: there is no element that fails. That surprises people validating input, so check `length > 0` as well when an empty list is not acceptable. The counterpart `some` returns `false` on an empty array."
+  },
+  {
+    "id": "js-array-sort-comparator",
+    "group": "Order",
+    "name": "sort()",
+    "syntax": "array.sort(compareFn)",
+    "desc": "Sorts in place. With no comparator it compares elements as strings, which is wrong for numbers.",
+    "example": "// Data shape: list of numbers\nconst numbers = [10, 9, 1, 100];\n\nconsole.log([...numbers].sort()); // [1, 10, 100, 9], string order\nconsole.log([...numbers].sort((a, b) => a - b)); // [1, 9, 10, 100]\n\n// Objects by one key, highest first\nconst hotels = [\n  { name: 'Ring', stars: 5 },\n  { name: 'Park', stars: 3 },\n  { name: 'Garden', stars: 4 },\n];\n\nconst ranked = [...hotels].sort((a, b) => b.stars - a.stars);\nconsole.log(ranked.map((hotel) => hotel.name)); // ['Ring', 'Garden', 'Park']\n\nconsole.log(numbers); // [10, 9, 1, 100], the copy above kept it intact",
+    "body": "The comparator returns a negative number when `a` comes first, positive when `b` comes first, zero for a tie. `a - b` sorts numbers ascending. Since ES2019 the sort is stable, so equal elements keep their input order. `sort` mutates, so copy with `[...list]` or use `toSorted` when the original order must survive."
+  },
+  {
+    "id": "js-array-foreach",
+    "group": "Iteration",
+    "name": "forEach()",
+    "syntax": "array.forEach(callback)",
+    "desc": "Runs a function once per element for its side effects and returns undefined.",
+    "example": "// Data shape: list of guest names\nconst guests = ['Ana', 'Bela', 'Csilla'];\n\nconst result = guests.forEach((name, index) => {\n  console.log(index, name);\n});\nconsole.log(result); // undefined\n\n// Accumulate into an outside variable when that is the goal\nlet total = 0;\n[10, 20, 30].forEach((value) => {\n  total += value;\n});\nconsole.log(total); // 60",
+    "body": "`forEach` cannot `break`, and returning from the callback only skips the current element. Use `for...of` when you need `break`, and `map`, `filter` or `reduce` when you need a value. Changing the array inside the callback shifts the remaining indexes and skips elements."
+  },
+  {
+    "id": "js-array-flat-map",
+    "group": "Transform",
+    "name": "flatMap()",
+    "syntax": "array.flatMap(callback)",
+    "desc": "Maps each element and flattens the results one level into a single array.",
+    "example": "// Data shape: hotels, each with a bookings array\nconst hotels = [\n  { name: 'Ring', bookings: [{ total: 100 }, { total: 200 }] },\n  { name: 'Park', bookings: [{ total: 50 }] },\n];\n\nconst totals = hotels.flatMap((hotel) =>\n  hotel.bookings.map((booking) => booking.total)\n);\nconsole.log(totals); // [100, 200, 50]\n\n// One level only, deeper nesting stays\nconsole.log([[1], [[2]]].flatMap((value) => value)); // [1, [2]]",
+    "body": "`flatMap` is `map` followed by `flat(1)` in one pass. It is the shortest way to turn a list of parents into a flat list of children. Return a non-array and it is appended as a single element."
+  }
+]

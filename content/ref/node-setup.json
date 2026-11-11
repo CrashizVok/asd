@@ -1,0 +1,146 @@
+[
+  {
+    "id": "node-npm-init",
+    "group": "Setup",
+    "name": "npm init",
+    "syntax": "npm init -y",
+    "desc": "Writes a default package.json in the current folder. The -y flag accepts every prompt, which is what you want in an exam.",
+    "example": "mkdir bookings-api\ncd bookings-api\n\n# Default manifest: name from the folder, version 1.0.0, no dependencies.\nnpm init -y\n\n# Edit one field without opening an editor.\nnpm pkg set type=module\nnpm pkg set private=true\n\ncat package.json",
+    "body": "Interactive `npm init` asks for name, version, description, entry point, test command, repository, keywords, author and license. Only name and version change behavior, and `-y` fills both from the folder name.\n\n`npm init` does not create folders, install packages, or touch git. Those are separate commands."
+  },
+  {
+    "id": "node-package-json",
+    "group": "Setup",
+    "name": "package.json",
+    "syntax": "{\n  \"name\": \"bookings-api\",\n  \"type\": \"module\",\n  \"scripts\": {},\n  \"dependencies\": {}\n}",
+    "desc": "The manifest npm reads. It names the project, chooses the module system, lists commands and records installed packages.",
+    "example": "{\n  \"name\": \"bookings-api\",\n  \"version\": \"1.0.0\",\n  \"private\": true,\n  \"type\": \"module\",\n  \"main\": \"server.js\",\n  \"engines\": { \"node\": \">=18\" },\n  \"scripts\": {\n    \"start\": \"node server.js\",\n    \"dev\": \"nodemon server.js\"\n  },\n  \"dependencies\": {\n    \"express\": \"^4.21.2\",\n    \"dotenv\": \"^16.4.7\"\n  },\n  \"devDependencies\": {\n    \"nodemon\": \"^3.1.9\"\n  }\n}",
+    "body": "`type` is the field that decides how every `.js` file is parsed: `\"module\"` for `import`, anything else for `require`. `main` is only used when the package is imported as a package, not when you run `node server.js`.\n\nThe caret range `^4.21.2` accepts newer minor and patch releases but not a new major version. A trailing comma anywhere in this file stops npm with `EJSONPARSE`."
+  },
+  {
+    "id": "node-npm-install",
+    "group": "Dependencies",
+    "name": "npm install",
+    "syntax": "npm install <package>",
+    "desc": "Downloads a package into node_modules and records it in package.json. With no argument it installs everything the manifest lists.",
+    "example": "# Runtime packages: needed by the running server.\nnpm install express cors dotenv mysql2\n\n# No argument: install what package.json already lists.\nnpm install\n\n# See what is installed at the top level.\nnpm ls --depth=0",
+    "body": "Installing without a name is the normal command after cloning a repository. Installing with a name also writes the entry, so the two commands are not interchangeable.\n\nA version suffix pins what gets recorded: `npm install express@4.21.2` writes an exact version, `npm install express@^4` writes a caret range."
+  },
+  {
+    "id": "node-install-dev",
+    "group": "Dependencies",
+    "name": "npm install --save-dev",
+    "syntax": "npm install --save-dev <package>",
+    "desc": "Installs a package used only during development, so a production install can skip it.",
+    "example": "# Nodemon restarts the server while you edit. Production never runs it.\nnpm install --save-dev nodemon\n\n# The short form writes the same field.\nnpm install -D eslint\n\n# npm ci --omit=dev installs runtime packages only, as a deploy would.\nnpm ci --omit=dev",
+    "body": "Anything that only watches files, lints, or runs tests belongs in `devDependencies`. Express, cors, dotenv and mysql2 belong in `dependencies` because the server imports them at runtime.\n\nPutting nodemon in `dependencies` still works, and it makes every deploy larger for a tool that is never started."
+  },
+  {
+    "id": "node-npm-ci",
+    "group": "Dependencies",
+    "name": "npm ci",
+    "syntax": "npm ci",
+    "desc": "Installs exactly the versions in package-lock.json, after deleting node_modules. It fails when the manifest and lockfile disagree.",
+    "example": "# Reproduce the tested tree on a fresh clone or a build server.\nnpm ci\n\n# Runtime packages only, for a deploy folder.\nnpm ci --omit=dev\n\n# If it fails with a lockfile mismatch, refresh the lock and try again.\nnpm install\nnpm ci",
+    "body": "`npm install` may update the lockfile; `npm ci` never does. That difference is why a build pipeline uses `npm ci` and why the same word in the exam answer is usually worth the point.\n\nCommit `package-lock.json`. Without it `npm ci` cannot run."
+  },
+  {
+    "id": "node-npm-run",
+    "group": "Scripts",
+    "name": "npm run",
+    "syntax": "npm run <script> [-- <args>]",
+    "desc": "Runs a command from the scripts object, with node_modules/.bin on PATH. Everything after -- is passed to the command.",
+    "example": "# List every script in the nearest package.json.\nnpm run\n\n# Run one by name.\nnpm run dev\n\n# start and test are shortcuts, no run needed.\nnpm start\nnpm test\n\n# Flags go after -- or npm may eat them.\nnpm run lint -- --fix",
+    "body": "npm also understands `pre<script>` and `post<script>` hooks, so `npm run dev` can run `predev` first. Use a hook for a cheap check such as \"does .env exist\", not for real work.\n\nThe exit code of the command becomes npm's exit code, so a failing test fails the pipeline."
+  },
+  {
+    "id": "node-scripts-field",
+    "group": "Scripts",
+    "name": "scripts",
+    "syntax": "\"scripts\": { \"start\": \"node server.js\", \"dev\": \"nodemon server.js\" }",
+    "desc": "The named commands npm can run. start and test are the two names that run without the word run.",
+    "example": "{\n  \"scripts\": {\n    \"start\": \"node server.js\",\n    \"dev\": \"nodemon server.js\",\n    \"check\": \"node --check server.js\",\n    \"db:ping\": \"node scripts/ping-db.js\",\n    \"smoke\": \"node scripts/smoke.js\"\n  }\n}\n\n# node --check parses a file without running it, so a typo is reported\n# before the server tries to connect to MySQL.",
+    "body": "`start` must work with no arguments, because hosting platforms and markers call it by name. `check` costs one line and catches a syntax error in a second.\n\nNames with a colon group related commands, for example `db:ping` and `db:seed`, and `npm run` lists them in one block."
+  },
+  {
+    "id": "node-nodemon",
+    "group": "Scripts",
+    "name": "nodemon",
+    "syntax": "nodemon <entry-file>",
+    "desc": "Restarts the Node process when a watched file changes. A development tool, installed with --save-dev.",
+    "example": "# Install locally, then call it through npm so node_modules/.bin is on PATH.\nnpm install --save-dev nodemon\n\n# package.json\n# \"dev\": \"nodemon server.js\"\nnpm run dev\n\n# Optional nodemon.json beside package.json\n# {\n#   \"watch\": [\"server.js\", \"routes\", \"config\"],\n#   \"ext\": \"js,json\",\n#   \"ignore\": [\"node_modules\"],\n#   \"delay\": 200\n# }",
+    "body": "Node 18.11 and later ship `node --watch`, which does the same job with no dependency. Use nodemon when the machine may run an older Node, and say why in a comment.\n\n`delay` waits a moment after a save so an editor that writes a file twice does not trigger two restarts."
+  },
+  {
+    "id": "node-esm-import",
+    "group": "Modules",
+    "name": "import and export",
+    "syntax": "import name from './file.js';\nexport default name;",
+    "desc": "The ES module syntax. It needs type: module in package.json, and a relative import needs the file extension.",
+    "example": "// routes/hotels.js\nimport express from 'express';\nimport pool from '../config/db.js';   // extension required in ESM\n\nconst router = express.Router();\n\nrouter.get('/hotels', async (request, response, next) => {\n  try {\n    const [rows] = await pool.query('SELECT hotel_id, name FROM hotels');\n    response.json(rows);\n  } catch (error) {\n    next(error);\n  }\n});\n\nexport default router;   // imported as: import hotelsRouter from './routes/hotels.js'",
+    "body": "Named and default exports coexist: `export function createApp()` is imported with braces, `export default` without. A package can be used from both module systems, but one file cannot mix `import` and `require`.\n\nOmitting `.js` on a relative import produces `ERR_MODULE_NOT_FOUND`, and the message shows the path without an extension, which reads like a typo rather than a missing rule."
+  },
+  {
+    "id": "node-commonjs-require",
+    "group": "Modules",
+    "name": "require and module.exports",
+    "syntax": "const name = require('./file');\nmodule.exports = name;",
+    "desc": "The CommonJS syntax, still the default when package.json has no type field. Relative paths may omit the extension.",
+    "example": "// config/db.js with CommonJS\nconst mysql = require('mysql2/promise');\n\nconst pool = mysql.createPool({\n  host: process.env.DB_HOST || 'localhost',\n  user: process.env.DB_USER || 'root',\n  password: process.env.DB_PASSWORD || '',\n  database: process.env.DB_NAME || 'bookings'\n});\n\nmodule.exports = pool;\n\n// routes/hotels.js\n// const pool = require('../config/db');",
+    "body": "CommonJS runs the file once and caches the exported object, so every `require` of the same path returns the same pool. ESM does the same for the module instance.\n\n`__dirname` exists here and does not exist in ESM. When converting, add `\"type\": \"module\"`, change the syntax, and add `.js` to every relative path."
+  },
+  {
+    "id": "node-esm-dirname",
+    "group": "Modules",
+    "name": "import.meta.url",
+    "syntax": "const here = path.dirname(fileURLToPath(import.meta.url));",
+    "desc": "Gives the folder of the current ES module file, the ESM replacement for __dirname.",
+    "example": "import path from 'node:path';\nimport { fileURLToPath } from 'node:url';\n\n// The current file's folder, regardless of where node was started.\nconst here = path.dirname(fileURLToPath(import.meta.url));\n\n// Read a file that sits beside the source, not beside the shell.\nconst sqlFile = path.join(here, 'schema.sql');\nconsole.log(sqlFile);",
+    "body": "`import.meta.url` is a `file://` URL, so `fileURLToPath` converts it before `path.dirname` can be used. Skipping that step produces paths such as `file:/home/user/project`, which most file APIs reject.\n\nAvoid absolute paths built from `process.cwd()` when the file must be found next to the code, because the working directory depends on where npm was started."
+  },
+  {
+    "id": "node-dotenv-config",
+    "group": "Environment",
+    "name": "dotenv/config",
+    "syntax": "import 'dotenv/config';",
+    "desc": "Loads .env into process.env at import time. Existing shell variables win, and every value arrives as a string.",
+    "example": "// server.js, first import of the file, before anything reads process.env.\nimport 'dotenv/config';\nimport express from 'express';\n\nconst port = Number(process.env.PORT) || 3000;\nconst app = express();\n\napp.get('/api/health', (request, response) => {\n  // Show which database the process will use, never the password.\n  response.json({ ok: true, db: process.env.DB_NAME });\n});\n\napp.listen(port, () => console.log(`http://localhost:${port}`));",
+    "body": "The import must come before any module that reads the environment while loading, such as a connection pool created at import time. A pool built before dotenv runs sees `undefined` and falls back to defaults, which looks like a database outage.\n\nFor options use the function form: `dotenv.config({ path: '.env.local', override: true })`. `override` makes the file win over the shell."
+  },
+  {
+    "id": "node-env-read",
+    "group": "Environment",
+    "name": "process.env",
+    "syntax": "const port = Number(process.env.PORT) || 3000;",
+    "desc": "Reads an environment variable. Values are strings or undefined, so convert numbers and compare booleans explicitly.",
+    "example": "// Convert once, at the edge, then export typed values.\nconst port = Number(process.env.PORT || 3000);\nconst debug = process.env.DEBUG === 'true';   // \"false\" is a truthy string\n\nif (Number.isNaN(port)) {\n  throw new Error('PORT must be a number');\n}\n\nconsole.log({ port, debug, nodeEnv: process.env.NODE_ENV });",
+    "body": "`process.env.PORT` is the string `\"3000\"`, not the number. `Number(...)` or `parseInt(..., 10)` fixes arithmetic; a `||` fallback covers the missing case.\n\nA variable that is set to an empty string is not missing. `process.env.DB_PASSWORD || 'default'` treats both as missing, which is usually what you want for a password field."
+  },
+  {
+    "id": "node-env-files",
+    "group": "Environment",
+    "name": ".env and .env.example",
+    "syntax": "KEY=value",
+    "desc": "One key per line, no quotes needed for simple values. .env stays out of git; .env.example is committed with the same keys.",
+    "example": "# .env, local values, listed in .gitignore\nPORT=3000\nNODE_ENV=development\nCORS_ORIGIN=http://localhost:5173\nDB_HOST=localhost\nDB_PORT=3306\nDB_USER=root\nDB_PASSWORD=\nDB_NAME=bookings\n\n# .env.example, committed, same keys, no secret values\n# PORT=3000\n# DB_USER=\n# DB_PASSWORD=",
+    "body": "A `#` starts a comment at the start of a line or after whitespace, so a password containing `#` must be quoted. `NAME=Danube View` keeps the space; `NAME=\"Danube View\"` drops the quotes.\n\nWrite `.gitignore` before the first commit. Removing `.env` later does not remove the password from git history."
+  },
+  {
+    "id": "node-cors",
+    "group": "Security",
+    "name": "cors()",
+    "syntax": "app.use(cors({ origin: 'http://localhost:5173' }))",
+    "desc": "Lets a browser page from another origin read the API response. It is not authentication and does not stop curl.",
+    "example": "import express from 'express';\nimport cors from 'cors';\n\nconst app = express();\n\n// The React dev server runs on 5173, the API on 3000.\napp.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));\n\n// Open to every origin. Fine for a local exam, too broad for a real server.\n// app.use(cors());\n\napp.use(express.json({ limit: '100kb' }));\napp.get('/api/health', (request, response) => response.json({ ok: true }));\napp.listen(3000);",
+    "body": "The browser blocks a cross origin read unless the response carries `Access-Control-Allow-Origin`. `cors()` adds that header, and the middleware must be registered before the routes so it runs on every request including errors.\n\nCredentials change the setup: `cors({ origin: '...', credentials: true })` plus `fetch(url, { credentials: 'include' })` on the client. A wildcard origin cannot be combined with credentials."
+  },
+  {
+    "id": "node-npm-audit",
+    "group": "Security",
+    "name": "npm audit",
+    "syntax": "npm audit [fix]",
+    "desc": "Lists known vulnerabilities in the installed tree, read from the lockfile. npm audit fix updates inside the allowed ranges.",
+    "example": "# Report only. Exit code 1 when a vulnerability is found.\nnpm audit\n\n# Update packages within the existing semver ranges.\nnpm audit fix\n\n# Show what a forced major upgrade would change, without doing it.\nnpm audit fix --dry-run --force\n\n# Check one direct dependency and its tree.\nnpm ls express",
+    "body": "The report separates direct dependencies from transitive ones. A finding deep in the tree is usually fixed by updating the package that pulls it in, not by editing the lockfile by hand.\n\n`--force` crosses major versions, so run the app and the tests afterwards. Ten minutes before a deadline is the wrong moment for it."
+  }
+]

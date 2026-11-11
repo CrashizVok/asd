@@ -1,13 +1,13 @@
 # useRef
 
-React command · Hooks
+React command · Refs
 
-Holds a value between renders without causing a re-render. Use it for DOM nodes, timers, or the previous value.
+Returns a stable object with one mutable field, current. Writing current does not re-render, so it fits DOM nodes and values that must survive renders.
 
 ## Syntax
 
 ```jsx
-const ref = useRef(null);
+const ref = useRef(initialValue);
 ```
 
 ## Example
@@ -16,13 +16,22 @@ const ref = useRef(null);
 import { useRef } from "react";
 
 function SearchBox() {
+  // Data shape: { current: null } until the input is committed.
   const inputRef = useRef(null);
 
   return (
     <>
-      <input ref={inputRef} />
-      <button onClick={() => inputRef.current.focus()}>Focus</button>
+      <input ref={inputRef} placeholder="Search hotels" />
+      <button onClick={() => inputRef.current?.focus()}>
+        Focus the field
+      </button>
     </>
   );
 }
 ```
+
+## Details
+
+The same object comes back on every render. React fills `current` with the DOM node after the commit and clears it to `null` when the node leaves the page.
+
+Do not read `ref.current` during render. Use an effect, a callback ref, or an event handler.

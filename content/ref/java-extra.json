@@ -1,0 +1,194 @@
+[
+  {
+    "id": "java-extra-arraylist-basics",
+    "group": "Collections",
+    "name": "ArrayList add, get, size",
+    "syntax": "new ArrayList<>()",
+    "desc": "A resizable array. add appends, get reads by index in constant time, and contains uses equals.",
+    "example": "// File: HotelList.java\nimport java.util.ArrayList;\n\npublic class HotelList {\n    public static void main(String[] args) {\n        ArrayList<String> hotels = new ArrayList<>();\n        hotels.add(\"Danube View\");\n        hotels.add(\"City Loft\");\n        hotels.add(\"Lake Garden\");\n\n        System.out.println(hotels.get(1)); // City Loft\n        System.out.println(hotels.size()); // 3\n\n        // contains() calls equals, so casing matters\n        System.out.println(hotels.contains(\"city loft\")); // false\n\n        // set replaces, add(index, value) shifts the rest right\n        hotels.set(0, \"Danube View Spa\");\n        hotels.add(1, \"Bridge Inn\");\n        System.out.println(hotels); // [Danube View Spa, Bridge Inn, City Loft, Lake Garden]\n    }\n}"
+  },
+  {
+    "id": "java-extra-arraylist-removeif",
+    "group": "Collections",
+    "name": "ArrayList removeIf",
+    "syntax": "list.removeIf(item -> condition)",
+    "desc": "Removes every element that matches the predicate in one pass. It is safer than removing inside a for each loop.",
+    "example": "// File: Cleanup.java\nimport java.util.ArrayList;\nimport java.util.List;\n\npublic class Cleanup {\n    public static void main(String[] args) {\n        List<String> emails = new ArrayList<>(List.of(\n            \"anna@example.com\",\n            \"bela@test.org\",\n            \"csilla@example.com\"\n        ));\n\n        // The predicate decides what leaves the list\n        emails.removeIf(email -> email.endsWith(\"@example.com\"));\n        System.out.println(emails); // [bela@test.org]\n\n        // Removing inside a for each loop throws ConcurrentModificationException,\n        // removeIf exists to avoid that trap\n    }\n}"
+  },
+  {
+    "id": "java-extra-hashmap-getdefault",
+    "group": "Collections",
+    "name": "HashMap getOrDefault",
+    "syntax": "map.getOrDefault(key, fallback)",
+    "desc": "Returns the mapped value or the fallback when the key is absent. It removes the null check after get.",
+    "example": "// File: Stock.java\nimport java.util.HashMap;\nimport java.util.Map;\n\npublic class Stock {\n    public static void main(String[] args) {\n        Map<String, Integer> stock = new HashMap<>();\n        stock.put(\"single\", 4);\n        stock.put(\"double\", 0);\n\n        // get() would return null for a missing key and unboxing would throw\n        int singles = stock.getOrDefault(\"single\", 0);\n        int suites = stock.getOrDefault(\"suite\", 0);\n        System.out.println(singles); // 4\n        System.out.println(suites);  // 0\n\n        // A stored zero is returned as zero, not as the fallback\n        System.out.println(stock.getOrDefault(\"double\", 99)); // 0\n    }\n}"
+  },
+  {
+    "id": "java-extra-hashmap-computeifabsent",
+    "group": "Collections",
+    "name": "HashMap computeIfAbsent",
+    "syntax": "map.computeIfAbsent(key, key -> new Value())",
+    "desc": "Creates and stores a value only when the key is missing, then returns it. It removes the get, null check, put sequence.",
+    "example": "// File: GroupByCity.java\nimport java.util.ArrayList;\nimport java.util.HashMap;\nimport java.util.List;\nimport java.util.Map;\n\npublic class GroupByCity {\n    public static void main(String[] args) {\n        Map<String, List<String>> byCity = new HashMap<>();\n\n        // The lambda runs only on the first hotel for each city\n        byCity.computeIfAbsent(\"Budapest\", key -> new ArrayList<>()).add(\"Danube View\");\n        byCity.computeIfAbsent(\"Eger\", key -> new ArrayList<>()).add(\"Valley Inn\");\n        byCity.computeIfAbsent(\"Budapest\", key -> new ArrayList<>()).add(\"City Loft\");\n\n        System.out.println(byCity.get(\"Budapest\")); // [Danube View, City Loft]\n        System.out.println(byCity.get(\"Eger\"));     // [Valley Inn]\n    }\n}"
+  },
+  {
+    "id": "java-extra-hashset",
+    "group": "Collections",
+    "name": "HashSet add and contains",
+    "syntax": "new HashSet<>()",
+    "desc": "Stores unique values with no order. add returns false when the value was already present, which makes it a duplicate check.",
+    "example": "// File: UniqueCities.java\nimport java.util.HashSet;\nimport java.util.Set;\n\npublic class UniqueCities {\n    public static void main(String[] args) {\n        Set<String> cities = new HashSet<>();\n\n        System.out.println(cities.add(\"Budapest\")); // true\n        System.out.println(cities.add(\"Eger\"));     // true\n        System.out.println(cities.add(\"Budapest\")); // false, already there\n\n        System.out.println(cities.size());           // 2\n        System.out.println(cities.contains(\"Eger\")); // true\n\n        // Iteration order of a HashSet is not the insertion order\n        for (String city : cities) {\n            System.out.println(city);\n        }\n    }\n}"
+  },
+  {
+    "id": "java-extra-treemap",
+    "group": "Collections",
+    "name": "TreeMap sorted keys",
+    "syntax": "new TreeMap<>()",
+    "desc": "A map that keeps its keys sorted. firstKey, lastKey, and headMap come from that order and HashMap cannot offer them.",
+    "example": "// File: SortedScores.java\nimport java.util.Map;\nimport java.util.TreeMap;\n\npublic class SortedScores {\n    public static void main(String[] args) {\n        Map<String, Integer> scores = new TreeMap<>();\n        scores.put(\"csilla\", 88);\n        scores.put(\"anna\", 95);\n        scores.put(\"bela\", 71);\n\n        // Iteration follows the natural order of the keys\n        for (Map.Entry<String, Integer> entry : scores.entrySet()) {\n            System.out.println(entry.getKey() + \" -> \" + entry.getValue());\n        }\n\n        System.out.println(scores.firstKey()); // anna\n        System.out.println(scores.lastKey());  // csilla\n\n        // headMap is exclusive of the bound, subMap is half open\n        System.out.println(scores.headMap(\"csilla\")); // {anna=95, bela=71}\n    }\n}"
+  },
+  {
+    "id": "java-extra-list-sort",
+    "group": "Collections",
+    "name": "List.sort",
+    "syntax": "list.sort(comparator)",
+    "desc": "Sorts the list in place. It works on any List, including ArrayList, and replaces Collections.sort for lists.",
+    "example": "// File: SortCities.java\nimport java.util.ArrayList;\nimport java.util.Comparator;\nimport java.util.List;\n\npublic class SortCities {\n    public static void main(String[] args) {\n        List<String> cities = new ArrayList<>(List.of(\"Eger\", \"Budapest\", \"Gyor\"));\n\n        // Natural order uses compareTo of String\n        cities.sort(Comparator.naturalOrder());\n        System.out.println(cities); // [Budapest, Eger, Gyor]\n\n        // Reversed order needs the explicit comparator\n        cities.sort(Comparator.reverseOrder());\n        System.out.println(cities); // [Gyor, Eger, Budapest]\n\n        // Unmodifiable lists from List.of cannot be sorted, copy them first\n    }\n}"
+  },
+  {
+    "id": "java-extra-comparator-comparing",
+    "group": "Collections",
+    "name": "Comparator.comparing",
+    "syntax": "Comparator.comparing(Type::getter).thenComparing(Type::getter)",
+    "desc": "Builds a comparator from a key extractor. Chain thenComparing for a second key and reversed for descending order.",
+    "example": "// File: HotelSort.java\nimport java.util.ArrayList;\nimport java.util.Comparator;\nimport java.util.List;\n\npublic class HotelSort {\n    record Hotel(String name, int stars, String city) {}\n\n    public static void main(String[] args) {\n        List<Hotel> hotels = new ArrayList<>(List.of(\n            new Hotel(\"Lake Garden\", 3, \"Eger\"),\n            new Hotel(\"City Loft\", 5, \"Budapest\"),\n            new Hotel(\"Danube View\", 5, \"Budapest\")\n        ));\n\n        // Highest stars first, then name A to Z\n        hotels.sort(\n            Comparator.comparingInt(Hotel::stars)\n                      .reversed()\n                      .thenComparing(Hotel::name)\n        );\n\n        hotels.forEach(hotel -> System.out.println(hotel.name()));\n        // City Loft, Danube View, Lake Garden\n    }\n}"
+  },
+  {
+    "id": "java-extra-stream-filter-map",
+    "group": "Streams",
+    "name": "Stream filter and map",
+    "syntax": "list.stream().filter(predicate).map(function).toList()",
+    "desc": "Builds a pipeline: filter keeps matching items, map transforms them, and toList collects the result.",
+    "example": "// File: HotelStream.java\nimport java.util.List;\n\npublic class HotelStream {\n    record Hotel(String name, int stars) {}\n\n    public static void main(String[] args) {\n        List<Hotel> hotels = List.of(\n            new Hotel(\"Danube View\", 4),\n            new Hotel(\"City Loft\", 5),\n            new Hotel(\"Lake Garden\", 3)\n        );\n\n        // The stream does not change the source list\n        List<String> topNames = hotels.stream()\n            .filter(hotel -> hotel.stars() >= 4)\n            .map(Hotel::name)\n            .toList();\n\n        System.out.println(topNames); // [Danube View, City Loft]\n\n        // count() and anyMatch short circuit work on the same pipeline\n        long top = hotels.stream().filter(hotel -> hotel.stars() == 5).count();\n        System.out.println(top); // 1\n    }\n}"
+  },
+  {
+    "id": "java-extra-collectors-groupingby",
+    "group": "Streams",
+    "name": "Collectors.groupingBy",
+    "syntax": "stream.collect(Collectors.groupingBy(classifier))",
+    "desc": "Collects items into a Map keyed by the classifier result. A second collector can count or sum within each group.",
+    "example": "// File: GroupHotels.java\nimport java.util.List;\nimport java.util.Map;\nimport java.util.stream.Collectors;\n\npublic class GroupHotels {\n    record Hotel(String name, String city, int stars) {}\n\n    public static void main(String[] args) {\n        List<Hotel> hotels = List.of(\n            new Hotel(\"Danube View\", \"Budapest\", 4),\n            new Hotel(\"City Loft\", \"Budapest\", 5),\n            new Hotel(\"Valley Inn\", \"Eger\", 3)\n        );\n\n        Map<String, List<Hotel>> byCity = hotels.stream()\n            .collect(Collectors.groupingBy(Hotel::city));\n        System.out.println(byCity.get(\"Budapest\").size()); // 2\n\n        // Downstream collector counts instead of listing\n        Map<String, Long> countByCity = hotels.stream()\n            .collect(Collectors.groupingBy(Hotel::city, Collectors.counting()));\n        System.out.println(countByCity); // {Budapest=2, Eger=1}\n    }\n}"
+  },
+  {
+    "id": "java-extra-collectors-joining",
+    "group": "Streams",
+    "name": "Collectors.joining",
+    "syntax": "stream.collect(Collectors.joining(delimiter, prefix, suffix))",
+    "desc": "Joins stream elements into one string with a delimiter, plus optional prefix and suffix. Elements must already be strings.",
+    "example": "// File: JoinNames.java\nimport java.util.List;\nimport java.util.stream.Collectors;\n\npublic class JoinNames {\n    public static void main(String[] args) {\n        List<String> names = List.of(\"Danube View\", \"City Loft\", \"Lake Garden\");\n\n        System.out.println(names.stream().collect(Collectors.joining(\", \")));\n        // Danube View, City Loft, Lake Garden\n\n        // Prefix and suffix are useful for SQL lists and CSV lines\n        String quoted = names.stream()\n            .map(name -> \"'\" + name + \"'\")\n            .collect(Collectors.joining(\", \", \"(\", \")\"));\n        System.out.println(quoted); // ('Danube View', 'City Loft', 'Lake Garden')\n\n        // An empty stream still returns the prefix and suffix\n        System.out.println(List.<String>of().stream().collect(Collectors.joining(\", \", \"[\", \"]\")));\n        // []\n    }\n}"
+  },
+  {
+    "id": "java-extra-optional",
+    "group": "Core",
+    "name": "Optional map and orElse",
+    "syntax": "Optional.ofNullable(value).map(fn).orElse(fallback)",
+    "desc": "Represents a value that may be missing. map transforms only when present, orElse supplies the fallback.",
+    "example": "// File: FindHotel.java\nimport java.util.List;\nimport java.util.Optional;\n\npublic class FindHotel {\n    record Hotel(String name, int stars) {}\n\n    public static void main(String[] args) {\n        List<Hotel> hotels = List.of(\n            new Hotel(\"Danube View\", 4),\n            new Hotel(\"City Loft\", 5)\n        );\n\n        Optional<Hotel> fiveStar = hotels.stream()\n            .filter(hotel -> hotel.stars() == 5)\n            .findFirst();\n\n        // map runs only when a value is present\n        String name = fiveStar.map(Hotel::name).orElse(\"no hotel\");\n        System.out.println(name); // City Loft\n\n        // orElseThrow is the safer choice when the value is required\n        Hotel hotel = fiveStar.orElseThrow(() -> new IllegalStateException(\"missing\"));\n        System.out.println(hotel.name());\n\n        // Do not call get() without isPresent(), Optional exists to avoid that\n    }\n}"
+  },
+  {
+    "id": "java-extra-stringbuilder",
+    "group": "Core",
+    "name": "StringBuilder",
+    "syntax": "new StringBuilder().append(value).toString()",
+    "desc": "Builds a string with mutable buffers. Concatenation in a loop creates a new String each time, append does not.",
+    "example": "// File: BuildCsv.java\nimport java.util.List;\n\npublic class BuildCsv {\n    public static void main(String[] args) {\n        List<String> cities = List.of(\"Budapest\", \"Eger\", \"Gyor\");\n\n        StringBuilder builder = new StringBuilder();\n        builder.append(\"city\").append(',').append(\"index\").append(System.lineSeparator());\n\n        for (int i = 0; i < cities.size(); i++) {\n            // append returns the builder, so calls can chain\n            builder.append(cities.get(i)).append(',').append(i).append(System.lineSeparator());\n        }\n\n        String csv = builder.toString();\n        System.out.print(csv);\n\n        // insert and delete work in place, no new object is created\n        builder.insert(0, \"# \");\n        System.out.println(builder.substring(0, 2)); // \"# \"\n        System.out.println(builder.length());\n    }\n}"
+  },
+  {
+    "id": "java-extra-files-readstring",
+    "group": "File IO",
+    "name": "Files.readString",
+    "syntax": "Files.readString(Path.of(\"file\"))",
+    "desc": "Reads a whole file into one String as UTF-8. It is the shortest option for configuration and small data files.",
+    "example": "// File: ReadConfig.java\nimport java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.List;\n\npublic class ReadConfig {\n    public static void main(String[] args) throws IOException {\n        Path path = Path.of(\"data\", \"hotels.csv\");\n\n        // UTF-8 is the default, pass a Charset to change it\n        String text = Files.readString(path);\n\n        // lines() splits on line breaks without a regex\n        List<String> rows = text.lines().toList();\n        System.out.println(rows.size());\n\n        // A missing file throws NoSuchFileException, catch it or declare it\n    }\n}"
+  },
+  {
+    "id": "java-extra-files-readalllines",
+    "group": "File IO",
+    "name": "Files.readAllLines",
+    "syntax": "Files.readAllLines(Path.of(\"file\"))",
+    "desc": "Reads a file into a List of lines with the line breaks removed. Convenient for CSV or log files that fit in memory.",
+    "example": "// File: ReadCsv.java\nimport java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.List;\n\npublic class ReadCsv {\n    public static void main(String[] args) throws IOException {\n        Path path = Path.of(\"data\", \"hotels.csv\");\n        List<String> lines = Files.readAllLines(path);\n\n        // The first line is usually the header\n        System.out.println(lines.get(0));\n\n        // The first split argument is a regex, escape dots and pipes\n        for (String line : lines.subList(1, lines.size())) {\n            String[] cells = line.split(\",\");\n            System.out.println(cells[0] + \" -> \" + cells[1]);\n        }\n    }\n}"
+  },
+  {
+    "id": "java-extra-files-write",
+    "group": "File IO",
+    "name": "Files.writeString",
+    "syntax": "Files.writeString(Path.of(\"file\"), text)",
+    "desc": "Writes a String to a file in one call, creating or truncating the file. Options add append and create behaviour.",
+    "example": "// File: WriteReport.java\nimport java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.nio.file.StandardOpenOption;\n\npublic class WriteReport {\n    public static void main(String[] args) throws IOException {\n        Path path = Path.of(\"out\", \"report.txt\");\n        Files.createDirectories(path.getParent());\n\n        // Default options create or truncate the file\n        Files.writeString(path, \"hotels\" + System.lineSeparator());\n\n        // APPEND keeps the existing content\n        Files.writeString(path, \"Danube View\" + System.lineSeparator(),\n            StandardOpenOption.APPEND);\n\n        System.out.println(Files.readString(path));\n        // hotels\n        // Danube View\n    }\n}"
+  },
+  {
+    "id": "java-extra-bufferedreader",
+    "group": "File IO",
+    "name": "BufferedReader readLine",
+    "syntax": "try (BufferedReader reader = Files.newBufferedReader(path))",
+    "desc": "Reads a file line by line with a buffer. It returns null at the end and does not hold the whole file in memory.",
+    "example": "// File: CountRows.java\nimport java.io.BufferedReader;\nimport java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\npublic class CountRows {\n    public static void main(String[] args) throws IOException {\n        Path path = Path.of(\"data\", \"hotels.csv\");\n        int rows = 0;\n\n        // try with resources closes the reader even when readLine throws\n        try (BufferedReader reader = Files.newBufferedReader(path)) {\n            String line;\n            while ((line = reader.readLine()) != null) {\n                if (!line.isBlank()) rows++;\n            }\n        }\n\n        // The header counts too, subtract one when you need data rows only\n        System.out.println(rows);\n    }\n}"
+  },
+  {
+    "id": "java-extra-bufferedwriter",
+    "group": "File IO",
+    "name": "BufferedWriter newLine",
+    "syntax": "try (BufferedWriter writer = Files.newBufferedWriter(path))",
+    "desc": "Writes text line by line with a buffer. newLine uses the platform separator, unlike a hardcoded backslash n.",
+    "example": "// File: ExportCsv.java\nimport java.io.BufferedWriter;\nimport java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.List;\n\npublic class ExportCsv {\n    public static void main(String[] args) throws IOException {\n        List<String> cities = List.of(\"Budapest\", \"Eger\", \"Gyor\");\n        Path path = Path.of(\"out\", \"cities.csv\");\n        Files.createDirectories(path.getParent());\n\n        try (BufferedWriter writer = Files.newBufferedWriter(path)) {\n            writer.write(\"city\");\n            writer.newLine();\n            for (String city : cities) {\n                writer.write(city);\n                writer.newLine();\n            }\n        }\n\n        System.out.println(Files.readAllLines(path).size()); // 4\n    }\n}"
+  },
+  {
+    "id": "java-extra-path-resolve",
+    "group": "File IO",
+    "name": "Path.resolve",
+    "syntax": "Path.of(\"base\").resolve(\"file\")",
+    "desc": "Joins path parts without string concatenation. resolve returns the second path when it is absolute, and normalize removes dot segments.",
+    "example": "// File: PathDemo.java\nimport java.nio.file.Path;\n\npublic class PathDemo {\n    public static void main(String[] args) {\n        Path base = Path.of(\"data\", \"2026\");\n\n        // resolve joins, it does not check that the file exists\n        Path file = base.resolve(\"hotels.csv\");\n        System.out.println(file); // data/2026/hotels.csv\n\n        // An absolute argument replaces the base entirely\n        System.out.println(base.resolve(Path.of(\"/tmp/x.csv\"))); // /tmp/x.csv\n\n        // normalize removes . and .. without touching the disk\n        System.out.println(Path.of(\"data/./2026/../2026/hotels.csv\").normalize());\n        // data/2026/hotels.csv\n\n        System.out.println(file.getFileName());    // hotels.csv\n        System.out.println(file.getParent());      // data/2026\n    }\n}"
+  },
+  {
+    "id": "java-extra-files-walk",
+    "group": "File IO",
+    "name": "Files.walk",
+    "syntax": "Files.walk(Path.of(\"dir\"))",
+    "desc": "Streams every path below a directory. The stream holds an open directory handle, so close it with try with resources.",
+    "example": "// File: FindCsv.java\nimport java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.List;\nimport java.util.stream.Stream;\n\npublic class FindCsv {\n    public static void main(String[] args) throws IOException {\n        Path root = Path.of(\"data\");\n\n        try (Stream<Path> paths = Files.walk(root)) {\n            List<Path> csvFiles = paths\n                .filter(Files::isRegularFile)\n                .filter(path -> path.toString().endsWith(\".csv\"))\n                .toList();\n\n            csvFiles.forEach(System.out::println);\n        }\n\n        // Files.list is the shallow version, Files.find adds a depth filter\n    }\n}"
+  },
+  {
+    "id": "java-extra-localdate",
+    "group": "Date and time",
+    "name": "LocalDate parse and plusDays",
+    "syntax": "LocalDate.parse(\"2026-05-01\")",
+    "desc": "A date without time or zone. parse expects ISO format, plusDays and ChronoUnit handle date arithmetic.",
+    "example": "// File: BookingDates.java\nimport java.time.LocalDate;\nimport java.time.temporal.ChronoUnit;\n\npublic class BookingDates {\n    public static void main(String[] args) {\n        LocalDate start = LocalDate.parse(\"2026-05-01\");\n        LocalDate end = start.plusDays(7);\n\n        System.out.println(end); // 2026-05-08\n        System.out.println(start.isBefore(end)); // true\n\n        // between counts whole days, end minus start\n        long nights = ChronoUnit.DAYS.between(start, end);\n        System.out.println(nights); // 7\n\n        // LocalDate is immutable, plusDays returns a new object\n        System.out.println(start); // 2026-05-01\n    }\n}"
+  },
+  {
+    "id": "java-extra-datetimeformatter",
+    "group": "Date and time",
+    "name": "DateTimeFormatter",
+    "syntax": "DateTimeFormatter.ofPattern(\"dd/MM/yyyy\")",
+    "desc": "Formats and parses dates with a pattern. Store the formatter in a static field because it is immutable and thread safe.",
+    "example": "// File: FormatDate.java\nimport java.time.LocalDate;\nimport java.time.format.DateTimeFormatter;\n\npublic class FormatDate {\n    // Pattern letters: dd day, MM month, yyyy year, HH hour, mm minute\n    private static final DateTimeFormatter DISPLAY =\n        DateTimeFormatter.ofPattern(\"dd/MM/yyyy\");\n\n    public static void main(String[] args) {\n        LocalDate start = LocalDate.parse(\"2026-05-01\");\n\n        System.out.println(start.format(DISPLAY)); // 01/05/2026\n\n        // Parsing needs the same pattern, not the ISO default\n        LocalDate parsed = LocalDate.parse(\"31/12/2026\", DISPLAY);\n        System.out.println(parsed.getYear()); // 2026\n\n        // ofPattern throws DateTimeParseException on a bad input\n    }\n}"
+  },
+  {
+    "id": "java-extra-try-with-resources",
+    "group": "Core",
+    "name": "try with resources",
+    "syntax": "try (Resource resource = new Resource()) { ... }",
+    "desc": "Closes every resource that implements AutoCloseable, in reverse order, even when the body throws. It replaces the finally block.",
+    "example": "// File: CopyFile.java\nimport java.io.BufferedReader;\nimport java.io.BufferedWriter;\nimport java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\npublic class CopyFile {\n    public static void main(String[] args) throws IOException {\n        Path source = Path.of(\"data\", \"hotels.csv\");\n        Path target = Path.of(\"out\", \"hotels.csv\");\n        Files.createDirectories(target.getParent());\n\n        // Both resources are declared in one try, writer closes first\n        try (BufferedReader reader = Files.newBufferedReader(source);\n             BufferedWriter writer = Files.newBufferedWriter(target)) {\n\n            String line;\n            while ((line = reader.readLine()) != null) {\n                writer.write(line);\n                writer.newLine();\n            }\n        }\n\n        // The catch block can read the suppressed exception\n        // when both the body and close() fail\n    }\n}"
+  },
+  {
+    "id": "java-extra-record",
+    "group": "Core",
+    "name": "record",
+    "syntax": "public record Hotel(String name, int stars) {}",
+    "desc": "A compact immutable data class. The compiler generates the constructor, accessors, equals, hashCode, and toString.",
+    "example": "// File: Hotel.java\npublic record Hotel(String name, String city, int stars) {\n\n    // A compact constructor validates without repeating the fields\n    public Hotel {\n        if (stars < 1 || stars > 5) {\n            throw new IllegalArgumentException(\"stars must be 1 to 5\");\n        }\n        name = name.trim();\n    }\n\n    // Extra methods are allowed, extra instance fields are not\n    public boolean isTop() {\n        return stars >= 4;\n    }\n\n    public static void main(String[] args) {\n        Hotel hotel = new Hotel(\" Danube View \", \"Budapest\", 5);\n        System.out.println(hotel.name());   // Danube View, accessor is name()\n        System.out.println(hotel.isTop());  // true\n        System.out.println(hotel);          // Hotel[name=Danube View, city=Budapest, stars=5]\n    }\n}"
+  }
+]

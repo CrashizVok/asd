@@ -1,0 +1,142 @@
+[
+  {
+    "id": "react-useref",
+    "group": "Refs",
+    "name": "useRef",
+    "syntax": "const ref = useRef(initialValue);",
+    "desc": "Returns a stable object with one mutable field, current. Writing current does not re-render, so it fits DOM nodes and values that must survive renders.",
+    "example": "import { useRef } from \"react\";\n\nfunction SearchBox() {\n  // Data shape: { current: null } until the input is committed.\n  const inputRef = useRef(null);\n\n  return (\n    <>\n      <input ref={inputRef} placeholder=\"Search hotels\" />\n      <button onClick={() => inputRef.current?.focus()}>\n        Focus the field\n      </button>\n    </>\n  );\n}",
+    "body": "The same object comes back on every render. React fills `current` with the DOM node after the commit and clears it to `null` when the node leaves the page.\n\nDo not read `ref.current` during render. Use an effect, a callback ref, or an event handler."
+  },
+  {
+    "id": "react-useref-dom",
+    "group": "Refs",
+    "name": "ref on a DOM element",
+    "syntax": "<input ref={inputRef} />",
+    "desc": "Attaches a host element to a ref. React sets current after commit and resets it to null on unmount.",
+    "example": "import { useEffect, useRef } from \"react\";\n\nfunction AutoFocusField() {\n  const fieldRef = useRef(null);\n\n  useEffect(() => {\n    // The effect runs after the input exists, so the node is not null here.\n    const field = fieldRef.current;\n    if (!field) return;\n\n    field.focus();\n    field.select();\n  }, []);\n\n  return <input ref={fieldRef} defaultValue=\"Budapest\" />;\n}"
+  },
+  {
+    "id": "react-useref-mutable",
+    "group": "Refs",
+    "name": "mutable instance value",
+    "syntax": "const flagRef = useRef(false);",
+    "desc": "Keeps a value for the life of the component without causing renders. Use it for flags, request ids, and animation handles.",
+    "example": "import { useRef } from \"react\";\n\nfunction SaveButton({ onSave }) {\n  // Data shape: false, or true once a save has started.\n  const savingRef = useRef(false);\n\n  async function handleClick() {\n    if (savingRef.current) return; // ignore a second click\n    savingRef.current = true;\n\n    try {\n      await onSave();\n    } finally {\n      // Always release the flag, even when the request fails.\n      savingRef.current = false;\n    }\n  }\n\n  return <button onClick={handleClick}>Save</button>;\n}"
+  },
+  {
+    "id": "react-useref-no-rerender",
+    "group": "Refs",
+    "name": "ref write does not render",
+    "syntax": "ref.current = nextValue;",
+    "desc": "A ref assignment is a plain property write. React does not track it, so the screen only updates when something else renders.",
+    "example": "import { useRef, useState } from \"react\";\n\nfunction ClickCounter() {\n  const clicksRef = useRef(0);\n  const [renders, setRenders] = useState(0);\n\n  return (\n    <section>\n      <button\n        onClick={() => {\n          clicksRef.current += 1;\n          console.log(clicksRef.current); // updates immediately\n        }}\n      >\n        Log a click\n      </button>\n\n      <button onClick={() => setRenders((value) => value + 1)}>\n        Render\n      </button>\n\n      {/* This number looks stale until another render happens. */}\n      <p>Clicks in ref: {clicksRef.current}</p>\n      <p>Renders: {renders}</p>\n    </section>\n  );\n}",
+    "body": "If the number must change on screen at the moment of the click, it belongs in state. A ref is for values the user does not see, or for values that another render will display later."
+  },
+  {
+    "id": "react-useref-initial",
+    "group": "Refs",
+    "name": "initial value",
+    "syntax": "useRef(initialValue)",
+    "desc": "The argument is evaluated on every render but only the first result is kept. A function argument is stored, not called.",
+    "example": "import { useRef } from \"react\";\n\nfunction Index({ rows }) {\n  // Wrong: buildIndex(rows) runs on every render, result discarded.\n  // const indexRef = useRef(buildIndex(rows));\n\n  // Right: build once, on the first render that needs the index.\n  const indexRef = useRef(null);\n  if (indexRef.current === null) {\n    indexRef.current = buildIndex(rows);\n  }\n\n  // useRef does not call a function argument, it stores it.\n  const callbackRef = useRef(() => rows.length);\n  console.log(typeof callbackRef.current); // \"function\"\n\n  return null;\n}\n\nfunction buildIndex(rows) {\n  return new Map(rows.map((row) => [row.hotel_id, row]));\n}"
+  },
+  {
+    "id": "react-useref-timer",
+    "group": "Timers",
+    "name": "timer id",
+    "syntax": "const idRef = useRef(null);",
+    "desc": "Stores the id from setInterval or setTimeout across renders so the same timer can be cleared. Reset it to null after clearing.",
+    "example": "import { useEffect, useRef, useState } from \"react\";\n\nfunction Ticker() {\n  // Data shape: null, or the number returned by setInterval.\n  const idRef = useRef(null);\n  const [seconds, setSeconds] = useState(0);\n\n  function start() {\n    if (idRef.current !== null) return;\n\n    idRef.current = setInterval(() => {\n      setSeconds((value) => value + 1);\n    }, 1000);\n  }\n\n  function stop() {\n    if (idRef.current === null) return;\n\n    clearInterval(idRef.current);\n    idRef.current = null; // a later stop must not clear a reused id\n  }\n\n  useEffect(() => stop, []); // cleanup on unmount\n\n  return (\n    <>\n      <p>{seconds} s</p>\n      <button onClick={start}>Start</button>\n      <button onClick={stop}>Stop</button>\n    </>\n  );\n}",
+    "body": "In StrictMode the effect mounts, unmounts, and mounts again in development. Without this cleanup you would see two intervals and a clock that runs twice as fast. The cleanup is required in production too, where route changes unmount the component for real."
+  },
+  {
+    "id": "react-useref-previous",
+    "group": "Patterns",
+    "name": "previous value",
+    "syntax": "const previous = usePrevious(value);",
+    "desc": "Keeps the value from the previous render in a ref. The effect updates the ref after the render that used the new value.",
+    "example": "import { useEffect, useRef, useState } from \"react\";\n\nfunction usePrevious(value) {\n  const previousRef = useRef(undefined);\n\n  useEffect(() => {\n    previousRef.current = value;\n  }, [value]);\n\n  return previousRef.current;\n}\n\nfunction CityFilter() {\n  const [city, setCity] = useState(\"Budapest\");\n  const previousCity = usePrevious(city);\n\n  return (\n    <section>\n      <input value={city} onChange={(event) => setCity(event.target.value)} />\n      <p>Now: {city}</p>\n      <p>Before: {previousCity ?? \"(none)\"}</p>\n    </section>\n  );\n}",
+    "body": "On the first render the hook returns `undefined`, because no earlier value exists. Do not update the ref in the component body to get the value one render sooner: a render can run twice or be discarded, and the ref would then hold a value the user never saw."
+  },
+  {
+    "id": "react-useref-focus",
+    "group": "DOM",
+    "name": "focus after render",
+    "syntax": "inputRef.current?.focus()",
+    "desc": "Moves keyboard focus to a field after React inserts it. Guard against null because the node may already be gone.",
+    "example": "import { useEffect, useRef, useState } from \"react\";\n\nfunction LoginForm() {\n  const emailRef = useRef(null);\n  const [error, setError] = useState(\"\");\n\n  useEffect(() => {\n    // Focus again whenever a new error appears.\n    if (error) emailRef.current?.focus();\n  }, [error]);\n\n  function handleSubmit(event) {\n    event.preventDefault();\n    const email = event.target.customer_email.value;\n\n    if (!email.includes(\"@\")) {\n      setError(\"Enter a valid email address.\");\n      return;\n    }\n\n    setError(\"\");\n  }\n\n  return (\n    <form onSubmit={handleSubmit}>\n      <input ref={emailRef} name=\"customer_email\" />\n      {error && <p role=\"alert\">{error}</p>}\n      <button>Sign in</button>\n    </form>\n  );\n}"
+  },
+  {
+    "id": "react-useref-scroll",
+    "group": "DOM",
+    "name": "scroll to an element",
+    "syntax": "elementRef.current?.scrollIntoView(options)",
+    "desc": "Scrolls a node into view after it is committed. Use a marker ref at the end of a list for a chat style auto scroll.",
+    "example": "import { useEffect, useRef } from \"react\";\n\nfunction MessageList({ messages }) {\n  // Marker placed after the last message.\n  const endRef = useRef(null);\n\n  useEffect(() => {\n    // Runs after the new message is in the DOM.\n    endRef.current?.scrollIntoView({ block: \"end\", behavior: \"smooth\" });\n  }, [messages.length]);\n\n  return (\n    <div className=\"messages\">\n      {messages.map((message) => (\n        <p key={message.id}>{message.text}</p>\n      ))}\n      <div ref={endRef} />\n    </div>\n  );\n}",
+    "body": "For a scroll container, `container.scrollTop = container.scrollHeight` is the alternative when you also need to read the old position and decide whether the user was at the bottom.\n\nUse `useLayoutEffect` instead of `useEffect` when the jump must happen before the browser paints."
+  },
+  {
+    "id": "react-useref-video",
+    "group": "DOM",
+    "name": "video control",
+    "syntax": "videoRef.current?.play()",
+    "desc": "Controls a media element through its DOM methods. play returns a promise, so handle a rejected autoplay attempt.",
+    "example": "import { useRef } from \"react\";\n\nfunction Clip({ src }) {\n  const videoRef = useRef(null);\n\n  async function play() {\n    try {\n      await videoRef.current?.play();\n    } catch (error) {\n      // Autoplay policy or a source that is not ready yet.\n      console.log(\"play failed\", error.name);\n    }\n  }\n\n  return (\n    <>\n      <video ref={videoRef} src={src} muted playsInline preload=\"metadata\" />\n      <button onClick={play}>Play</button>\n      <button onClick={() => videoRef.current?.pause()}>Pause</button>\n      <button\n        onClick={() => {\n          if (videoRef.current) videoRef.current.currentTime = 0;\n        }}\n      >\n        Restart\n      </button>\n    </>\n  );\n}",
+    "body": "Read `currentTime` and `duration` from the element in a `timeupdate` handler when you need a progress bar. Do not drive playback from React state on every frame.\n\n`muted` is what makes autoplay possible in most browsers. `requestFullscreen()` must be called from a user gesture."
+  },
+  {
+    "id": "react-useref-callback-ref",
+    "group": "Advanced",
+    "name": "callback ref",
+    "syntax": "ref={(node) => { /* store node */ }}",
+    "desc": "A function ref receives the node on attach and null on detach. Runs at commit time, so layout reads are safe there.",
+    "example": "import { useCallback, useState } from \"react\";\n\nfunction MeasuredBox() {\n  const [height, setHeight] = useState(0);\n\n  // Stable identity, otherwise React detaches and reattaches each render.\n  const measure = useCallback((node) => {\n    if (!node) return;\n    setHeight(node.getBoundingClientRect().height);\n  }, []);\n\n  return (\n    <section>\n      <div ref={measure} className=\"box\">\n        Content with an unknown height\n      </div>\n      <p>Height: {height} px</p>\n    </section>\n  );\n}",
+    "body": "An inline arrow is a new function on every render, so React calls the old ref with `null` and the new one with the node. That is fine for a measurement and wrong for a subscription.\n\nOn React 19 a callback ref may return a cleanup function. An assignment expression such as `ref={(node) => (map.current[id] = node)}` returns the node, which React treats as a cleanup. Use braces to return undefined."
+  },
+  {
+    "id": "react-useref-cleanup",
+    "group": "Refs",
+    "name": "ref cleanup",
+    "syntax": "return () => { ref.current = null; };",
+    "desc": "Cleans up timers, frames, listeners, and observers created around a ref. React clears DOM refs itself, but not the work you started.",
+    "example": "import { useEffect, useRef } from \"react\";\n\nfunction FadeInBox() {\n  const boxRef = useRef(null);\n  // Data shape: 0 when no frame is pending, otherwise the frame id.\n  const frameRef = useRef(0);\n  const startRef = useRef(0);\n\n  useEffect(() => {\n    startRef.current = performance.now();\n\n    const tick = (now) => {\n      // Read the node again; it may have left the page since the last frame.\n      const box = boxRef.current;\n      if (!box) return;\n\n      const progress = Math.min((now - startRef.current) / 1000, 1);\n      box.style.opacity = String(progress); // style changes are safe\n      frameRef.current = requestAnimationFrame(tick);\n    };\n\n    frameRef.current = requestAnimationFrame(tick);\n\n    return () => {\n      // Stop the loop and clear the stored id.\n      cancelAnimationFrame(frameRef.current);\n      frameRef.current = 0;\n    };\n  }, []);\n\n  return <div ref={boxRef} style={{ opacity: 0 }}>Fading in</div>;\n}",
+    "body": "The cleanup must be safe to run twice, because StrictMode runs it during the extra mount cycle and the browser runs it on real unmount.\n\nClear the id and set the ref back to `null` or `0`. Leaving a stale id behind makes a second cleanup clear a handle that may already belong to another effect."
+  },
+  {
+    "id": "react-useref-imperative-handle",
+    "group": "Advanced",
+    "name": "useImperativeHandle",
+    "syntax": "useImperativeHandle(ref, () => ({ focus }), deps)",
+    "desc": "Exposes a small custom API from a child instead of the raw DOM node. Use it when a parent must call an action, not read the internals.",
+    "example": "import { forwardRef, useImperativeHandle, useRef } from \"react\";\n\nconst FancyInput = forwardRef(function FancyInput(props, ref) {\n  const inputRef = useRef(null);\n\n  useImperativeHandle(ref, () => ({\n    focus() {\n      inputRef.current?.focus();\n    },\n    clear() {\n      if (inputRef.current) inputRef.current.value = \"\";\n    },\n  }), []);\n\n  return <input ref={inputRef} {...props} />;\n});\n\nfunction Toolbar() {\n  const fancyRef = useRef(null);\n\n  return (\n    <section>\n      <FancyInput ref={fancyRef} placeholder=\"Hotel name\" />\n      <button onClick={() => fancyRef.current?.focus()}>Focus</button>\n      <button onClick={() => fancyRef.current?.clear()}>Clear</button>\n    </section>\n  );\n}",
+    "body": "The array works like the dependencies of `useMemo`. If a method reads a prop, list that prop so the parent receives an updated handle.\n\nKeep the API small. A handle with many getters means the parent should receive props or lifted state instead."
+  },
+  {
+    "id": "react-useref-forward-ref",
+    "group": "Advanced",
+    "name": "ref forwarding",
+    "syntax": "const Child = forwardRef(function Child(props, ref) { ... });",
+    "desc": "Passes a parent ref through a function component to a DOM node. React 19 also accepts ref as a normal prop.",
+    "example": "import { forwardRef, useRef } from \"react\";\n\n// React 18 shape. On React 19 this also works and stays portable.\nconst TextField = forwardRef(function TextField({ label, ...rest }, ref) {\n  return (\n    <label>\n      {label}\n      <input ref={ref} {...rest} />\n    </label>\n  );\n});\n\nTextField.displayName = \"TextField\";\n\nfunction Form() {\n  const emailRef = useRef(null);\n\n  return (\n    <form>\n      <TextField ref={emailRef} label=\"Email\" name=\"customer_email\" />\n      <button type=\"button\" onClick={() => emailRef.current?.focus()}>\n        Focus email\n      </button>\n    </form>\n  );\n}",
+    "body": "On React 19 the wrapper is optional:\n\n```jsx\nfunction TextField({ label, ref, ...rest }) {\n  return <label>{label}<input ref={ref} {...rest} /></label>;\n}\n```\n\nWithout either form, the parent ref stays `null` and React warns. Set `displayName` so DevTools and warnings name the component."
+  },
+  {
+    "id": "react-useref-strictmode",
+    "group": "Pitfalls",
+    "name": "StrictMode and refs",
+    "syntax": "useEffect(() => { ...; return cleanup; }, [])",
+    "desc": "In development StrictMode renders twice and remounts effects. Refs created on the discarded render are thrown away, and missing cleanups show up as doubled work.",
+    "example": "import { useEffect, useRef, useState } from \"react\";\n\nfunction StrictSafeTicker() {\n  const idRef = useRef(null);\n  const [ticks, setTicks] = useState(0);\n\n  useEffect(() => {\n    // StrictMode: mount, cleanup, mount again. The cleanup keeps this at one.\n    idRef.current = setInterval(() => {\n      setTicks((value) => value + 1);\n    }, 1000);\n\n    return () => {\n      clearInterval(idRef.current);\n      idRef.current = null;\n    };\n  }, []);\n\n  return <p>{ticks} ticks</p>;\n}",
+    "body": "Do not remove StrictMode to hide a doubled interval or a double fetch. The missing cleanup is the bug, and it will surface in production when a route change remounts the component.\n\nAn initializer with a side effect also runs twice. Keep ref initializers pure, or use the lazy `current === null` pattern for expensive pure values."
+  },
+  {
+    "id": "react-useref-mistakes",
+    "group": "Pitfalls",
+    "name": "useRef mistakes",
+    "syntax": "// read refs in effects, handlers, or callback refs",
+    "desc": "The recurring errors: reading during render, using a ref for displayed data, missing null checks, and leaving stale timer ids.",
+    "example": "import { useCallback, useEffect, useRef, useState } from \"react\";\n\nfunction SafePattern({ open }) {\n  const panelRef = useRef(null);\n  const [width, setWidth] = useState(0);\n\n  // Read the node after commit, never during render.\n  useEffect(() => {\n    if (!open) return;\n    const panel = panelRef.current;\n    if (!panel) return; // the node may not exist yet\n    setWidth(panel.offsetWidth);\n  }, [open]);\n\n  // Callback ref with a stable identity and a block body.\n  const measure = useCallback((node) => {\n    if (node) setWidth(node.offsetWidth);\n  }, []);\n\n  return (\n    <section>\n      {open && <div ref={panelRef}>{width} px</div>}\n      <div ref={measure} className=\"probe\" />\n    </section>\n  );\n}",
+    "body": "Checklist against the usual failures:\n\n- Use state when the value is drawn. A ref that the JSX reads looks one render stale.\n- Guard `ref.current` at the point of use, especially after `await`.\n- Reset timer and frame ids after clearing.\n- Never call `useRef` inside a condition or a loop.\n- Do not put side effects in the initializer; StrictMode runs it twice.\n- Do not pass a ref to a function component that neither forwards nor accepts it.\n- Do not return an assignment from a callback ref on React 19."
+  }
+]

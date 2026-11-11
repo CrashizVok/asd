@@ -819,6 +819,9 @@ button {
     color: #a5d6ff;
     font-family: var(--mono);
     font-size: 0.88em;
+    /* Long unbroken identifiers such as Class.getDeclaredConstructor().newInstance()
+       pushed the mobile page wider than the viewport. */
+    overflow-wrap: anywhere;
 }
 
 .article-body pre,
@@ -1411,7 +1414,7 @@ mark {
     }
 }
 
-@media (hover: none) {
+@media (hover: none), (pointer: coarse) {
     .copy-button {
         opacity: 1;
     }

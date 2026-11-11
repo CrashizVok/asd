@@ -1,0 +1,218 @@
+[
+  {
+    "id": "node-express-import",
+    "group": "Setup",
+    "name": "import express from 'express'",
+    "syntax": "import express from 'express';",
+    "desc": "Loads the Express module. With \"type\": \"module\" in package.json this is the ESM form; older projects use require('express').",
+    "example": "// server.js\nimport express from 'express';\n\nconst app = express();\nconsole.log(typeof app); // function\nconsole.log(typeof app.listen); // function",
+    "body": "The default export is a factory function, not an app. Calling it gives you the application object.\n\n```js\n// CommonJS variant, same module.\nconst express = require('express');\nconst app = express();\n```\n\nIf you get `Cannot use import statement outside a module`, the nearest `package.json` is missing `\"type\": \"module\"`. Do not mix both styles in one file."
+  },
+  {
+    "id": "node-express-app",
+    "group": "Setup",
+    "name": "express()",
+    "syntax": "const app = express();",
+    "desc": "Creates the application object: an ordered list of middleware and routes plus the settings that go with them.",
+    "example": "import express from 'express';\n\nconst app = express();\n\n// The app is a request handler, so it can be handed to http.createServer.\napp.get('/', (request, response) => response.send('hello'));\n\napp.listen(3000);",
+    "body": "One process usually creates one app. Tests create several, one per case, because a used port and a shared middleware stack make tests interfere with each other.\n\nUseful settings:\n\n- `app.set('trust proxy', 1)` behind a reverse proxy, so `req.ip` is the client address.\n- `app.disable('x-powered-by')` removes the header that announces Express.\n\nMounting the app under a path in another app is rare in exam work; mounting a router is the normal move."
+  },
+  {
+    "id": "node-express-listen",
+    "group": "Setup",
+    "name": "app.listen()",
+    "syntax": "const server = app.listen(port, callback)",
+    "desc": "Binds a port, starts accepting connections, and returns the http.Server. The callback runs once the port is open, not on every request.",
+    "example": "// PORT from the environment keeps the app usable in a container.\nconst port = Number(process.env.PORT) || 3000;\n\nconst server = app.listen(port, () => {\n    console.log(`API listening on http://localhost:${port}`);\n});\n\n// server.close() stops accepting new connections, used in tests and shutdown.\nprocess.on('SIGINT', () => server.close(() => process.exit(0)));",
+    "body": "`Number(process.env.PORT)` matters: an environment variable is a string and `'0'` is truthy, while `|| 3000` on a raw string also works but hides the conversion.\n\nThe callback is for logging and setup after the bind. A request handler never goes there.\n\nIf the port is taken the process throws `EADDRINUSE` and exits. Check for a server you already started before changing the port."
+  },
+  {
+    "id": "node-http-createserver",
+    "group": "Setup",
+    "name": "http.createServer()",
+    "syntax": "http.createServer((request, response) => { ... })",
+    "desc": "The Node built in server. Express wraps it, so knowing this form explains what app.listen does and what req and res really are.",
+    "example": "import { createServer } from 'node:http';\n\nconst server = createServer((request, response) => {\n    if (request.method === 'GET' && request.url === '/api/health') {\n        response.writeHead(200, { 'Content-Type': 'application/json' });\n        response.end(JSON.stringify({ ok: true }));\n        return;\n    }\n\n    response.writeHead(404, { 'Content-Type': 'application/json' });\n    response.end(JSON.stringify({ error: 'Not found' }));\n});\n\nserver.listen(3000);",
+    "body": "Without a framework every route is another branch, `request.url` still carries the query string, and the body arrives as a readable stream.\n\nExpress replaces the branch with a routing list and adds `res.json`, `res.status` and body parsers. The underlying objects stay the same, which is why `response.end()` and `response.writeHead()` still work inside an Express handler.\n\nOne practical difference: in plain `http` an unhandled exception kills the process. Express routes it to an error handler if you registered one."
+  },
+  {
+    "id": "node-express-use",
+    "group": "Middleware",
+    "name": "app.use()",
+    "syntax": "app.use([path], middleware)",
+    "desc": "Adds a layer that runs for every method and every path under the optional prefix. It runs in registration order, before the routes below it.",
+    "example": "// Runs for every request, including the ones that end in a 404.\napp.use((request, response, next) => {\n    console.log(`${request.method} ${request.originalUrl}`);\n    next();\n});\n\n// Runs only for paths that start with /api.\napp.use('/api', (request, response, next) => {\n    response.set('X-Api-Version', '1');\n    next();\n});",
+    "body": "`use` matches by prefix, not by whole path: `app.use('/api', fn)` also runs for `/api/hotels/4?city=Eger`. A route registered with `app.get` matches the whole path instead.\n\nInside a mounted middleware the prefix is removed from `req.url` but `req.originalUrl` keeps it, which is what you log.\n\nTwo uses you will write in every exam answer: the request log near the top, and the catch all 404 at the bottom."
+  },
+  {
+    "id": "node-router",
+    "group": "Router",
+    "name": "express.Router()",
+    "syntax": "const router = express.Router([options])",
+    "desc": "Builds a mini application with the same routing methods that holds no port. Routes inside use paths relative to the mount point.",
+    "example": "// routes/hotels.js\nimport { Router } from 'express';\n\nconst router = Router();\n\nrouter.get('/', (request, response) => {\n    response.json([{ hotel_id: 1, name: 'Hotel Taurus', city: 'Eger' }]);\n});\n\nrouter.get('/:hotel_id', (request, response) => {\n    response.json({ hotel_id: Number(request.params.hotel_id) });\n});\n\nexport default router;",
+    "body": "One file per resource keeps the app file short and makes the routes testable on their own.\n\n`Router({ mergeParams: true })` keeps the parent params when the router is mounted under a parameterised path, for example `/api/hotels/:hotel_id/bookings` where the booking router needs `hotel_id`.\n\nA router can also carry its own middleware with `router.use(...)`, and a 404 inside a router is written the same way as on the app."
+  },
+  {
+    "id": "node-router-mount",
+    "group": "Router",
+    "name": "app.use(prefix, router)",
+    "syntax": "app.use('/api/hotels', hotelsRouter)",
+    "desc": "Mounts a router under a prefix. A request to /api/hotels/4 runs the router route '/:hotel_id'.",
+    "example": "import express from 'express';\nimport hotelsRouter from './routes/hotels.js';\nimport bookingsRouter from './routes/bookings.js';\n\nconst app = express();\napp.use(express.json());\n\napp.use('/api/hotels', hotelsRouter);\napp.use('/api/bookings', bookingsRouter);\n\napp.listen(3000);",
+    "body": "The prefix is not repeated inside the router. `router.get('/4')` under a mount of `/api/hotels` answers `/api/hotels/4`.\n\nSeveral routers on the same prefix is fine and common: `app.use('/api', hotelsRouter)` plus `app.use('/api', bookingsRouter)`, with full paths inside each router.\n\nOrder still decides which one answers first, so a router with a catch all route must be mounted last."
+  },
+  {
+    "id": "node-express-get",
+    "group": "Routing",
+    "name": "app.get()",
+    "syntax": "app.get(path, [middleware...], handler)",
+    "desc": "Registers a handler for GET requests. GET carries no body, so its inputs are the path params and the query string.",
+    "example": "app.get('/api/hotels/:hotel_id', (request, response) => {\n    const id = Number(request.params.hotel_id);\n    const hotel = hotels.find((row) => row.hotel_id === id);\n\n    if (!hotel) {\n        return response.status(404).json({ error: 'Hotel not found' });\n    }\n\n    response.json(hotel);\n});",
+    "body": "A list route and a detail route need different paths. `/api/hotels` returns an array, `/api/hotels/:hotel_id` returns one object, and the client decides from the status code whether it got one.\n\nExtra handlers before the route handler are middleware for that route only:\n\n```js\napp.get('/api/hotels', requireApiKey, listHotels);\n```\n\nA GET must not change data. A GET that inserts a row is a bug even when it works, because a browser refresh repeats it."
+  },
+  {
+    "id": "node-express-post",
+    "group": "Routing",
+    "name": "app.post()",
+    "syntax": "app.post(path, handler)",
+    "desc": "Registers a handler for POST, the method used to create a row. It reads the payload from req.body, which needs a body parser.",
+    "example": "app.use(express.json());\n\napp.post('/api/booking', (request, response) => {\n    const { hotel_id, customer_email, start_date, end_date } = request.body ?? {};\n\n    if (!hotel_id || !customer_email || !start_date || !end_date) {\n        return response.status(400).json({ error: 'Missing booking fields' });\n    }\n\n    response.status(201).json({ booking_id: 42, hotel_id, customer_email, start_date, end_date });\n});",
+    "body": "201 with the created row is the answer a client can use: it has the new id without a second request. A plain 200 works but hides that something was created.\n\nA POST with no `Content-Type: application/json` leaves `req.body` as `{}` even when the JSON text is present. Curl needs `-H 'Content-Type: application/json'`.\n\nWhen the body is malformed the parser calls `next(error)` with `entity.parse.failed`, before your handler runs at all."
+  },
+  {
+    "id": "node-express-put",
+    "group": "Routing",
+    "name": "app.put()",
+    "syntax": "app.put(path, handler)",
+    "desc": "Registers a handler for PUT, used to replace an existing row. The id usually comes from the body in this exam schema, not from the path.",
+    "example": "app.put('/api/booking', (request, response) => {\n    const { booking_id, adults, children } = request.body ?? {};\n\n    if (!booking_id) {\n        return response.status(400).json({ error: 'booking_id is required' });\n    }\n\n    // UPDATE bookings SET adults = ?, children = ? WHERE booking_id = ?\n    const affected = updateBooking(booking_id, adults, children);\n\n    if (affected === 0) {\n        return response.status(404).json({ error: 'Booking not found' });\n    }\n\n    response.json({ booking_id, adults, children });\n});",
+    "body": "PUT means replace. A client that sends only two fields is asking to blank the rest, so a partial update either needs PATCH or a merge in the handler.\n\nOn the database side `pool.query` returns an `affectedRows` count. Zero means the id does not exist, and that is a 404 rather than a silent 200.\n\nA PUT on a missing row may also create it. Pick one behaviour and keep it in every route."
+  },
+  {
+    "id": "node-express-delete",
+    "group": "Routing",
+    "name": "app.delete()",
+    "syntax": "app.delete(path, handler)",
+    "desc": "Registers a handler for DELETE. The id normally comes from the path, and a successful answer has no body.",
+    "example": "app.delete('/api/booking/:booking_id', async (request, response, next) => {\n    const id = Number(request.params.booking_id);\n\n    if (!Number.isInteger(id)) {\n        return response.status(400).json({ error: 'booking_id must be a number' });\n    }\n\n    try {\n        const [result] = await pool.query('DELETE FROM bookings WHERE booking_id = ?', [id]);\n        if (result.affectedRows === 0) {\n            return response.status(404).json({ error: 'Booking not found' });\n        }\n        response.status(204).end();   // 204 must not carry a body\n    } catch (error) {\n        next(error);\n    }\n});",
+    "body": "204 tells the client the delete worked and there is nothing to read. `res.sendStatus(204)` would write the text `No Content` into the body, which the HTTP spec forbids here, so use `res.status(204).end()`.\n\nDeletes that depend on a foreign key fail with a driver error. That is a 409 in a careful API, and a 500 in the exam template, which is acceptable as long as the error handler answers once."
+  },
+  {
+    "id": "node-req-params",
+    "group": "Request",
+    "name": "req.params",
+    "syntax": "req.params.name",
+    "desc": "The named segments of the matched path. Values are always strings.",
+    "example": "// GET /api/bookings/by-hotel/3  ->  req.params = { hotel_id: '3' }\napp.get('/api/bookings/by-hotel/:hotel_id', (request, response) => {\n    const hotelId = Number(request.params.hotel_id);\n\n    if (!Number.isInteger(hotelId)) {\n        return response.status(400).json({ error: 'hotel_id must be a number' });\n    }\n\n    response.json({ hotel_id: hotelId, bookings: [] });\n});",
+    "body": "Everything from the URL is text. `request.params.hotel_id === 3` is false, and `request.params.hotel_id + 1` gives `'31'`.\n\nA path with two params works the same way: `/api/bookings/from/:from_date/to/:to_date` gives `from_date` and `to_date`, both strings in `YYYY-MM-DD` form when the client sends that format. Validate the format before passing them to MySQL.\n\nUse path params for identity, query params for filters. `/api/hotels?city=Eger` is a filter, `/api/hotels/4` is one row."
+  },
+  {
+    "id": "node-req-query",
+    "group": "Request",
+    "name": "req.query",
+    "syntax": "req.query.key",
+    "desc": "The parsed query string as an object. Every value is a string, or an array of strings when the key repeats.",
+    "example": "// GET /api/bookings?city=Eger&adults=2&tag=a&tag=b\napp.get('/api/bookings', (request, response) => {\n    const { city, adults, tag } = request.query;\n\n    // ?tag=a&tag=b gives tag = ['a', 'b']\n    const tags = Array.isArray(tag) ? tag : tag ? [tag] : [];\n\n    response.json({\n        city: city ?? null,\n        adults: adults ? Number(adults) : null,\n        tags,\n    });\n});",
+    "body": "An absent key is `undefined`, a key with no value is `''`, and a repeated key is an array. Those three cases are the source of most filter bugs.\n\n`?stars=4` arrives as `'4'`. `Number(stars)` for comparisons, and check `Number.isFinite` before trusting it, because `Number('abc')` is `NaN` and `NaN` fails every comparison silently.\n\nNever paste query values into SQL. `pool.query('... WHERE city = ?', [city])` sends them as data; string concatenation turns them into code."
+  },
+  {
+    "id": "node-req-body",
+    "group": "Request",
+    "name": "req.body",
+    "syntax": "req.body",
+    "desc": "The parsed request body. It exists only after a body parser ran and the Content-Type matched.",
+    "example": "app.use(express.json());   // required, and before the route\n\napp.post('/api/customer', (request, response) => {\n    const body = request.body ?? {};\n    const { customer_email, first_name, last_name } = body;\n\n    if (!customer_email || !first_name || !last_name) {\n        return response.status(400).json({ error: 'customer_email, first_name, last_name required' });\n    }\n\n    response.status(201).json({ customer_id: 12, customer_email, first_name, last_name });\n});",
+    "body": "With `express.json()` and no body at all, `req.body` is `{}`. With a body but the wrong `Content-Type`, it is also `{}` in Express 4. Destructuring is safe in both cases; reading `.customer_email` off `undefined` is not, which is what the `?? {}` guard prevents.\n\nNumbers keep their type when the client sends real JSON numbers: `{\"adults\": 2}` gives a number. A form post gives strings for everything, so convert.\n\nArrays are accepted too. Validate `Array.isArray(body.tags)` before mapping over them."
+  },
+  {
+    "id": "node-express-json",
+    "group": "Middleware",
+    "name": "express.json()",
+    "syntax": "app.use(express.json([options]))",
+    "desc": "Body parser for application/json. It fills req.body and calls next(error) when the JSON is malformed.",
+    "example": "app.use(express.json({ limit: '100kb' }));\n\napp.post('/api/hotel', (request, response) => {\n    // request.body is now an object\n    response.status(201).json({ received: Object.keys(request.body ?? {}) });\n});\n\napp.use((error, request, response, next) => {\n    if (error.type === 'entity.parse.failed') {\n        return response.status(400).json({ error: 'Invalid JSON body' });\n    }\n    next(error);\n});",
+    "body": "Register it before the routes that need it. A parser mounted after a route has no effect on that route.\n\nUseful options: `limit` caps the payload size, `strict: false` accepts a bare JSON value such as `42` or `\"text\"` instead of requiring an object or array.\n\nThe parse error carries `type: 'entity.parse.failed'` and `status: 400`. Without a branch for it the client gets a 500 for its own malformed JSON, which hides the real cause."
+  },
+  {
+    "id": "node-res-json",
+    "group": "Response",
+    "name": "res.json()",
+    "syntax": "res.json(value)",
+    "desc": "Serialises the value, sets Content-Type: application/json, and ends the response.",
+    "example": "app.get('/api/hotels', (request, response) => {\n    response.json({ hotels: [], total: 0 });\n});\n\napp.get('/api/hotels/:hotel_id', (request, response) => {\n    response.status(404).json({ error: 'Hotel not found' });\n});",
+    "body": "An object and an array both work. `undefined` does not: `res.json(undefined)` throws because there is nothing to serialise, so guard the lookup before answering.\n\nThe method ends the response, so anything after it is dead code unless it is in a different branch. Return from the branch:\n\n```js\nif (!row) return response.status(404).json({ error: 'Not found' });\nresponse.json(row);\n```\n\nA `Date` inside the value becomes an ISO string. A `BigInt` throws `TypeError: Do not know how to serialize a BigInt`, which happens with MySQL `COUNT(*)` when the driver is set to return big numbers."
+  },
+  {
+    "id": "node-res-send",
+    "group": "Response",
+    "name": "res.send()",
+    "syntax": "res.send(body)",
+    "desc": "Sends a string, Buffer, object or array and ends the response. It sets the Content-Type from the body type, and falls back to JSON for objects.",
+    "example": "app.get('/api/health', (request, response) => {\n    response.type('text/plain').send('ok');   // Content-Type: text/plain\n});\n\napp.get('/api/hotels', (request, response) => {\n    // An object here is serialised as JSON, same as res.json.\n    response.send([{ hotel_id: 1, name: 'Hotel Taurus' }]);\n});",
+    "body": "`send` guesses the type. A string becomes `text/html` by default, which is wrong for an API answer, so set it with `res.type('text/plain')` or use `res.json`.\n\nThe type guess is why `res.json` is the safer habit: one intent, one header, no guessing.\n\n`send` with a number is treated as a status code in old Express 3 code. In Express 4 and 5 `res.send(404)` sends the text `404`. Set the status with `res.status`."
+  },
+  {
+    "id": "node-res-status",
+    "group": "Response",
+    "name": "res.status()",
+    "syntax": "res.status(code)",
+    "desc": "Sets the HTTP status code and returns res, so it chains in front of json, send or end.",
+    "example": "app.post('/api/customer', (request, response) => {\n    if (!request.body?.customer_email) {\n        return response.status(400).json({ error: 'customer_email is required' });\n    }\n\n    response.status(201).json({ customer_id: 7, customer_email: request.body.customer_email });\n});\n\napp.get('/api/hotels/:hotel_id', (request, response) => {\n    response.status(404).json({ error: 'Hotel not found' });\n});",
+    "body": "Codes that appear in exam answers: 200 default success, 201 created, 204 no content, 400 bad input, 401 missing or wrong credentials, 404 no such row or path, 409 conflict, 500 unexpected server failure.\n\n`res.sendStatus(code)` sets the code and sends the reason phrase as text, which is convenient for 204 and wrong for JSON APIs.\n\nA status set but not sent has no effect until the body goes out. One response, one status."
+  },
+  {
+    "id": "node-express-next",
+    "group": "Middleware",
+    "name": "next()",
+    "syntax": "next()",
+    "desc": "Hands control to the next matching layer. Without it a middleware that does not answer leaves the request waiting.",
+    "example": "app.use((request, response, next) => {\n    const started = Date.now();\n\n    // 'finish' runs after the answer, so the status and time are known here.\n    response.on('finish', () => {\n        console.log(`${request.method} ${request.path} ${response.statusCode} ${Date.now() - started}ms`);\n    });\n\n    next();   // omit this and every request hangs\n});",
+    "body": "`next()` does not stop the current function. Code after it still runs, so a middleware that both calls `next()` and sends a response sends twice:\n\n```js\nnext();\nresponse.json({ ok: true });   // ERR_HTTP_HEADERS_SENT\n```\n\n`next('route')` inside a route handler skips the rest of that route and tries the next match. It has no effect inside `app.use`.\n\nCalling `next()` inside a callback that runs later (a timer, a database callback) is fine, because the chain position is kept."
+  },
+  {
+    "id": "node-express-next-error",
+    "group": "Errors",
+    "name": "next(error)",
+    "syntax": "next(error)",
+    "desc": "Skips every remaining normal layer and runs the first error handler. Used in async routes so a rejected query does not hang the request.",
+    "example": "app.get('/api/hotels', async (request, response, next) => {\n    try {\n        const [rows] = await pool.query('SELECT * FROM hotels');\n        response.json(rows);\n    } catch (error) {\n        next(error);   // jumps to the error handler, skipping the 404 layer\n    }\n});",
+    "body": "Express 4 does not look at the promise an async handler returns. A rejection that is not caught becomes an unhandled rejection and the request waits forever, so `try/catch` plus `next(error)` is mandatory in Express 4 code.\n\nPass an `Error`, not a string. `error.status = 400` before `next` lets the handler pick the code:\n\n```js\nconst error = new Error('Hotel not found');\nerror.status = 404;\nnext(error);\n```\n\nAnything after `next(error)` in the same block still runs, so `return next(error)` is the safe form."
+  },
+  {
+    "id": "node-express-error-handler",
+    "group": "Errors",
+    "name": "error handler",
+    "syntax": "app.use((error, request, response, next) => { ... })",
+    "desc": "Four parameters, registered last. Express counts the parameters to recognise it, and it runs only for errors passed to next or thrown in synchronous code.",
+    "example": "app.use((error, request, response, next) => {\n    console.error(error.stack);\n\n    if (response.headersSent) {\n        return next(error);   // the body already started, let Express close it\n    }\n    if (error.type === 'entity.parse.failed') {\n        return response.status(400).json({ error: 'Invalid JSON body' });\n    }\n\n    response.status(error.status ?? 500).json({ error: error.message ?? 'Server error' });\n});",
+    "body": "Three parameters makes it a normal middleware, which never receives an error. Five still works, but the extra one is unused. Write four.\n\nIn production, answer with a generic message and log the detail. `error.message` can contain a table name, a SQL fragment or a file path.\n\nA second error handler below the first runs only if the first calls `next(error)`. That is how a JSON handler and a plain text handler can share one app."
+  },
+  {
+    "id": "node-express-404",
+    "group": "Errors",
+    "name": "catch all 404",
+    "syntax": "app.use((request, response) => { ... })",
+    "desc": "A middleware with no path, registered after every route. It answers requests that matched nothing.",
+    "example": "app.use('/api', hotelsRouter);\napp.use('/api', bookingsRouter);\n\n// No path and no method filter, so this runs whenever nothing above answered.\napp.use((request, response) => {\n    response.status(404).json({ error: `No route for ${request.method} ${request.path}` });\n});",
+    "body": "Putting it above a route hides that route: this layer matches everything and ends the response.\n\nA request that reached a route but found no row is also a 404, but it is answered inside the route, not here. This one is only for unknown paths.\n\nA 404 for a path must not become a 500 when the path is odd. `request.path` is already a string; no parsing is needed."
+  },
+  {
+    "id": "node-express-static",
+    "group": "Middleware",
+    "name": "express.static()",
+    "syntax": "app.use(express.static(root, [options]))",
+    "desc": "Serves files from a directory over GET and HEAD. A missing file calls next() instead of answering.",
+    "example": "import path from 'node:path';\nimport { fileURLToPath } from 'node:url';\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\n\n// public/logo.png answers GET /logo.png\napp.use(express.static(path.join(here, 'public'), {\n    maxAge: '1h',\n    index: 'index.html',\n}));\n\n// Mount a second folder under a prefix: GET /uploads/a.jpg\napp.use('/uploads', express.static(path.join(here, 'uploads')));",
+    "body": "The path must be absolute or resolved from the working directory. `path.join(__dirname, ...)` in CommonJS, `fileURLToPath(import.meta.url)` in ESM.\n\nIt refuses `..` segments, so it cannot be used to read outside the folder. It also does not list directories.\n\nRegister it before the 404 handler, otherwise the 404 wins. Static files bypass the body parsers in cost only; the order rule is about who answers first, not about performance."
+  },
+  {
+    "id": "node-express-cors",
+    "group": "Security",
+    "name": "cors()",
+    "syntax": "app.use(cors([options]))",
+    "desc": "Adds the Access-Control-Allow-Origin headers and answers the OPTIONS preflight. Needed when the React dev server calls the API from another port.",
+    "example": "import cors from 'cors';\n\n// Open to every origin. Fine for the exam, not for a real login.\napp.use(cors());\n\n// Narrow it to the dev server.\napp.use(cors({\n    origin: 'http://localhost:5173',\n    methods: ['GET', 'POST', 'PUT', 'DELETE'],\n    allowedHeaders: ['Content-Type', 'x-api-key'],\n}));",
+    "body": "CORS is enforced by the browser, not the server. Curl and Postman ignore it, so a request that works there can still fail in the page.\n\nA JSON `POST` triggers a preflight `OPTIONS` request first. The middleware answers it before your routes, which is why it belongs near the top of the file.\n\nA wildcard origin and credentials cannot be combined. `{ origin: true, credentials: true }` reflects the caller's origin and works with cookies; `'*'` does not."
+  }
+]

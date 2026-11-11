@@ -1,0 +1,223 @@
+[
+  {
+    "id": "node-sql-select",
+    "group": "Reading",
+    "name": "SELECT",
+    "syntax": "SELECT column_list FROM table",
+    "desc": "Chooses the columns the query returns. List them instead of using *, so the JSON shape matches the frontend.",
+    "example": "-- One row per hotel, four named columns\nSELECT id, city, name, stars\nFROM hotels;\n\n-- Aliases become the JSON keys the frontend reads\nSELECT name AS hotel_name, DATEDIFF(end_date, start_date) AS nights\nFROM bookings;",
+    "body": "The clause order you write is not the order MySQL runs. `FROM` and the joins build rows, `WHERE` filters them, `GROUP BY` folds them, `HAVING` filters groups, then `SELECT` computes the output. A `SELECT` alias therefore works in `ORDER BY` and fails in `WHERE`.\n\n`SELECT *` sends every column, including ones the page has no slot for, and it breaks quietly when a column is added. Name the columns.\n"
+  },
+  {
+    "id": "node-sql-where",
+    "group": "Filtering",
+    "name": "WHERE",
+    "syntax": "SELECT ... FROM table WHERE condition",
+    "desc": "Keeps only the rows where the condition is true. Runs before grouping, so it can use columns but not COUNT or SUM.",
+    "example": "-- Hotels with at least four stars in one city\nSELECT id, name, stars\nFROM hotels\nWHERE city = 'Budapest' AND stars >= 4;\n\n-- NULL never matches =; use IS NULL\nSELECT email, first_name FROM customers WHERE phone IS NULL;"
+  },
+  {
+    "id": "node-sql-and-or",
+    "group": "Filtering",
+    "name": "AND / OR",
+    "syntax": "WHERE cond1 AND cond2 | WHERE cond1 OR cond2",
+    "desc": "AND binds tighter than OR. Parenthesise the group you mean, or the query filters something else.",
+    "example": "-- Wrong: Budapest any stars, or Debrecen with five stars\nSELECT id, name FROM hotels\nWHERE city = 'Budapest' OR city = 'Debrecen' AND stars = 5;\n\n-- Right: either city, and at least four stars in both\nSELECT id, name FROM hotels\nWHERE (city = 'Budapest' OR city = 'Debrecen') AND stars >= 4;"
+  },
+  {
+    "id": "node-sql-in",
+    "group": "Filtering",
+    "name": "IN ()",
+    "syntax": "WHERE column IN (value1, value2, ...)",
+    "desc": "Matches any value in the list. Shorter than a chain of ORs and easier to build from a filter array.",
+    "example": "-- Three named cities\nSELECT id, name, city FROM hotels\nWHERE city IN ('Budapest', 'Debrecen', 'Eger');\n\n-- NOT IN is unsafe when the subquery can return NULL: one NULL\n-- makes every comparison unknown and the result empty.\nSELECT id, name FROM hotels\nWHERE id NOT IN (SELECT hotel_id FROM bookings WHERE hotel_id IS NOT NULL);"
+  },
+  {
+    "id": "node-sql-between",
+    "group": "Filtering",
+    "name": "BETWEEN",
+    "syntax": "WHERE column BETWEEN low AND high",
+    "desc": "Inclusive range, both ends included. Works on numbers and on dates in YYYY-MM-DD form.",
+    "example": "-- Stars from 3 to 5, both ends counted\nSELECT id, name, stars FROM hotels\nWHERE stars BETWEEN 3 AND 5;\n\n-- Dates: a booking starting on the 31st is inside the range\nSELECT customer_email, start_date FROM bookings\nWHERE start_date BETWEEN '2025-07-01' AND '2025-07-31';"
+  },
+  {
+    "id": "node-sql-like",
+    "group": "Filtering",
+    "name": "LIKE",
+    "syntax": "WHERE column LIKE 'pattern'",
+    "desc": "Pattern match where % means any run of characters and _ means exactly one. The exam search box is built on it.",
+    "example": "-- Contains \"view\", case insensitive on this schema\nSELECT id, name FROM hotels WHERE name LIKE '%view%';\n\n-- Search across two tables. The pattern is bound, not concatenated.\nSELECT b.customer_email, c.first_name, h.name\nFROM bookings b\nJOIN customers c ON c.email = b.customer_email\nJOIN hotels h    ON h.id = b.hotel_id\nWHERE c.first_name LIKE CONCAT('%', ?, '%')\n   OR c.last_name  LIKE CONCAT('%', ?, '%')\n   OR h.name       LIKE CONCAT('%', ?, '%');"
+  },
+  {
+    "id": "node-sql-order-by",
+    "group": "Sorting",
+    "name": "ORDER BY",
+    "syntax": "ORDER BY column [ASC|DESC], column2 [ASC|DESC]",
+    "desc": "Sorts the result. Reads keys left to right, ASC by default. Add a unique tiebreaker when the sort key repeats.",
+    "example": "-- Highest stars first, names A to Z inside equal stars\nSELECT id, name, stars FROM hotels\nORDER BY stars DESC, name ASC, id ASC;\n\n-- Sort by an expression: longest stay first\nSELECT customer_email, hotel_id,\n       DATEDIFF(end_date, start_date) AS nights\nFROM bookings\nORDER BY nights DESC, start_date ASC;"
+  },
+  {
+    "id": "node-sql-limit",
+    "group": "Sorting",
+    "name": "LIMIT / OFFSET",
+    "syntax": "LIMIT count [OFFSET start]",
+    "desc": "Cuts the result to count rows after sorting. Without ORDER BY the rows are arbitrary, not the first ones.",
+    "example": "-- Page 3 of a ten row list, with a stable tiebreaker\nSELECT id, name, city FROM hotels\nORDER BY name, id\nLIMIT 10 OFFSET 20;\n\n-- Longest booking, exactly one row\nSELECT customer_email, hotel_id, start_date, end_date\nFROM bookings\nORDER BY DATEDIFF(end_date, start_date) DESC, start_date ASC\nLIMIT 1;",
+    "body": "In a route, a limit from `req.query` arrives as a string. `pool.query` quotes it into `LIMIT '10'` and MySQL rejects the syntax. Either use `pool.execute` and bind `?`, or parse it to a positive integer, cap it, and inline the number.\n"
+  },
+  {
+    "id": "node-sql-join",
+    "group": "Joins",
+    "name": "JOIN",
+    "syntax": "FROM a JOIN b ON b.key = a.key",
+    "desc": "Inner join: keeps only the rows that find a partner on the other side. JOIN alone means INNER JOIN.",
+    "example": "-- Every hotel with its owner's name\nSELECT h.id, h.name, h.city, c.first_name, c.last_name\nFROM hotels h\nJOIN customers c ON c.email = h.owner_email\nORDER BY h.name, h.id;\n\n-- A booking needs two joins: the guest and the hotel\nSELECT b.customer_email, c.last_name, h.name AS hotel_name, b.start_date\nFROM bookings b\nJOIN customers c ON c.email = b.customer_email\nJOIN hotels h    ON h.id = b.hotel_id;"
+  },
+  {
+    "id": "node-sql-left-join",
+    "group": "Joins",
+    "name": "LEFT JOIN",
+    "syntax": "FROM a LEFT JOIN b ON b.key = a.key",
+    "desc": "Keeps every row of the left table and fills the right side with NULL where nothing matches. Use it when a zero must still appear.",
+    "example": "-- Every hotel, with the number of bookings. COUNT(column)\n-- skips NULL, so a hotel with none counts 0.\nSELECT h.id, h.name, COUNT(b.customer_email) AS bookings\nFROM hotels h\nLEFT JOIN bookings b ON b.hotel_id = h.id\nGROUP BY h.id, h.name\nORDER BY bookings DESC, h.name;",
+    "body": "A filter on the right table in `WHERE` turns the outer join back into an inner one, because `NULL >= '2025-01-01'` is unknown. Put that condition in `ON`:\n\n```sql\nSELECT h.id, h.name, b.start_date\nFROM hotels h\nLEFT JOIN bookings b\n       ON b.hotel_id = h.id\n      AND b.start_date >= '2025-01-01'\n      AND b.start_date <  '2026-01-01';\n```\n\nAlso, `COUNT(*)` would count the NULL padded row and report 1 booking for a hotel with none. Count a column from the right table instead.\n"
+  },
+  {
+    "id": "node-sql-group-by",
+    "group": "Grouping",
+    "name": "GROUP BY",
+    "syntax": "SELECT key, AGG(...) FROM table GROUP BY key",
+    "desc": "Folds rows that share values into one row per group. Every selected column must be grouped or aggregated.",
+    "example": "-- Hotels per city, with the average star rating\nSELECT city,\n       COUNT(*) AS hotels,\n       AVG(stars) AS avg_stars\nFROM hotels\nGROUP BY city\nORDER BY hotels DESC, city;\n\n-- Yearly booking counts from the start date\nSELECT YEAR(start_date) AS booking_year, COUNT(*) AS bookings\nFROM bookings\nGROUP BY YEAR(start_date)\nORDER BY booking_year;"
+  },
+  {
+    "id": "node-sql-having",
+    "group": "Grouping",
+    "name": "HAVING",
+    "syntax": "GROUP BY key HAVING aggregate_condition",
+    "desc": "Filters groups after the aggregates are computed. The only place to put a condition on COUNT, SUM or AVG.",
+    "example": "-- Cities that own more than one hotel\nSELECT city, COUNT(*) AS hotels\nFROM hotels\nGROUP BY city\nHAVING COUNT(*) > 1\nORDER BY city;\n\n-- Row filter in WHERE, group filter in HAVING\nSELECT city, COUNT(*) AS four_star\nFROM hotels\nWHERE stars = 4\nGROUP BY city\nHAVING COUNT(*) > 1;"
+  },
+  {
+    "id": "node-sql-count",
+    "group": "Grouping",
+    "name": "COUNT()",
+    "syntax": "COUNT(*) | COUNT(column) | COUNT(DISTINCT column)",
+    "desc": "COUNT(*) counts rows, COUNT(column) skips NULLs, COUNT(DISTINCT column) counts different non-null values.",
+    "example": "-- Rows, distinct guests, and guests with a phone\nSELECT COUNT(*)                  AS bookings,\n       COUNT(DISTINCT customer_email) AS guests\nFROM bookings;\n\n-- With a left join, count the right table column so zero stays zero\nSELECT h.name, COUNT(b.customer_email) AS bookings\nFROM hotels h\nLEFT JOIN bookings b ON b.hotel_id = h.id\nGROUP BY h.id, h.name;"
+  },
+  {
+    "id": "node-sql-sum-avg",
+    "group": "Grouping",
+    "name": "SUM() / AVG()",
+    "syntax": "SUM(expression) | AVG(expression)",
+    "desc": "Adds or averages the non-null values of a group. Returns NULL when no row qualifies, so wrap totals in COALESCE.",
+    "example": "-- Guest totals for the whole table: one row, zero when empty\nSELECT COALESCE(SUM(adults), 0)   AS adults,\n       COALESCE(SUM(children), 0) AS children,\n       COALESCE(SUM(adults + children + boylovers), 0) AS guests\nFROM bookings;\n\n-- Average stars per city, ignoring cities with no row\nSELECT city, ROUND(AVG(stars), 2) AS avg_stars\nFROM hotels\nGROUP BY city;"
+  },
+  {
+    "id": "node-sql-coalesce",
+    "group": "Grouping",
+    "name": "COALESCE()",
+    "syntax": "COALESCE(value, fallback)",
+    "desc": "Returns the first argument that is not NULL. Converts a NULL total into 0 and keeps a partial UPDATE from erasing a column.",
+    "example": "-- JSON gets 0, not null, when nothing matches\nSELECT COALESCE(SUM(adults), 0) AS adults FROM bookings\nWHERE start_date <= '2025-07-31' AND end_date >= '2025-07-01';\n\n-- Keep the old value when the new one is NULL\nUPDATE bookings\nSET adults = COALESCE(?, adults),\n    children = COALESCE(?, children)\nWHERE customer_email = ? AND hotel_id = ?;"
+  },
+  {
+    "id": "node-sql-insert",
+    "group": "Writing",
+    "name": "INSERT INTO",
+    "syntax": "INSERT INTO table (columns) VALUES (values)",
+    "desc": "Adds rows. Always name the columns, and bind the values from Node with placeholders.",
+    "example": "-- One guest, all columns named\nINSERT INTO customers (email, first_name, last_name, phone, birthday, image)\nVALUES ('dora.toth@example.com', 'Dora', 'Toth', '+36 30 444 4444', '1995-09-09', NULL);\n\n-- Two hotels in one statement. id is AUTO_INCREMENT, so it is left out.\nINSERT INTO hotels (city, name, description, stars, owner_email)\nVALUES ('Eger', 'Vineyard House', 'Rooms above a small winery.', 4, 'anna.kovacs@example.com'),\n       ('Sopron', 'Old Town Rooms', 'Six rooms in a restored townhouse.', 3, 'ben.nagy@example.com');\n\n-- From Node, the values stay separate from the SQL\nconst [result] = await pool.execute(\n    'INSERT INTO customers (email, first_name, last_name) VALUES (?, ?, ?)',\n    [email, firstName, lastName]\n);"
+  },
+  {
+    "id": "node-sql-update",
+    "group": "Writing",
+    "name": "UPDATE",
+    "syntax": "UPDATE table SET column = value WHERE condition",
+    "desc": "Changes the matched rows. Without WHERE it changes every row, so run the condition as a SELECT first.",
+    "example": "-- Change one booking. The key is the pair, so the WHERE has both.\nUPDATE bookings\nSET start_date = '2025-09-02',\n    end_date   = '2025-09-04',\n    adults     = 3\nWHERE customer_email = 'dora.toth@example.com'\n  AND hotel_id = 1;\n\n-- Count what the WHERE matches before the write\nSELECT COUNT(*) FROM bookings WHERE hotel_id = 1;"
+  },
+  {
+    "id": "node-sql-delete",
+    "group": "Writing",
+    "name": "DELETE",
+    "syntax": "DELETE FROM table WHERE condition",
+    "desc": "Removes the matched rows and returns affectedRows. Deleting a parent row may cascade or be refused by a foreign key.",
+    "example": "-- One booking, addressed by the composite key\nDELETE FROM bookings\nWHERE customer_email = 'dora.toth@example.com'\n  AND hotel_id = 1;\n\n-- A guest is removed together with their bookings (ON DELETE CASCADE),\n-- but a guest who owns a hotel is refused (ON DELETE RESTRICT)\nDELETE FROM customers WHERE email = 'dora.toth@example.com';"
+  },
+  {
+    "id": "node-sql-transaction",
+    "group": "Writing",
+    "name": "START TRANSACTION",
+    "syntax": "START TRANSACTION; ... COMMIT; | ROLLBACK;",
+    "desc": "Groups statements so they all land or none do. In Node the whole transaction must run on one pooled connection.",
+    "example": "START TRANSACTION;\nINSERT INTO customers (email, first_name, last_name)\nVALUES ('eva.molnar@example.com', 'Eva', 'Molnar');\nINSERT INTO bookings (customer_email, hotel_id, start_date, end_date, adults)\nVALUES ('eva.molnar@example.com', 2, '2025-10-01', '2025-10-03', 1);\nCOMMIT;",
+    "body": "`pool.query` takes a connection per call, so three calls are not a transaction. Take one connection and release it in `finally`:\n\n```js\nconst conn = await pool.getConnection();\ntry {\n    await conn.beginTransaction();\n    await conn.execute('INSERT INTO customers (email, first_name, last_name) VALUES (?, ?, ?)', [email, first, last]);\n    await conn.execute('INSERT INTO bookings (customer_email, hotel_id, start_date, end_date) VALUES (?, ?, ?, ?)', [email, hotelId, start, end]);\n    await conn.commit();\n    res.status(201).json({ email });\n} catch (err) {\n    await conn.rollback();\n    if (err.code === 'ER_DUP_ENTRY') res.status(409).json({ error: 'Already exists' });\n    else res.status(500).json({ error: 'Insert failed' });\n} finally {\n    conn.release();\n}\n```\n\nA missing `release` empties the pool after enough failed requests, and every later route hangs.\n"
+  },
+  {
+    "id": "node-sql-overlap",
+    "group": "Dates",
+    "name": "date range overlap",
+    "syntax": "WHERE start_date <= :to AND end_date >= :from",
+    "desc": "Selects rows whose date range touches the requested period. Both comparisons are needed; either one alone is wrong.",
+    "example": "-- Stays that touch July 2025. A stay ending on the 1st is included,\n-- and so is one starting on the 31st.\nSELECT customer_email, hotel_id, start_date, end_date\nFROM bookings\nWHERE start_date <= '2025-07-31'\n  AND end_date   >= '2025-07-01';\n\n-- Guest totals for the same period, one row back\nSELECT COALESCE(SUM(adults), 0)   AS adults,\n       COALESCE(SUM(children), 0) AS children\nFROM bookings\nWHERE start_date <= ? AND end_date >= ?;",
+    "body": "The strict form, for \"which room is free for the night of the 10th\", uses `start_date <= date AND end_date > date`, because a guest who checks out on the 10th frees the room. Pick one rule, write it in a comment, and test the boundary where a stay ends exactly on the arrival date.\n"
+  },
+  {
+    "id": "node-sql-datediff",
+    "group": "Dates",
+    "name": "DATEDIFF() / YEAR()",
+    "syntax": "DATEDIFF(later, earlier)",
+    "desc": "Whole days from the second date to the first. DATEDIFF(end_date, start_date) is the number of nights in a booking.",
+    "example": "-- Nights per booking, longest first\nSELECT customer_email, hotel_id, start_date, end_date,\n       DATEDIFF(end_date, start_date) AS nights\nFROM bookings\nORDER BY nights DESC, start_date ASC;\n\n-- Calendar parts and a month label\nSELECT YEAR(start_date) AS y, MONTH(start_date) AS m,\n       DATE_FORMAT(start_date, '%Y-%m') AS month_label\nFROM bookings;\n\nSELECT CURDATE();                              -- today\nSELECT DATE_ADD('2025-07-01', INTERVAL 7 DAY);  -- 2025-07-08"
+  },
+  {
+    "id": "node-sql-index",
+    "group": "Schema",
+    "name": "CREATE INDEX",
+    "syntax": "CREATE INDEX name ON table (column[, column2])",
+    "desc": "Speeds up filters, joins and sorts on the indexed columns. Costs space and a little write time on every insert.",
+    "example": "-- The primary key already covers (customer_email, hotel_id).\n-- These cover the other directions and the date range filter.\nCREATE INDEX idx_bookings_hotel ON bookings (hotel_id);\nCREATE INDEX idx_bookings_dates ON bookings (start_date, end_date);\nCREATE INDEX idx_hotels_owner   ON hotels (owner_email);\n\n-- Composite index: usable for hotel_id alone, or hotel_id plus a date,\n-- but not for start_date alone, because that column is not leftmost.\nCREATE INDEX idx_bookings_hotel_date ON bookings (hotel_id, start_date);"
+  },
+  {
+    "id": "node-sql-explain",
+    "group": "Schema",
+    "name": "EXPLAIN",
+    "syntax": "EXPLAIN SELECT ...",
+    "desc": "Prints the query plan instead of running the query. Check type and rows to see whether an index did the work.",
+    "example": "EXPLAIN SELECT * FROM bookings WHERE hotel_id = 1;\n\n-- type = ALL means a full table scan.\n-- type = ref or range means an index was used.\n-- key shows which index, rows estimates the work."
+  },
+  {
+    "id": "node-sql-exists",
+    "group": "Reading",
+    "name": "EXISTS / NOT EXISTS",
+    "syntax": "WHERE EXISTS (SELECT 1 FROM other WHERE ...)",
+    "desc": "Tests whether the subquery returns at least one row. Stops at the first match and stays correct when NULLs are involved.",
+    "example": "-- Hotels that have at least one booking\nSELECT h.id, h.name\nFROM hotels h\nWHERE EXISTS (SELECT 1 FROM bookings b WHERE b.hotel_id = h.id);\n\n-- Hotels with no booking at all. Safer than NOT IN, which breaks\n-- when the subquery returns NULL.\nSELECT h.id, h.name\nFROM hotels h\nWHERE NOT EXISTS (SELECT 1 FROM bookings b WHERE b.hotel_id = h.id);"
+  },
+  {
+    "id": "node-sql-placeholder",
+    "group": "Safety",
+    "name": "? placeholder",
+    "syntax": "pool.execute(sql, [value1, value2])",
+    "desc": "Sends values separately from the statement so user text can never become SQL. The first step against injection.",
+    "example": "// Wrong: the request writes part of the statement\nconst badSql = `SELECT * FROM hotels WHERE city = '${req.query.city}'`;\n\n// Right: the driver escapes and binds the value\nconst [rows] = await pool.execute(\n    'SELECT * FROM hotels WHERE city = ?',\n    [req.query.city]\n);\n\n// A column name cannot be bound. Whitelist it, then inline the safe name.\nconst sort = ['name', 'city', 'stars'].includes(req.query.sort) ? req.query.sort : 'name';\nconst [sorted] = await pool.query(`SELECT id, name FROM hotels ORDER BY ${sort}`);"
+  },
+  {
+    "id": "node-sql-insert-id",
+    "group": "Safety",
+    "name": "result.insertId",
+    "syntax": "const [result] = await pool.execute(...)",
+    "desc": "The result object of a write. insertId is the generated key, affectedRows the number of rows changed.",
+    "example": "const [result] = await pool.execute(\n    'INSERT INTO hotels (city, name, description, stars, owner_email) VALUES (?, ?, ?, ?, ?)',\n    [city, name, description, stars, ownerEmail]\n);\n\n// 201 with the new key for a create\nres.status(201).json({ id: result.insertId });\n\n// 404 when an update or delete matched nothing\nif (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' });"
+  },
+  {
+    "id": "node-sql-on-duplicate",
+    "group": "Writing",
+    "name": "ON DUPLICATE KEY UPDATE",
+    "syntax": "INSERT ... ON DUPLICATE KEY UPDATE column = VALUES(column)",
+    "desc": "Insert, or update the existing row when a primary or unique key collides. One statement instead of a check and a race.",
+    "example": "-- A guest books a hotel once: the key is (customer_email, hotel_id)\nINSERT INTO bookings (customer_email, hotel_id, start_date, end_date, adults)\nVALUES (?, ?, ?, ?, ?)\nON DUPLICATE KEY UPDATE\n    start_date = VALUES(start_date),\n    end_date   = VALUES(end_date),\n    adults     = VALUES(adults);\n\n-- affectedRows: 1 inserted, 2 updated, 0 unchanged"
+  }
+]

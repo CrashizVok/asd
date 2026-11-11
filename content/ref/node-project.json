@@ -1,0 +1,153 @@
+[
+  {
+    "id": "node-project-knex-instance",
+    "group": "Setup",
+    "name": "knex(config)",
+    "syntax": "knex({ client: 'mysql2', connection, pool })",
+    "desc": "Creates one query builder with a connection pool. Call it once per process and export the result, because each call opens another pool.",
+    "example": "import knex from 'knex';\nimport 'dotenv/config';\n\n// One instance for the whole app. Routers import this object.\nexport const db = knex({\n    client: 'mysql2',\n    connection: {\n        host: process.env.DB_HOST || '127.0.0.1',\n        user: process.env.DB_USER || 'root',\n        password: process.env.DB_PASSWORD || '',\n        database: process.env.DB_NAME || 'bookings',\n        // DATE columns stay as \"2026-07-01\" strings.\n        dateStrings: true,\n    },\n    pool: { min: 0, max: 10 },\n});",
+    "body": "Knex wraps the mysql2 driver, so awaiting a query builder works without a callback. Keep the pool small. Ten connections per app instance is enough for an exam and leaves room for other clients."
+  },
+  {
+    "id": "node-project-knex-select",
+    "group": "Queries",
+    "name": ".select()",
+    "syntax": "db('hotels').select('id', 'city', 'stars')",
+    "desc": "Lists the columns of a select. An object argument renames each column in the result, which is how a join avoids duplicate names.",
+    "example": "// GET /api/hotels\nconst rows = await db('hotels')\n    .select('id', 'city', 'name', 'stars')\n    .orderBy('name', 'asc');\n\n// Same query with aliases, used when two tables share a column name.\nconst joined = await db('hotels as h')\n    .select({\n        hotel_id: 'h.id',\n        hotel_name: 'h.name',\n        owner_email: 'h.owner_email',\n    });\n\nresponse.json(rows);"
+  },
+  {
+    "id": "node-project-knex-where",
+    "group": "Queries",
+    "name": ".where()",
+    "syntax": ".where(column, value) / .where({ column: value })",
+    "desc": "Adds an AND condition. Several calls chain, and a callback argument groups OR conditions so a later filter cannot attach to the last OR.",
+    "example": "// GET /api/hotels?city=Eger&min_stars=3\nconst query = db('hotels').select('id', 'name', 'city', 'stars');\n\nif (city) query.where('city', city);\nif (minStars > 0) query.where('stars', '>=', minStars);\n\n// Object form, all conditions joined with AND.\nconst booking = await db('bookings')\n    .where({ customer_email: email, hotel_id: hotelId })\n    .first();\n\n// Callback form keeps the ORs together: (city OR name) AND stars >= 3.\nconst results = await db('hotels')\n    .where((group) => {\n        group.where('city', 'like', '%Eger%').orWhere('name', 'like', '%Eger%');\n    })\n    .where('stars', '>=', 3);"
+  },
+  {
+    "id": "node-project-knex-join",
+    "group": "Queries",
+    "name": ".join() and .leftJoin()",
+    "syntax": ".join('customers as c', 'c.email', 'hotels.owner_email')",
+    "desc": "Joins a second table on a column pair. leftJoin keeps rows from the first table when no match exists, which matters for counts of zero.",
+    "example": "// Hotels with the owner name, plus a booking count that can be zero.\nconst rows = await db('hotels as h')\n    .join('customers as c', 'c.email', 'h.owner_email')\n    .leftJoin('bookings as b', 'b.hotel_id', 'h.id')\n    .select(\n        'h.id',\n        'h.name',\n        db.raw(\"CONCAT(c.first_name, ' ', c.last_name) AS owner_name\"),\n        // COUNT of a joined column, not COUNT(*): the empty hotel has one\n        // row of nulls and COUNT(*) would report 1.\n        db.raw('COUNT(b.customer_email) AS bookings')\n    )\n    .groupBy('h.id', 'h.name', 'c.first_name', 'c.last_name')\n    .orderBy('h.name', 'asc');"
+  },
+  {
+    "id": "node-project-knex-insert",
+    "group": "Writes",
+    "name": ".insert()",
+    "syntax": "db('hotels').insert(row)",
+    "desc": "Inserts one row or an array of rows. Against MySQL it resolves to an array whose first item is the new auto increment id.",
+    "example": "// POST /api/hotels\nconst row = {\n    city: 'Pecs',\n    name: 'Zsolnay Udvar',\n    description: 'Rooms above the old factory.',\n    stars: 4,\n    owner_email: 'kovacs.anna@example.test',\n};\n\nconst [id] = await db('hotels').insert(row);\nresponse.status(201).json({ id, ...row });\n\n// An array inserts several rows in one statement and returns the first id.\nawait db('customers').insert([\n    { email: 'a@example.test', first_name: 'Anna', last_name: 'Kovacs', phone: '' },\n    { email: 'b@example.test', first_name: 'Bela', last_name: 'Nagy', phone: '' },\n]);"
+  },
+  {
+    "id": "node-project-knex-update",
+    "group": "Writes",
+    "name": ".update()",
+    "syntax": "db('bookings').where(key).update(patch)",
+    "desc": "Writes only the keys present in the object and resolves to the number of affected rows. A missing where clause updates every row.",
+    "example": "// PUT /api/booking, partial update\n// Only fields the client sent are written.\nconst patch = {};\nfor (const field of ['start_date', 'end_date', 'adults', 'children']) {\n    if (Object.hasOwn(request.body, field)) patch[field] = request.body[field];\n}\n\nif (Object.keys(patch).length === 0) {\n    throw new HttpError(400, 'Send at least one field to update');\n}\n\nconst affected = await db('bookings')\n    .where({ customer_email: email, hotel_id: hotelId })\n    .update(patch);\n\nif (affected === 0) {\n    throw new HttpError(404, 'Booking not found');\n}",
+    "body": "Never pass `request.body` here. The body can carry `customer_email` or any other column, and the update then moves the row or writes data you did not validate."
+  },
+  {
+    "id": "node-project-knex-first",
+    "group": "Queries",
+    "name": ".first()",
+    "syntax": "query.first()",
+    "desc": "Adds LIMIT 1 and resolves to the row object or undefined. It does not throw when nothing matches, so the route checks and returns 404.",
+    "example": "router.get('/hotels/:id', async (request, response, next) => {\n    try {\n        const id = integer(request.params.id, 'id', { min: 1 });\n        const hotel = await db('hotels').where({ id }).first();\n        if (!hotel) {\n            throw new HttpError(404, 'Hotel not found');\n        }\n        response.json(hotel);\n    } catch (error) {\n        next(error);\n    }\n});"
+  },
+  {
+    "id": "node-project-knex-aggregate",
+    "group": "Queries",
+    "name": ".count() and .sum()",
+    "syntax": "query.count({ alias: 'column' }).first()",
+    "desc": "Adds aggregate columns. SUM and AVG return DECIMAL, which mysql2 gives back as a string, so convert values with Number before sending JSON.",
+    "example": "// GET /api/bookings/from/2026-07-01/to/2026-07-31\nconst totals = await db('bookings')\n    .where('start_date', '<=', toDate)\n    .where('end_date', '>=', fromDate)\n    .sum({ adults: 'adults', children: 'children' })\n    .count({ bookings: 'customer_email' })\n    .first();\n\nresponse.json({\n    // SUM of a small integer column is DECIMAL, returned as text.\n    adults: Number(totals?.adults ?? 0),\n    children: Number(totals?.children ?? 0),\n    bookings: Number(totals?.bookings ?? 0),\n});"
+  },
+  {
+    "id": "node-project-knex-transaction",
+    "group": "Transactions",
+    "name": "db.transaction()",
+    "syntax": "db.transaction(async (trx) => { ... })",
+    "desc": "Runs several statements on one connection and commits when the callback resolves. A thrown error rolls everything back.",
+    "example": "// Create an owner and their first hotel, or neither.\nawait db.transaction(async (trx) => {\n    await trx('customers').insert({\n        email,\n        first_name: firstName,\n        last_name: lastName,\n        phone: '',\n    });\n\n    const [hotelId] = await trx('hotels').insert({\n        city,\n        name,\n        description: '',\n        stars: 3,\n        owner_email: email,\n    });\n\n    return hotelId;\n});\n\n// Wrong: db writes on another pooled connection, outside the transaction,\n// and stays behind when the callback throws. Use trx inside the callback."
+  },
+  {
+    "id": "node-project-router",
+    "group": "Routing",
+    "name": "Router()",
+    "syntax": "const router = Router(); app.use(\"/api\", router)",
+    "desc": "Groups routes in a file that knows only its own paths. The mount path stays in server.js, so a prefix change touches one line.",
+    "example": "// routers/hotels.js\nimport { Router } from 'express';\nimport { db } from '../db.js';\n\nconst router = Router();\n\nrouter.get('/hotels', async (request, response, next) => {\n    try {\n        response.json(await db('hotels').select('id', 'name', 'stars'));\n    } catch (error) {\n        next(error);\n    }\n});\n\nexport default router;\n\n// server.js mounts it. The full path is /api/hotels.\nimport hotels from './routers/hotels.js';\napp.use('/api', hotels);"
+  },
+  {
+    "id": "node-project-async-handler",
+    "group": "Errors",
+    "name": "async handler with next(error)",
+    "syntax": "async (request, response, next) => { try { ... } catch (error) { next(error); } }",
+    "desc": "Express 4 does not catch a rejected promise, so every async handler needs its own try/catch. Without it the client waits until timeout.",
+    "example": "router.get('/hotels', async (request, response, next) => {\n    try {\n        const rows = await db('hotels').select('id', 'name');\n        response.json(rows);\n    } catch (error) {\n        // The error middleware is the only place that writes status codes.\n        next(error);\n    }\n});",
+    "body": "Express 5 forwards rejected promises to the error middleware by itself. Code written with the try/catch works on both versions and shows the reader that the handler can fail."
+  },
+  {
+    "id": "node-project-error-middleware",
+    "group": "Errors",
+    "name": "errorHandler(error, request, response, next)",
+    "syntax": "app.use((error, request, response, next) => { ... })",
+    "desc": "The one place that turns an error into a response. Express finds it by its four parameters and it must be registered after every route.",
+    "example": "export function errorHandler(error, request, response, next) {\n    // express.json() failed to parse the body.\n    if (error.type === 'entity.parse.failed') {\n        return response.status(400).json({ error: 'Invalid JSON body' });\n    }\n    if (error instanceof HttpError) {\n        return response.status(error.status).json({ error: error.message });\n    }\n    const mapped = {\n        ER_DUP_ENTRY: [409, 'That row already exists'],\n        ER_NO_REFERENCED_ROW_2: [400, 'The customer or hotel does not exist'],\n    }[error.code];\n    if (mapped) {\n        return response.status(mapped[0]).json({ error: mapped[1] });\n    }\n    console.error(request.method, request.originalUrl, error);\n    response.status(500).json({ error: 'Server error' });\n}\n\napp.use(notFound);\napp.use(errorHandler);",
+    "body": "Removing `next` from the signature turns the function into ordinary middleware, which Express calls on normal requests and which never sees an error. Keep all four parameters even when the last one is unused."
+  },
+  {
+    "id": "node-project-validate-body",
+    "group": "Validation",
+    "name": "Whitelist request body fields",
+    "syntax": "for (const field of FIELDS) if (Object.hasOwn(body, field)) row[field] = body[field]",
+    "desc": "Copies only known fields out of the body and validates each one. Object.hasOwn tells a missing field apart from a falsy value such as 0.",
+    "example": "const UPDATABLE = ['start_date', 'end_date', 'adults', 'children', 'boylovers'];\n\nconst patch = {};\nfor (const field of UPDATABLE) {\n    if (Object.hasOwn(request.body, field)) {\n        patch[field] = request.body[field];\n    }\n}\n\nif (Object.keys(patch).length === 0) {\n    throw new HttpError(400, 'Send at least one field to update');\n}\n\nif (Object.hasOwn(patch, 'start_date')) {\n    patch.start_date = date(patch.start_date, 'start_date');\n}\nif (Object.hasOwn(patch, 'adults')) {\n    patch.adults = integer(patch.adults, 'adults', { min: 0, max: 50 });\n}"
+  },
+  {
+    "id": "node-project-like-search",
+    "group": "Queries",
+    "name": "Grouped LIKE search",
+    "syntax": ".where((group) => group.where(...).orWhere(...))",
+    "desc": "Searches several text columns with OR while keeping them in one parenthesised group. Escape % and _ so the search word is treated as text.",
+    "example": "const word = text(request.params.search_word, 'search_word', { max: 80 });\nconst like = `%${word.replace(/[\\\\%_]/g, '\\\\$&')}%`;\n\nconst rows = await db('bookings as b')\n    .join('customers as c', 'c.email', 'b.customer_email')\n    .join('hotels as h', 'h.id', 'b.hotel_id')\n    .where((group) => {\n        group\n            .where('c.first_name', 'like', like)\n            .orWhere('c.last_name', 'like', like)\n            .orWhere('h.name', 'like', like)\n            .orWhere('h.description', 'like', like);\n    })\n    .orderBy('b.start_date', 'asc')\n    .limit(100);\n\nresponse.json(rows);",
+    "body": "Without the callback the SQL becomes `first_name LIKE ? OR ... OR description LIKE ? AND start_date >= ?`, and the last filter applies only to the final OR. The result includes rows the filter was meant to remove."
+  },
+  {
+    "id": "node-project-date-overlap",
+    "group": "Queries",
+    "name": "Date range overlap",
+    "syntax": "where('start_date', '<=', toDate).where('end_date', '>=', fromDate)",
+    "desc": "Finds bookings that touch a date window, including stays that start before it or end after it. Equality counts, because a guest leaving on the last day is still there that morning.",
+    "example": "// GET /api/bookings/from/2026-07-01/to/2026-07-31\nconst fromDate = date(request.params.from_date, 'from_date');\nconst toDate = date(request.params.to_date, 'to_date');\nif (fromDate > toDate) {\n    throw new HttpError(400, 'from_date must be before or equal to to_date');\n}\n\nconst totals = await db('bookings')\n    .where('start_date', '<=', toDate)\n    .where('end_date', '>=', fromDate)\n    .sum({ adults: 'adults', children: 'children' })\n    .first();\n\nresponse.json({ adults: Number(totals?.adults ?? 0) });",
+    "body": "The inverted version, `start_date >= from AND end_date <= to`, keeps only bookings inside the window. A stay from June 28 to July 3 then disappears from a July report even though the guests are in the hotel."
+  },
+  {
+    "id": "node-project-pagination",
+    "group": "Queries",
+    "name": "limit() and offset()",
+    "syntax": "query.limit(size).offset((page - 1) * size)",
+    "desc": "Slices a long result into pages. Cap the page size, order by a unique column, and read the numbers from query strings before they reach SQL.",
+    "example": "// GET /api/hotels?page=2&size=20\nconst page = request.query.page === undefined\n    ? 1\n    : integer(request.query.page, 'page', { min: 1, max: 10000 });\nconst size = request.query.size === undefined\n    ? 20\n    : integer(request.query.size, 'size', { min: 1, max: 100 });\n\nconst rows = await db('hotels')\n    .select('id', 'name', 'stars')\n    // A unique tiebreaker stops rows from repeating across pages.\n    .orderBy([{ column: 'name', order: 'asc' }, { column: 'id', order: 'asc' }])\n    .limit(size)\n    .offset((page - 1) * size);\n\nresponse.json({ page, size, rows });"
+  },
+  {
+    "id": "node-project-knex-debug",
+    "group": "Debugging",
+    "name": ".toSQL().toNative()",
+    "syntax": "query.toSQL().toNative()",
+    "desc": "Returns the SQL text and the bound values without running the query. Use it when a builder produces an unexpected where clause.",
+    "example": "const query = db('hotels as h')\n    .join('customers as c', 'c.email', 'h.owner_email')\n    .where('h.city', 'Eger')\n    .select({ id: 'h.id', owner: 'c.email' });\n\nconsole.log(query.toSQL().toNative());\n// Output, with identifier quotes left out for readability:\n// {\n//   sql: \"select h.id as id, c.email as owner from hotels as h \" +\n//        \"inner join customers as c on c.email = h.owner_email \" +\n//        \"where h.city = ?\",\n//   bindings: [ 'Eger' ]\n// }\n\n// To watch every query while learning, pass debug: true to knex().\n// Remove it before the exam demo: it prints passwords from inserts too."
+  },
+  {
+    "id": "node-project-env-config",
+    "group": "Setup",
+    "name": "Connection from environment",
+    "syntax": "process.env.DB_HOST || \"127.0.0.1\"",
+    "desc": "Reads connection settings from .env with a local default, so the same code runs on a laptop and in a container. The password never sits in the repository.",
+    "example": "// .env, not committed\n// DB_HOST=127.0.0.1\n// DB_PORT=3306\n// DB_USER=root\n// DB_PASSWORD=\n// DB_NAME=bookings\n// PORT=3000\n\n// db.js\nimport 'dotenv/config';\nimport knex from 'knex';\n\nexport const db = knex({\n    client: 'mysql2',\n    connection: {\n        host: process.env.DB_HOST || '127.0.0.1',\n        port: Number(process.env.DB_PORT) || 3306,\n        user: process.env.DB_USER || 'root',\n        password: process.env.DB_PASSWORD || '',\n        database: process.env.DB_NAME || 'bookings',\n        dateStrings: true,\n    },\n});\n\n// server.js\nconst port = Number(process.env.PORT) || 3000;",
+    "body": "`import 'dotenv/config'` must run before the object is built, so it goes at the top of the file that creates the pool. Adding the import to server.js only works if server.js loads db.js afterwards."
+  }
+]

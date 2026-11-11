@@ -1,0 +1,194 @@
+[
+  {
+    "id": "js-extra-array-from",
+    "group": "Arrays",
+    "name": "Array.from()",
+    "syntax": "Array.from(iterable, mapFn?)",
+    "desc": "Builds a real array from an iterable or array-like value. The optional map function runs during the build, so no second pass is needed.",
+    "example": "const letters = Array.from(\"hotel\");\nconsole.log(letters); // [\"h\",\"o\",\"t\",\"e\",\"l\"]\n\n// The second argument maps each value while the array is built\nconst stars = Array.from({ length: 5 }, (unused, index) => index + 1);\nconsole.log(stars); // [1,2,3,4,5]\n\n// A Set has no indexes but it is iterable\nconst unique = Array.from(new Set([\"a\", \"b\", \"a\"]));\nconsole.log(unique); // [\"a\",\"b\"]"
+  },
+  {
+    "id": "js-extra-array-isarray",
+    "group": "Arrays",
+    "name": "Array.isArray()",
+    "syntax": "Array.isArray(value)",
+    "desc": "Returns true only for real arrays. typeof reports every object as object, so this is the reliable check.",
+    "example": "console.log(Array.isArray([1, 2]));        // true\nconsole.log(Array.isArray({ length: 2 }));  // false, array-like but not an array\nconsole.log(Array.isArray(\"abc\"));          // false\n\n// A common guard before array methods\nfunction total(value) {\n  if (!Array.isArray(value)) return 0;\n  return value.reduce((sum, item) => sum + item, 0);\n}\n\nconsole.log(total([2, 3, 4])); // 9\nconsole.log(total(\"2,3,4\"));   // 0"
+  },
+  {
+    "id": "js-extra-array-flat",
+    "group": "Arrays",
+    "name": "array.flat()",
+    "syntax": "array.flat(depth = 1)",
+    "desc": "Flattens nested arrays up to the given depth. The default depth of one level is often not what people expect from deep data.",
+    "example": "const oneLevel = [1, [2, 3], [4, [5]]];\nconsole.log(oneLevel.flat());     // [1,2,3,4,[5]]\nconsole.log(oneLevel.flat(2));    // [1,2,3,4,5]\nconsole.log(oneLevel.flat(Infinity)); // [1,2,3,4,5]\n\n// Rows loaded from an API often nest one level too deep\nconst pages = [[{ id: 1 }, { id: 2 }], [{ id: 3 }]];\nconst hotels = pages.flat();\nconsole.log(hotels.length); // 3"
+  },
+  {
+    "id": "js-extra-array-flatmap",
+    "group": "Arrays",
+    "name": "array.flatMap()",
+    "syntax": "array.flatMap(item => result)",
+    "desc": "Maps every item and flattens the result one level. Use it when one input item should produce zero, one, or many outputs.",
+    "example": "const bookings = [\n  { hotel: \"Danube View\", guests: [\"Anna\", \"Bela\"] },\n  { hotel: \"City Loft\", guests: [\"Csilla\"] }\n];\n\n// map would give an array of arrays, flatMap gives one flat list\nconst guests = bookings.flatMap((booking) => booking.guests);\nconsole.log(guests); // [\"Anna\",\"Bela\",\"Csilla\"]\n\n// Returning an empty array drops the item entirely\nconst onlyLong = bookings.flatMap((booking) =>\n  booking.guests.length > 1 ? [booking.hotel] : []\n);\nconsole.log(onlyLong); // [\"Danube View\"]"
+  },
+  {
+    "id": "js-extra-array-at",
+    "group": "Arrays",
+    "name": "array.at()",
+    "syntax": "array.at(index)",
+    "desc": "Reads an item by index and accepts negative values, so the last item is at(-1).",
+    "example": "const cities = [\"Eger\", \"Budapest\", \"Gyor\"];\n\nconsole.log(cities.at(0));   // Eger\nconsole.log(cities.at(-1));  // Gyor\nconsole.log(cities.at(-2));  // Budapest\n\n// Before at(), the last item was cities[cities.length - 1]\nconsole.log(cities[cities.length - 1] === cities.at(-1)); // true\n\n// Out of range returns undefined, it does not throw\nconsole.log(cities.at(9)); // undefined"
+  },
+  {
+    "id": "js-extra-array-sort-comparator",
+    "group": "Arrays",
+    "name": "array.sort(compare)",
+    "syntax": "array.sort((a, b) => number)",
+    "desc": "Sorts in place. Without a comparator the values are converted to strings, which puts 10 before 2.",
+    "example": "const numbers = [10, 2, 33, 4];\n\nconsole.log([...numbers].sort());            // [10,2,33,4] as strings, wrong for numbers\nconsole.log([...numbers].sort((a, b) => a - b)); // [2,4,10,33]\n\nconst hotels = [\n  { name: \"Danube View\", stars: 4 },\n  { name: \"City Loft\", stars: 5 },\n  { name: \"Lake Garden\", stars: 3 }\n];\n\n// sort mutates, so copy first when the original order matters\nconst byStars = [...hotels].sort((a, b) => b.stars - a.stars);\nconsole.log(byStars.map((hotel) => hotel.name)); // [\"City Loft\",\"Danube View\",\"Lake Garden\"]"
+  },
+  {
+    "id": "js-extra-array-reduce",
+    "group": "Arrays",
+    "name": "array.reduce()",
+    "syntax": "array.reduce((acc, item) => next, initial)",
+    "desc": "Folds the array into one value. The accumulator type can be anything, which is why reduce can build objects too.",
+    "example": "const bookings = [\n  { hotel_id: 1, adults: 2, children: 1 },\n  { hotel_id: 2, adults: 2, children: 0 },\n  { hotel_id: 1, adults: 1, children: 2 }\n];\n\n// Sum a field\nconst people = bookings.reduce(\n  (sum, booking) => sum + booking.adults + booking.children,\n  0\n);\nconsole.log(people); // 8\n\n// Group into an object keyed by hotel_id\nconst byHotel = bookings.reduce((acc, booking) => {\n  acc[booking.hotel_id] = (acc[booking.hotel_id] || 0) + 1;\n  return acc;\n}, {});\nconsole.log(byHotel); // { \"1\": 2, \"2\": 1 }"
+  },
+  {
+    "id": "js-extra-array-tosorted",
+    "group": "Arrays",
+    "name": "array.toSorted()",
+    "syntax": "array.toSorted(compare?)",
+    "desc": "Returns a sorted copy and leaves the source array untouched. The same family includes toReversed and toSpliced.",
+    "example": "const cities = [\"Gyor\", \"Budapest\", \"Eger\"];\n\nconst sorted = cities.toSorted();\nconsole.log(sorted); // [\"Budapest\",\"Eger\",\"Gyor\"]\nconsole.log(cities); // [\"Gyor\",\"Budapest\",\"Eger\"], unchanged\n\n// toReversed and toSpliced follow the same copy rule\nconst reversed = cities.toReversed();\nconst withoutFirst = cities.toSpliced(0, 1);\nconsole.log(reversed);      // [\"Eger\",\"Budapest\",\"Gyor\"]\nconsole.log(withoutFirst);  // [\"Budapest\",\"Eger\"]"
+  },
+  {
+    "id": "js-extra-object-entries",
+    "group": "Objects",
+    "name": "Object.entries()",
+    "syntax": "Object.entries(object)",
+    "desc": "Turns an object into an array of [key, value] pairs, which lets you use array methods on it.",
+    "example": "const stars = { \"Danube View\": 4, \"City Loft\": 5, \"Lake Garden\": 3 };\n\nfor (const [name, value] of Object.entries(stars)) {\n  console.log(name, value);\n}\n\n// Filter and rebuild an object from the pairs\nconst top = Object.fromEntries(\n  Object.entries(stars).filter(([, value]) => value >= 4)\n);\nconsole.log(top); // { \"Danube View\": 4, \"City Loft\": 5 }\n\n// Keys only, values only\nconsole.log(Object.keys(stars).length); // 3\nconsole.log(Object.values(stars));      // [4,5,3]"
+  },
+  {
+    "id": "js-extra-object-fromentries",
+    "group": "Objects",
+    "name": "Object.fromEntries()",
+    "syntax": "Object.fromEntries(iterable)",
+    "desc": "Builds an object from key and value pairs. It is the inverse of Object.entries and accepts a Map directly.",
+    "example": "const pairs = [[\"name\", \"Danube View\"], [\"stars\", 4], [\"city\", \"Budapest\"]];\nconsole.log(Object.fromEntries(pairs));\n// { name: \"Danube View\", stars: 4, city: \"Budapest\" }\n\n// A Map converts in one call\nconst lookup = new Map([[\"HU\", \"Hungary\"], [\"AT\", \"Austria\"]]);\nconsole.log(Object.fromEntries(lookup)); // { HU: \"Hungary\", AT: \"Austria\" }\n\n// Transform values while rebuilding\nconst doubled = Object.fromEntries(\n  Object.entries({ a: 1, b: 2 }).map(([key, value]) => [key, value * 2])\n);\nconsole.log(doubled); // { a: 2, b: 4 }"
+  },
+  {
+    "id": "js-extra-object-assign",
+    "group": "Objects",
+    "name": "Object.assign()",
+    "syntax": "Object.assign(target, ...sources)",
+    "desc": "Copies own enumerable properties into the target and returns it. Later sources overwrite earlier ones.",
+    "example": "const defaults = { stars: 3, city: \"Budapest\", breakfast: false };\nconst overrides = { stars: 5, breakfast: true };\n\n// The first object is mutated, so pass a fresh one to keep defaults clean\nconst hotel = Object.assign({}, defaults, overrides);\nconsole.log(hotel); // { stars: 5, city: \"Budapest\", breakfast: true }\nconsole.log(defaults.stars); // 3, untouched\n\n// The copy is shallow: nested objects are shared\nconst source = { rooms: { count: 10 } };\nconst clone = Object.assign({}, source);\nclone.rooms.count = 99;\nconsole.log(source.rooms.count); // 99, the nested object was shared"
+  },
+  {
+    "id": "js-extra-object-groupby",
+    "group": "Objects",
+    "name": "Object.groupBy()",
+    "syntax": "Object.groupBy(items, item => key)",
+    "desc": "Groups items into an object whose keys come from the callback. It replaces the reduce based grouping pattern.",
+    "example": "const hotels = [\n  { name: \"Danube View\", city: \"Budapest\", stars: 4 },\n  { name: \"City Loft\", city: \"Budapest\", stars: 5 },\n  { name: \"Valley Inn\", city: \"Eger\", stars: 3 }\n];\n\nconst byCity = Object.groupBy(hotels, (hotel) => hotel.city);\nconsole.log(byCity.Budapest.length); // 2\nconsole.log(byCity.Eger[0].name);    // Valley Inn\n\n// Missing groups are absent, not empty arrays\nconsole.log(byCity.Gyor); // undefined\n\n// Map.groupBy does the same and keeps non-string keys intact\nconst byStars = Map.groupBy(hotels, (hotel) => hotel.stars);\nconsole.log(byStars.get(5)[0].name); // City Loft"
+  },
+  {
+    "id": "js-extra-string-padstart",
+    "group": "Strings",
+    "name": "String.padStart()",
+    "syntax": "text.padStart(length, fill = ' ')",
+    "desc": "Pads the string at the front until it reaches the target length. Useful for fixed width ids and report columns.",
+    "example": "console.log(\"7\".padStart(3, \"0\"));    // \"007\"\nconsole.log(\"42\".padStart(5, \"*\"));   // \"***42\"\nconsole.log(\"abc\".padStart(2, \"0\"));  // \"abc\", already long enough\n\n// Fixed width invoice numbers\nconst numbers = [7, 42, 1234];\nconst lines = numbers.map((n) => String(n).padStart(6, \"0\"));\nconsole.log(lines); // [\"000007\",\"000042\",\"001234\"]\n\n// padEnd pads the other side\nconsole.log(\"name\".padEnd(10, \".\")); // \"name......\""
+  },
+  {
+    "id": "js-extra-string-replaceall",
+    "group": "Strings",
+    "name": "String.replaceAll()",
+    "syntax": "text.replaceAll(search, replacement)",
+    "desc": "Replaces every match. With a string search it needs no regular expression and no global flag.",
+    "example": "const path = \"hotels/2026/may/hotels.csv\";\n\nconsole.log(path.replace(\"/\", \"_\"));      // hotels_2026/may/hotels.csv, first only\nconsole.log(path.replaceAll(\"/\", \"_\"));   // hotels_2026_may_hotels.csv\n\n// A regular expression still works and adds patterns\nconsole.log(\"a1 b2 c3\".replaceAll(/\\d/g, \"#\")); // \"a# b# c#\"\n\n// The replacement can use $& for the whole match\nconsole.log(\"cat\".replaceAll(\"a\", \"[$&]\")); // \"c[a]t\""
+  },
+  {
+    "id": "js-extra-string-at",
+    "group": "Strings",
+    "name": "String.at()",
+    "syntax": "text.at(index)",
+    "desc": "Returns the character at an index and accepts negatives. It avoids the bracket plus length arithmetic.",
+    "example": "const code = \"HU-2026\";\n\nconsole.log(code.at(0));   // \"H\"\nconsole.log(code.at(-1));  // \"6\"\nconsole.log(code.at(-4));  // \"2\"\n\n// The bracket form returns undefined past the end, at() does too\nconsole.log(code.at(99));  // undefined\nconsole.log(code[99]);     // undefined\n\n// charAt returns an empty string instead, which hides bugs\nconsole.log(code.charAt(99) === \"\"); // true"
+  },
+  {
+    "id": "js-extra-json-replacer",
+    "group": "JSON",
+    "name": "JSON.stringify() with replacer",
+    "syntax": "JSON.stringify(value, replacer, space?)",
+    "desc": "Serializes a value. The replacer filters or rewrites properties before they are written, which is how secrets are dropped.",
+    "example": "const hotel = {\n  name: \"Danube View\",\n  stars: 4,\n  owner_email: \"owner@example.com\",\n  password: \"not-for-json\"\n};\n\n// An array of names keeps only those keys\nconst safe = JSON.stringify(hotel, [\"name\", \"stars\"]);\nconsole.log(safe); // {\"name\":\"Danube View\",\"stars\":4}\n\n// A function replacer can transform values\nconst masked = JSON.stringify(hotel, (key, value) => {\n  if (key === \"password\") return undefined; // undefined removes the key\n  if (key === \"owner_email\") return \"hidden\";\n  return value;\n});\nconsole.log(masked);\n\n// The third argument sets indentation, here two spaces\nconsole.log(JSON.stringify(hotel, [\"name\"], 2));"
+  },
+  {
+    "id": "js-extra-json-reviver",
+    "group": "JSON",
+    "name": "JSON.parse() with reviver",
+    "syntax": "JSON.parse(text, reviver)",
+    "desc": "Parses JSON text. The reviver runs on every key and value pair, so dates and numbers can be restored during the parse.",
+    "example": "const text = '{\"name\":\"Danube View\",\"start_date\":\"2026-05-01\",\"stars\":4}';\n\n// JSON has no date type, so dates arrive as strings\nconst plain = JSON.parse(text);\nconsole.log(typeof plain.start_date); // \"string\"\n\n// The reviver converts matching keys while parsing\nconst hotel = JSON.parse(text, (key, value) => {\n  if (key === \"start_date\") return new Date(value + \"T00:00:00Z\");\n  return value;\n});\nconsole.log(hotel.start_date instanceof Date); // true\nconsole.log(hotel.start_date.getUTCFullYear()); // 2026"
+  },
+  {
+    "id": "js-extra-structuredclone",
+    "group": "Objects",
+    "name": "structuredClone()",
+    "syntax": "structuredClone(value)",
+    "desc": "Makes a deep copy of value. It handles Map, Set, Date, and typed arrays, but not functions or class methods.",
+    "example": "const original = {\n  name: \"Danube View\",\n  rooms: [{ number: 101, guests: [\"Anna\"] }],\n  tags: new Set([\"spa\"])\n};\n\nconst copy = structuredClone(original);\ncopy.rooms[0].guests.push(\"Bela\");\ncopy.tags.add(\"pool\");\n\nconsole.log(original.rooms[0].guests); // [\"Anna\"], nested arrays are independent\nconsole.log(original.tags.has(\"pool\")); // false\n\n// Functions cannot be cloned and throw DataCloneError\ntry {\n  structuredClone({ save() {} });\n} catch (error) {\n  console.log(error.name); // \"DataCloneError\"\n}"
+  },
+  {
+    "id": "js-extra-promise-allsettled",
+    "group": "Promises",
+    "name": "Promise.allSettled()",
+    "syntax": "Promise.allSettled(iterable)",
+    "desc": "Waits for every promise and reports status and value for each one. Promise.all rejects early instead, losing the rest.",
+    "example": "const load = (url) =>\n  url.includes(\"broken\") ? Promise.reject(new Error(\"500\")) : Promise.resolve(url);\n\nconst results = await Promise.allSettled([\n  load(\"/api/hotels\"),\n  load(\"/broken\"),\n  load(\"/api/cities\")\n]);\n\nconsole.log(results.map((result) => result.status));\n// [\"fulfilled\",\"rejected\",\"fulfilled\"]\n\nfor (const result of results) {\n  if (result.status === \"fulfilled\") console.log(result.value);\n  else console.log(result.reason.message); // \"500\"\n}"
+  },
+  {
+    "id": "js-extra-promise-any",
+    "group": "Promises",
+    "name": "Promise.any()",
+    "syntax": "Promise.any(iterable)",
+    "desc": "Resolves with the first fulfilled promise and ignores rejections. It fails only when every promise rejects.",
+    "example": "const slow = new Promise((resolve) => setTimeout(() => resolve(\"mirror-1\"), 300));\nconst fast = new Promise((resolve) => setTimeout(() => resolve(\"mirror-2\"), 100));\nconst dead = Promise.reject(new Error(\"offline\"));\n\n// The fastest success wins, even though one input fails\nconsole.log(await Promise.any([slow, fast, dead])); // \"mirror-2\"\n\n// All rejected gives an AggregateError with every reason\ntry {\n  await Promise.any([Promise.reject(new Error(\"a\")), Promise.reject(new Error(\"b\"))]);\n} catch (error) {\n  console.log(error.name);          // \"AggregateError\"\n  console.log(error.errors.length); // 2\n}"
+  },
+  {
+    "id": "js-extra-abort-controller",
+    "group": "Promises",
+    "name": "AbortController",
+    "syntax": "new AbortController()",
+    "desc": "Creates a signal that cancels fetch requests and other async work. Call abort to reject the pending operation with AbortError.",
+    "example": "const controller = new AbortController();\n\n// A timeout cancels the request if the server is slow\nconst timer = setTimeout(() => controller.abort(), 2000);\n\ntry {\n  const response = await fetch(\"/api/hotels\", { signal: controller.signal });\n  console.log(await response.json());\n} catch (error) {\n  if (error.name === \"AbortError\") console.log(\"Request cancelled\");\n  else console.log(\"Request failed\", error);\n} finally {\n  clearTimeout(timer);\n}\n\n// abort() can carry a reason for the logs\ncontroller.abort(new Error(\"user left the page\"));"
+  },
+  {
+    "id": "js-extra-intl-numberformat",
+    "group": "Intl",
+    "name": "Intl.NumberFormat",
+    "syntax": "new Intl.NumberFormat(locale, options).format(number)",
+    "desc": "Formats numbers with the grouping, currency, and unit rules of a locale. Reuse the formatter instead of rebuilding it in a loop.",
+    "example": "const price = new Intl.NumberFormat(\"en-US\", {\n  style: \"currency\",\n  currency: \"USD\"\n});\nconsole.log(price.format(1250)); // \"$1,250.00\"\n\n// Percent takes a fraction, so 0.25 is 25%\nconst percent = new Intl.NumberFormat(\"en-US\", {\n  style: \"percent\",\n  maximumFractionDigits: 0\n});\nconsole.log(percent.format(0.25)); // \"25%\"\n\n// Plain grouping without decimals\nconst count = new Intl.NumberFormat(\"de-DE\");\nconsole.log(count.format(1234567)); // \"1.234.567\""
+  },
+  {
+    "id": "js-extra-intl-datetimeformat",
+    "group": "Intl",
+    "name": "Intl.DateTimeFormat",
+    "syntax": "new Intl.DateTimeFormat(locale, options).format(date)",
+    "desc": "Formats a Date for a locale. Always pass a time zone when the output must be stable across machines.",
+    "example": "const date = new Date(Date.UTC(2026, 10, 11, 14, 30));\n\nconst medium = new Intl.DateTimeFormat(\"en-GB\", {\n  dateStyle: \"medium\",\n  timeZone: \"UTC\"\n});\nconsole.log(medium.format(date)); // \"11 Nov 2026\"\n\n// dateStyle and timeStyle cannot be mixed with year, month, day fields\nconst short = new Intl.DateTimeFormat(\"en-US\", {\n  dateStyle: \"short\",\n  timeStyle: \"short\",\n  timeZone: \"UTC\"\n});\nconsole.log(short.format(date)); // \"11/11/26, 2:30 PM\"\n\n// formatToParts exposes each piece when you need one value\nconst parts = medium.formatToParts(date);\nconsole.log(parts.find((part) => part.type === \"year\").value); // \"2026\""
+  },
+  {
+    "id": "js-extra-urlsearchparams",
+    "group": "Web API",
+    "name": "URLSearchParams",
+    "syntax": "new URLSearchParams(init)",
+    "desc": "Reads and writes query strings with correct encoding. It removes the manual split, decode, and join steps.",
+    "example": "const query = \"city=Budapest&stars=4&city=Eger\";\n\nconst params = new URLSearchParams(query);\nconsole.log(params.get(\"city\"));    // \"Budapest\", first value only\nconsole.log(params.getAll(\"city\")); // [\"Budapest\",\"Eger\"]\nconsole.log(params.has(\"stars\"));   // true\nconsole.log(params.get(\"missing\")); // null\n\n// Build a query string for fetch\nconst filters = new URLSearchParams();\nfilters.set(\"city\", \"Budapest\");\nfilters.set(\"stars\", \"4\");\nconsole.log(filters.toString()); // \"city=Budapest&stars=4\"\n\nconsole.log(\"/api/hotels?\" + filters.toString());"
+  }
+]

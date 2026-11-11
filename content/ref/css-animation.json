@@ -1,0 +1,225 @@
+[
+  {
+    "id": "css-transition-property",
+    "group": "Transition",
+    "name": "transition-property",
+    "syntax": "transition-property: property | none | all;",
+    "desc": "Chooses which properties a transition watches. The initial value is all, which is why one duration alone animates everything.",
+    "example": "/* only the two properties that should move get a transition */\n.card {\n  transition-property: transform, box-shadow;\n}\n\n.card:hover {\n  transform: translateY(-4px);\n  box-shadow: 0 10px 24px rgb(15 23 42 / 0.16);\n}\n\n/* the padding change below stays instant on purpose */\n.card.is-large {\n  padding: 28px;\n}",
+    "body": "A shorthand such as `background` also covers its longhands, because longhands are what actually interpolate. Listing properties instead of `all` keeps unrelated changes from sliding: with `all`, a border colour changed by a theme class animates for no reason.\n\n`none` switches every transition off for the element, which is a quick way to disable motion inside a media query."
+  },
+  {
+    "id": "css-transition-duration",
+    "group": "Transition",
+    "name": "transition-duration",
+    "syntax": "transition-duration: 200ms;",
+    "desc": "Sets how long the interpolation runs. Initial value is 0s, so a transition without a duration does nothing.",
+    "example": ".quick {\n  transition-duration: 120ms;\n}\n\n.panel {\n  transition-duration: 400ms;\n}\n\n/* several properties, one duration each, paired by position */\n.mixed {\n  transition-property: opacity, transform;\n  transition-duration: 150ms, 300ms;\n}",
+    "body": "Negative values are invalid and the browser drops the whole declaration. Below one second, milliseconds are easier to compare at a glance. Past roughly 400ms the effect starts to feel like waiting rather than feedback."
+  },
+  {
+    "id": "css-transition-timing-function",
+    "group": "Transition",
+    "name": "transition-timing-function",
+    "syntax": "transition-timing-function: ease | linear | ease-in | ease-out | ease-in-out | cubic-bezier(x1, y1, x2, y2) | steps(n, end);",
+    "desc": "Sets the speed curve of the interpolation. Initial value is ease.",
+    "example": ".fade {\n  transition: opacity 200ms ease-out;\n}\n\n/* overshoot: y values may leave the 0 to 1 range */\n.pop {\n  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);\n}\n\n/* quantised time, one jump per tick */\n.ticks {\n  transition: transform 1s steps(12, end);\n}",
+    "body": "`ease-out` decelerates into the destination and suits entrances. `linear` is correct for spinners and progress bars, where a varying speed reads as stutter. In `cubic-bezier(x1, y1, x2, y2)` the x values must stay between 0 and 1 because time cannot run backwards, while the y values may overshoot to create a bounce without keyframes.\n\n`step-start` equals `steps(1, start)` and `step-end` equals `steps(1, end)`."
+  },
+  {
+    "id": "css-transition-delay",
+    "group": "Transition",
+    "name": "transition-delay",
+    "syntax": "transition-delay: 120ms;",
+    "desc": "Waits before the interpolation starts. A negative value starts partway through the curve.",
+    "example": ".tooltip {\n  opacity: 0;\n  transition: opacity 140ms ease;\n}\n\n/* entering waits a moment, leaving is immediate */\n.trigger:hover .tooltip {\n  opacity: 1;\n  transition-delay: 150ms;\n}\n\n/* -100ms of a 400ms transition begins a quarter of the way in */\n.warm-start {\n  transition: transform 400ms ease -100ms;\n}"
+  },
+  {
+    "id": "css-transition-shorthand",
+    "group": "Transition",
+    "name": "transition",
+    "syntax": "transition: property duration timing-function delay, ...;",
+    "desc": "Sets property, duration, timing and delay in one declaration. The first time value is the duration and the second is the delay.",
+    "example": "/* duration 240ms, delay 0s */\n.card {\n  transition: transform 240ms ease-out 0s, box-shadow 240ms ease-out 0s;\n}\n\n/* wrong order: waits 240ms, then runs in 60ms */\n.broken {\n  transition: opacity 240ms 60ms ease;\n}",
+    "body": "Comma separated layers are matched against the longhand lists by position, and a shorter list repeats from its first value.\n\nImportant detail: writing `transition` resets all four longhands. A delay set in an earlier rule is cleared by a later shorthand that omits it, because the missing value goes back to `0s`."
+  },
+  {
+    "id": "css-transform-translate",
+    "group": "Transform",
+    "name": "translate()",
+    "syntax": "transform: translate(x, y); | translateX(x); | translateY(y);",
+    "desc": "Moves the painted box without touching layout. Percentages resolve against the element's own size.",
+    "example": "/* centre a tooltip that was placed with left: 50% */\n.tooltip {\n  position: absolute;\n  left: 50%;\n  bottom: calc(100% + 8px);\n  transform: translate(-50%, 4px);\n}\n\n.lift {\n  transform: translateY(-6px);\n}",
+    "body": "`translateX(-50%)` shifts by half the element's own width, which works at any width, unlike a fixed negative margin. A single argument to `translate` sets x only; y stays at 0.\n\nTranslation is independent of `transform-origin`, unlike rotate, scale and skew."
+  },
+  {
+    "id": "css-transform-scale",
+    "group": "Transform",
+    "name": "scale()",
+    "syntax": "transform: scale(sx, sy); | scaleX(n); | scaleY(n);",
+    "desc": "Multiplies the size around the transform origin. Values are unitless factors.",
+    "example": "/* zoom inside a clipped frame */\n.frame {\n  overflow: hidden;\n}\n\n.frame img {\n  display: block;\n  transition: transform 400ms ease-out;\n}\n\n.frame:hover img {\n  transform: scale(1.06);\n}\n\n/* press feedback */\n.key:active {\n  transform: scale(0.98);\n}",
+    "body": "Scaling does not reflow, so the element keeps its original slot in the flow and can overlap neighbours. It also does not re-lay out text: a large factor stretches the painted glyphs and they look soft. Keep UI scaling small and animate font size instead when text must genuinely grow."
+  },
+  {
+    "id": "css-transform-rotate",
+    "group": "Transform",
+    "name": "rotate()",
+    "syntax": "transform: rotate(45deg);",
+    "desc": "Rotates the box clockwise around the transform origin. Accepts deg, rad, grad and turn.",
+    "example": "/* a chevron built from two borders */\n.chevron {\n  display: inline-block;\n  width: 8px;\n  height: 8px;\n  border-right: 2px solid currentColor;\n  border-bottom: 2px solid currentColor;\n  transform: rotate(45deg);\n  transition: transform 160ms ease;\n}\n\n[aria-expanded=\"true\"] .chevron {\n  transform: rotate(-135deg);\n}",
+    "body": "The origin defaults to the centre, so a square rotated by 45 degrees becomes a diamond with even gaps. `rotate(1turn)` and `rotate(360deg)` are the same angle.\n\nRotating an element that also holds a tooltip moves the tooltip with it, because the whole box is transformed."
+  },
+  {
+    "id": "css-transform-skew",
+    "group": "Transform",
+    "name": "skew()",
+    "syntax": "transform: skew(ax, ay); | skewX(ax); | skewY(ay);",
+    "desc": "Shears the box along one or both axes. Child content is sheared too.",
+    "example": ".band {\n  padding: 48px 20px;\n  background-color: #24518f;\n  color: #ffffff;\n  transform: skewY(-3deg);\n}\n\n/* opposite angle puts the text upright again */\n.band__inner {\n  transform: skewY(3deg);\n}"
+  },
+  {
+    "id": "css-transform-function-list",
+    "group": "Transform",
+    "name": "transform order",
+    "syntax": "transform: translate(...) rotate(...) scale(...);",
+    "desc": "Functions compose left to right, so order changes the result. Keep the list identical at both ends of a transition.",
+    "example": "/* move along the page axis, then spin in place */\n.after-translate {\n  transform: translateX(100px) rotate(45deg);\n}\n\n/* spin first, then move along the rotated axis */\n.after-rotate {\n  transform: rotate(45deg) translateX(100px);\n}\n\n/* both ends share one function list, so interpolation is smooth */\n.panel {\n  transform: translateY(0) scale(1);\n  transition: transform 220ms ease-out;\n}\n\n.panel.is-hidden {\n  transform: translateY(12px) scale(0.98);\n}",
+    "body": "Matching function lists interpolate function by function. Mismatched lists are converted to matrices, and the numbers inside the matrix can pass through shapes nobody designed, such as an unintended shrink in the middle of a rotation."
+  },
+  {
+    "id": "css-transform-origin-point",
+    "group": "Transform",
+    "name": "transform-origin",
+    "syntax": "transform-origin: x y;",
+    "desc": "Sets the point that rotate, scale and skew act around. Default is 50% 50%, the centre of the border box.",
+    "example": "/* grow out of the left edge */\n.panel {\n  transform: scaleX(0);\n  transform-origin: left center;\n  transition: transform 220ms ease-out;\n}\n\n.panel.open {\n  transform: scaleX(1);\n}\n\n/* a clock hand hinged at its base */\n.hand {\n  transform-origin: 50% 100%;\n  transform: rotate(90deg);\n}",
+    "body": "One value sets x and leaves y at the centre. Percentages resolve against the element's own box, so `100% 100%` is the bottom right corner. A third value sets the z position and only matters in 3D.\n\nThe property applies to the entire function list, not to a single function. Translation ignores it."
+  },
+  {
+    "id": "css-transform-perspective",
+    "group": "3D",
+    "name": "perspective",
+    "syntax": "perspective: 900px; | transform: perspective(900px) rotateY(20deg);",
+    "desc": "Sets the viewer distance for 3D children, so rotations project with depth instead of looking flat.",
+    "example": "/* one shared stage for all children */\n.stage {\n  perspective: 900px;\n  perspective-origin: 50% 50%;\n}\n\n.card {\n  transform: rotateY(25deg);\n}\n\n/* per element vanishing point, as the first function */\n.lonely {\n  transform: perspective(900px) rotateY(25deg);\n}",
+    "body": "Smaller values exaggerate depth. A range of 600px to 1200px reads naturally for cards. `perspective-origin` moves the vanishing point and defaults to the centre of the parent.\n\nWithout any perspective, `rotateY` looks like a horizontal squash, which is the usual reason a 3D effect appears broken."
+  },
+  {
+    "id": "css-transform-style-preserve-3d",
+    "group": "3D",
+    "name": "transform-style",
+    "syntax": "transform-style: preserve-3d;",
+    "desc": "Keeps children in the parent's 3D space instead of flattening them onto its plane.",
+    "example": ".flip {\n  perspective: 1000px;\n}\n\n.flip__inner {\n  position: relative;\n  transform-style: preserve-3d;\n  transition: transform 500ms ease;\n}\n\n.flip:hover .flip__inner {\n  transform: rotateY(180deg);\n}\n\n/* without preserve-3d the two faces land on one plane */",
+    "body": "The default is `flat`, which projects every child onto the parent's plane. A card flip built from two absolutely positioned faces then shows only one of them, usually the front, mirrored.\n\nSome properties force flattening even when `preserve-3d` is set: `overflow` other than visible, `filter`, `opacity` below 1 and `clip-path` all create a grouping context. Moving `overflow: hidden` off the flip wrapper is often the fix."
+  },
+  {
+    "id": "css-backface-visibility",
+    "group": "3D",
+    "name": "backface-visibility",
+    "syntax": "backface-visibility: hidden;",
+    "desc": "Hides the side of an element that faces away from the viewer, which makes two faced cards work.",
+    "example": ".flip__face {\n  position: absolute;\n  inset: 0;\n  backface-visibility: hidden;\n}\n\n/* the back starts turned around */\n.flip__face--back {\n  transform: rotateY(180deg);\n  background-color: #24518f;\n  color: #ffffff;\n}",
+    "body": "Without it, the front face stays visible through the back after a half turn, so the user reads mirrored text instead of the back content. Older Safari needs the prefixed `-webkit-backface-visibility` beside it."
+  },
+  {
+    "id": "css-keyframes",
+    "group": "Animation",
+    "name": "@keyframes",
+    "syntax": "@keyframes name { 0% { ... } 100% { ... } }",
+    "desc": "Declares the frames an animation interpolates between. The name is referenced by animation-name.",
+    "example": "@keyframes slide-up {\n  from {\n    opacity: 0;\n    transform: translateY(14px);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0);\n  }\n}\n\n.card {\n  animation: slide-up 420ms ease-out both;\n}",
+    "body": "`from` equals `0%` and `to` equals `100%`, and both forms can be mixed with percentages. Properties missing from every keyframe keep the element's normal style.\n\nTwo blocks with the same name do not merge: the later one replaces the earlier completely. Duplicate offsets inside one block merge declaration by declaration."
+  },
+  {
+    "id": "css-animation-name",
+    "group": "Animation",
+    "name": "animation-name",
+    "syntax": "animation-name: slide-up;",
+    "desc": "Picks which @keyframes block to run. Initial value is none.",
+    "example": ".hero {\n  animation-name: slide-up;\n  animation-duration: 450ms;\n}\n\n/* several animations at once, paired by position */\n.status {\n  animation-name: fade-in, pulse;\n  animation-duration: 300ms, 2s;\n  animation-iteration-count: 1, infinite;\n}",
+    "body": "A misspelled name produces no animation and no console error, so check the spelling first when nothing happens. Two animations on one element must not animate the same property, or the later one in the list wins for the overlap."
+  },
+  {
+    "id": "css-animation-duration",
+    "group": "Animation",
+    "name": "animation-duration",
+    "syntax": "animation-duration: 800ms;",
+    "desc": "Time for one pass through the keyframes. Initial value is 0s, so a name without a duration never shows.",
+    "example": "@keyframes spin {\n  to { transform: rotate(1turn); }\n}\n\n.spinner {\n  animation-name: spin;\n  animation-duration: 800ms;\n  animation-timing-function: linear;\n  animation-iteration-count: infinite;\n}",
+    "body": "Negative values are invalid. Entrance animations usually sit between 300ms and 500ms, small feedback under 150ms, and loops are chosen by how much work the loop does rather than by taste."
+  },
+  {
+    "id": "css-animation-timing-function",
+    "group": "Animation",
+    "name": "animation-timing-function",
+    "syntax": "animation-timing-function: ease-out;",
+    "desc": "Sets the easing between keyframes. It applies per segment, not once across the whole animation.",
+    "example": "@keyframes drop {\n  0% {\n    transform: translateY(-40px);\n    animation-timing-function: ease-in;   /* accelerate down */\n  }\n  70% {\n    transform: translateY(0);\n    animation-timing-function: ease-out;  /* settle on landing */\n  }\n  100% {\n    transform: translateY(0);\n  }\n}\n\n.ball {\n  animation: drop 700ms both;\n}",
+    "body": "Because the function restarts at each keyframe, `ease-in-out` on a three frame animation slows down at every offset. Declaring the function inside a keyframe overrides it from that offset onward, which is how one block gets two different feels."
+  },
+  {
+    "id": "css-animation-iteration-count",
+    "group": "Animation",
+    "name": "animation-iteration-count",
+    "syntax": "animation-iteration-count: 1 | 3 | infinite;",
+    "desc": "How many passes run. Fractional values are legal and stop mid pass.",
+    "example": ".blink {\n  animation: blink 900ms steps(1, end) infinite;\n}\n\n.once {\n  animation: fade-in 400ms ease 1 both;\n}\n\n/* half of the second pass, then it stops */\n.halfway {\n  animation: slide 1s ease 1.5 both;\n}",
+    "body": "`infinite` animations never finish, so `animationend` never fires for them. Anything relying on that event must target a finite animation instead."
+  },
+  {
+    "id": "css-animation-direction",
+    "group": "Animation",
+    "name": "animation-direction",
+    "syntax": "animation-direction: normal | reverse | alternate | alternate-reverse;",
+    "desc": "Chooses which way the timeline is read on each pass.",
+    "example": "/* one out and back, not two passes forward */\n.breathe {\n  animation: breathe 2s ease-in-out infinite alternate;\n}\n\n/* same frames, counter clockwise */\n.counter-spin {\n  animation: spin 800ms linear infinite reverse;\n}",
+    "body": "`alternate` flips every second iteration, so an infinite two second animation breathes without a second keyframe block. With `alternate`, `iteration-count: 2` shows one full cycle, because each iteration is a single pass through the timeline."
+  },
+  {
+    "id": "css-animation-fill-mode",
+    "group": "Animation",
+    "name": "animation-fill-mode",
+    "syntax": "animation-fill-mode: none | forwards | backwards | both;",
+    "desc": "Controls the style before the delay and after the end. Default none, which is why finished entrances snap back.",
+    "example": "/* hold the first frame during the 120ms delay, keep the last frame after the end */\n.enter {\n  animation: slide-up 450ms ease-out 120ms 1 normal both;\n}\n\n/* final state declared outside the keyframes as a safety net */\n.enter {\n  opacity: 1;\n  transform: translateY(0);\n}",
+    "body": "`forwards` keeps the last keyframe, `backwards` applies the first keyframe during the delay, `both` does the two jobs. Without `both`, a delayed entrance flashes at its natural style and then jumps into the animation.\n\nIn a reduced motion block, `animation: none` also cancels the fill, so the end state must exist in a normal declaration."
+  },
+  {
+    "id": "css-animation-play-state",
+    "group": "Animation",
+    "name": "animation-play-state",
+    "syntax": "animation-play-state: running | paused;",
+    "desc": "Freezes or resumes an animation in place.",
+    "example": ".ticker__track {\n  animation: ticker 16s linear infinite;\n}\n\n/* let people stop a moving strip by hovering or tabbing to it */\n.ticker:hover .ticker__track,\n.ticker:focus-within .ticker__track {\n  animation-play-state: paused;\n}",
+    "body": "Pausing holds the computed state instead of resetting it, so the element resumes from the same point. This is the standard accessible control for marquees, tickers and any loop that runs longer than a few seconds."
+  },
+  {
+    "id": "css-animation-shorthand",
+    "group": "Animation",
+    "name": "animation",
+    "syntax": "animation: name duration timing delay iteration direction fill-mode play-state;",
+    "desc": "Sets the animation longhands in one declaration. The first time value is the duration and the second is the delay.",
+    "example": "/* name, duration, timing, delay, iterations, direction, fill */\n.hero {\n  animation: panel-in 460ms cubic-bezier(0.22, 0.61, 0.36, 1) 80ms 1 normal both;\n}\n\n/* four layers at once */\n.card {\n  animation: slide-up 420ms ease-out both, glow 2s ease-in-out infinite;\n}",
+    "body": "Only the name is required, but a missing duration means `0s`, so the animation never becomes visible. Writing the shorthand resets every animation longhand, including `play-state`, which is why a later `animation` declaration undoes an earlier pause."
+  },
+  {
+    "id": "css-will-change",
+    "group": "Motion",
+    "name": "will-change",
+    "syntax": "will-change: transform, opacity;",
+    "desc": "Hints that a property is about to change, so the browser can promote the element ahead of time.",
+    "example": "/* one element, one hint, only while it is about to move */\n.drawer {\n  will-change: transform;\n  transition: transform 260ms ease-out;\n}\n\n/* remove the hint once the movement is over */\n.drawer.is-settled {\n  will-change: auto;\n}",
+    "body": "Use it on the element that actually animates, not on every card in a grid. Permanent promotion of many elements costs GPU memory, and on a phone that cost shows up as jank elsewhere. Most transitions and animations run fine without it: modern engines promote elements that are already animating."
+  },
+  {
+    "id": "css-prefers-reduced-motion",
+    "group": "Motion",
+    "name": "@media (prefers-reduced-motion)",
+    "syntax": "@media (prefers-reduced-motion: reduce) { ... }",
+    "desc": "Matches when the user asked the system to reduce motion. Use it to drop travel and loops while keeping the state change visible.",
+    "example": "@media (prefers-reduced-motion: reduce) {\n  .card,\n  .panel {\n    transition-duration: 0.01ms;\n    animation: none;\n  }\n\n  .card:hover {\n    transform: none;           /* keep colour and border feedback */\n  }\n\n  .ticker__track {\n    animation: none;           /* static strip instead of a loop */\n  }\n\n  .loader {\n    animation: pulse-opacity 1.6s ease-in-out infinite;\n  }\n}",
+    "body": "A near zero duration keeps `transitionend` listeners working while removing the motion. Setting `animation: none` also cancels the fill mode, so the final state has to exist outside the keyframes.\n\nThe preference reports a setting, not a capability. A spinner still needs to look busy, so swap a spin for an opacity pulse instead of freezing everything."
+  }
+]

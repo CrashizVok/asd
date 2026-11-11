@@ -82,13 +82,15 @@ The schema creates the `bookings` database, three tables, foreign keys, and a sm
 
 ### Offline wiki
 
-Open `offline/index.html` in a browser. It is a dark, searchable reference built from the five cheat sheets: HTML, CSS, JavaScript, React, and Java. Search matches topic titles, command names, syntax, explanations, and examples.
+Open `offline/index.html` in a browser. It is a dark, searchable reference covering seven languages: HTML, CSS, JavaScript, React, Node.js, Java, and JavaFX. Search matches topic titles, command names, syntax, explanations, and examples.
 
-The site has 126 topic pages and 338 command pages. Every tag, property, method, hook, and API has its own page with syntax and an example. It has no external links, so it works on a machine with no internet.
+The site has 166 topic pages and 1133 command pages. Every tag, property, method, hook, and API has its own page with syntax and an example. It has no external links, so it works on a machine with no internet.
 
-The generated `offline/data.js` and `offline/ref-*.js` files are committed, so there is no `npm install` and no build step. The exam machine only needs the repo after `git pull`.
+The generated `offline/data.js`, `offline/ref-*.js`, and `offline/generated-content.js` files are committed, so there is no `npm install` and no build step. The exam machine only needs the repo after `git pull`.
 
-The Markdown export is in `reference/`, one file per topic and one file per command. Regenerate it with `node tools/export-reference.mjs`.
+New material lives as Markdown and JSON under `content/`. Rebuild the browser bundle with `node tools/build-content.mjs`, then the Markdown mirror with `node tools/export-reference.mjs`. Both use Node built-ins only.
+
+The Markdown export is in `reference/`, one file per topic and one file per command.
 
 The text is original exam material, not a W3Schools mirror.
 
@@ -149,8 +151,9 @@ asd/
   javascript/    JavaScript cheat sheet and snippets
   algorithms/    JavaScript and Java algorithm demos
   practice/      exam-style tasks with hints
-  offline/       dark static wiki: 126 topics and 338 command pages
+  content/       Markdown topics and JSON commands: the source for new pages
+  offline/       dark static wiki: 166 topic pages and 1133 command pages
   reference/     Markdown export, one file per page
-  tools/         dependency-free export script
+  tools/         dependency-free build and export scripts
   git/           git cheat sheet
 ```

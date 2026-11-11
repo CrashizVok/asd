@@ -1,0 +1,472 @@
+[
+  {
+    "id": "html-extra-global-id",
+    "group": "Global attributes",
+    "name": "id",
+    "syntax": "<section id=\"search-results\">",
+    "desc": "Names one element for the whole document. CSS selectors, fragment links, label for attributes and getElementById all use it.",
+    "example": "<section id=\"search-results\">\n  <!-- one section, one name -->\n  <h2>Search results</h2>\n</section>\n\n<a href=\"#search-results\">Jump to results</a>\n\n<!-- document.getElementById(\"search-results\") finds this section -->",
+    "body": "The value must be unique in the page and must not contain spaces. Two elements with the same id still render, but getElementById returns only the first, and a label for attribute points at the first one too.\n\nCSS matches ids with a hash: #search-results. Keep ids stable, because JavaScript and test scripts depend on them."
+  },
+  {
+    "id": "html-extra-global-class",
+    "group": "Global attributes",
+    "name": "class",
+    "syntax": "<div class=\"card card--wide\">",
+    "desc": "Attaches one or more space separated names. CSS and querySelectorAll use them to style a group of elements, and one element can carry several classes at once.",
+    "example": "<article class=\"card card--wide\">\n  <!-- two classes: a base style and a modifier -->\n  <h3 class=\"card__title\">Hotel Belvedere</h3>\n</article>\n\n<style>\n  .card { border: 1px solid #ccd; padding: 1rem; }\n  .card--wide { grid-column: span 2; }\n</style>",
+    "body": "Keep class names lowercase and hyphenated. A class is reusable, an id is not, so style with classes and reserve ids for anchors and script hooks."
+  },
+  {
+    "id": "html-extra-global-style",
+    "group": "Global attributes",
+    "name": "style",
+    "syntax": "<p style=\"color: #b00020\">",
+    "desc": "Applies inline CSS to a single element. It wins over most stylesheet rules, which makes it quick for a test and painful to maintain.",
+    "example": "<!-- inline style: highest specificity except !important -->\n<p style=\"color: #b00020; font-weight: bold\">\n  Booking cancelled\n</p>\n\n<!-- the same look as a reusable class -->\n<p class=\"alert\">Booking cancelled</p>"
+  },
+  {
+    "id": "html-extra-global-title",
+    "group": "Global attributes",
+    "name": "title attribute",
+    "syntax": "<abbr title=\"HyperText Markup Language\">HTML</abbr>",
+    "desc": "Adds an advisory tooltip. It also supplies the description for abbr, but it never replaces a visible label.",
+    "example": "<abbr title=\"HyperText Markup Language\">HTML</abbr>\n\n<button title=\"Close without saving\">X</button>\n<!-- tooltips do not appear on touch screens, so never hide needed text here -->"
+  },
+  {
+    "id": "html-extra-global-lang",
+    "group": "Global attributes",
+    "name": "lang",
+    "syntax": "<span lang=\"de\">Guten Tag</span>",
+    "desc": "Marks the language of an element. Screen readers pick the right pronunciation, and browsers hyphenate and spell check with the right dictionary.",
+    "example": "<html lang=\"en\">\n  <body>\n    <p>The German word <span lang=\"de\">Zimmer</span> means room.</p>\n  </body>\n</html>\n<!-- one lang on html, then override it per foreign phrase -->"
+  },
+  {
+    "id": "html-extra-global-dir",
+    "group": "Global attributes",
+    "name": "dir",
+    "syntax": "<p dir=\"rtl\">",
+    "desc": "Sets text direction: ltr, rtl or auto. auto lets the browser decide from the first strong character, which suits user generated text.",
+    "example": "<!-- explicit direction for a right to left block -->\n<p dir=\"rtl\" lang=\"ar\">حجز غرفة</p>\n\n<!-- auto follows the first strong character in the value -->\n<p dir=\"auto\">user typed text goes here</p>\n\n<!-- CSS can react: html[dir=\"rtl\"] .arrow { transform: scaleX(-1); } -->"
+  },
+  {
+    "id": "html-extra-global-tabindex",
+    "group": "Global attributes",
+    "name": "tabindex",
+    "syntax": "tabindex=\"0\"",
+    "desc": "Places an element in the keyboard tab order. 0 means natural order, -1 means focusable by script but not by Tab.",
+    "example": "<!-- custom control that must be reachable with Tab -->\n<div role=\"button\" tabindex=\"0\" onclick=\"save()\"\n     onkeydown=\"if (event.key === 'Enter') save()\">\n  Save draft\n</div>\n\n<!-- panel that receives focus from JavaScript only -->\n<div id=\"dialog\" tabindex=\"-1\">...</div>",
+    "body": "Avoid positive values. tabindex=\"1\" jumps ahead of the document order and makes the Tab sequence hard to predict.\n\nA div with tabindex and a click handler still announces nothing. Add a role and key handling, or use a button."
+  },
+  {
+    "id": "html-extra-global-contenteditable",
+    "group": "Global attributes",
+    "name": "contenteditable",
+    "syntax": "contenteditable=\"true\"",
+    "desc": "Turns an element into an editable region. Browsers then accept typing and paste inside it without a form control.",
+    "example": "<div id=\"note\" contenteditable=\"true\" aria-label=\"Booking note\">\n  <!-- the user can edit this text directly -->\n  Late arrival, around 23:00.\n</div>\n\n<!-- plaintext-only blocks pasted markup in supporting browsers -->\n<div contenteditable=\"plaintext-only\">No pasted tags</div>",
+    "body": "The edited text is not submitted with a form. Read element.innerHTML or element.textContent in your script and copy it into a hidden input.\n\nPaste can bring markup, so sanitize the result on the server as well."
+  },
+  {
+    "id": "html-extra-data-attribute",
+    "group": "Global attributes",
+    "name": "data-* attributes",
+    "syntax": "data-hotel-id=\"42\"",
+    "desc": "Stores custom data on an element without inventing an attribute name. JavaScript reads it through the dataset object.",
+    "example": "<button class=\"book\" data-hotel-id=\"42\" data-stars=\"4\">Book</button>\n\n<script>\n  const button = document.querySelector('.book');\n  // data-hotel-id becomes dataset.hotelId (camelCase)\n  console.log(button.dataset.hotelId); // \"42\"\n</script>"
+  },
+  {
+    "id": "html-extra-global-hidden",
+    "group": "Global attributes",
+    "name": "hidden",
+    "syntax": "<div hidden>",
+    "desc": "Removes the element from rendering and from the accessibility tree. It is a boolean attribute, the same effect as display: none without writing CSS.",
+    "example": "<p id=\"error\" hidden>Check the dates.</p>\n\n<script>\n  // show the message when validation fails\n  document.getElementById('error').hidden = false;\n</script>\n<!-- hidden does not stop images from loading or scripts from running -->"
+  },
+  {
+    "id": "html-extra-global-draggable",
+    "group": "Global attributes",
+    "name": "draggable",
+    "syntax": "draggable=\"true\"",
+    "desc": "Opts an element into the native drag and drop API. The dragged element sets data on dragstart, the target reads it on drop.",
+    "example": "<!-- native drag and drop, no library needed -->\n<div draggable=\"true\" id=\"card-17\" ondragstart=\"start(event)\">Booking A-17</div>\n<div id=\"done\" ondragover=\"event.preventDefault()\" ondrop=\"drop(event)\">Done</div>\n\n<script>\n  function start(event) {\n    event.dataTransfer.setData('text/plain', 'A-17');\n  }\n  function drop(event) {\n    event.preventDefault();\n    console.log(event.dataTransfer.getData('text/plain'));\n  }\n</script>"
+  },
+  {
+    "id": "html-extra-global-spellcheck",
+    "group": "Global attributes",
+    "name": "spellcheck",
+    "syntax": "spellcheck=\"false\"",
+    "desc": "Hints whether the browser underlines spelling. Turn it off for booking codes and hex values.",
+    "example": "<textarea spellcheck=\"true\" name=\"description\">late arrival</textarea>\n\n<!-- codes are not words, so no red underlines -->\n<input type=\"text\" name=\"booking_code\" spellcheck=\"false\" value=\"BK-2026-0042\">"
+  },
+  {
+    "id": "html-extra-global-accesskey",
+    "group": "Global attributes",
+    "name": "accesskey",
+    "syntax": "accesskey=\"s\"",
+    "desc": "Assigns a keyboard shortcut, triggered with Alt or Ctrl depending on the platform. Conflicts with browser and screen reader keys make it unreliable.",
+    "example": "<button accesskey=\"s\" onclick=\"document.forms[0].submit()\">Save (Alt+S)</button>\n<!-- print the hint in the label, users cannot discover the key otherwise -->"
+  },
+  {
+    "id": "html-extra-global-translate",
+    "group": "Global attributes",
+    "name": "translate",
+    "syntax": "translate=\"no\"",
+    "desc": "Tells automatic translation to skip an element. Keep brand names and code samples untranslated.",
+    "example": "<!-- machine translation skips these names and this code -->\n<p>Book at <span translate=\"no\">Hotel Belvedere</span> today.</p>\n<code translate=\"no\">room_price * nights</code>"
+  },
+  {
+    "id": "html-extra-role",
+    "group": "Accessibility attributes",
+    "name": "role",
+    "syntax": "role=\"status\"",
+    "desc": "Gives an element an ARIA role when no native element carries the meaning. Prefer a real element, then add a role only for custom widgets.",
+    "example": "<!-- native element first -->\n<button>Save</button>\n\n<!-- live region for a save confirmation -->\n<p role=\"status\">Booking saved.</p>\n\n<!-- no element exists for a toolbar of links, so a role is needed -->\n<div role=\"toolbar\" aria-label=\"Booking actions\">...</div>"
+  },
+  {
+    "id": "html-extra-aria-label",
+    "group": "Accessibility attributes",
+    "name": "aria-label",
+    "syntax": "aria-label=\"Close dialog\"",
+    "desc": "Sets the accessible name when the element has no visible text. The name is spoken, so it must not repeat the role word.",
+    "example": "<button aria-label=\"Close dialog\">\n  <!-- icon only button: the name comes from aria-label -->\n  <svg aria-hidden=\"true\" width=\"16\" height=\"16\">...</svg>\n</button>\n\n<!-- bad: the word button is read twice -->\n<button aria-label=\"button close\">X</button>"
+  },
+  {
+    "id": "html-extra-aria-labelledby",
+    "group": "Accessibility attributes",
+    "name": "aria-labelledby",
+    "syntax": "aria-labelledby=\"dialog-title\"",
+    "desc": "Points at the ids that name the element. It wins over aria-label and over visible text, and it can combine several ids.",
+    "example": "<div role=\"dialog\" aria-labelledby=\"dlg-title\" aria-describedby=\"dlg-body\">\n  <h2 id=\"dlg-title\">Cancel booking</h2>\n  <p id=\"dlg-body\">The room will be released.</p>\n</div>\n<!-- ids are read left to right, so order the words in the attribute -->"
+  },
+  {
+    "id": "html-extra-aria-hidden",
+    "group": "Accessibility attributes",
+    "name": "aria-hidden",
+    "syntax": "aria-hidden=\"true\"",
+    "desc": "Removes an element from the accessibility tree while keeping it visible. Use it for decorative images and icons that sit next to a text label.",
+    "example": "<!-- the icon repeats the text, so hide it from screen readers -->\n<button>\n  <span aria-hidden=\"true\">*</span> Favourite\n</button>\n\n<!-- never on a focusable element: it stays reachable but has no name -->"
+  },
+  {
+    "id": "html-extra-aria-describedby",
+    "group": "Accessibility attributes",
+    "name": "aria-describedby",
+    "syntax": "aria-describedby=\"email-hint\"",
+    "desc": "Adds a hint or error message after the name is announced. Screen readers read it after the label, not instead of it.",
+    "example": "<!-- the hint is read after the label, not instead of it -->\n<label for=\"customer_email\">Email</label>\n<input id=\"customer_email\" name=\"customer_email\" type=\"email\"\n       aria-describedby=\"email-hint\">\n<p id=\"email-hint\">We send the confirmation here.</p>"
+  },
+  {
+    "id": "html-extra-aria-live",
+    "group": "Accessibility attributes",
+    "name": "aria-live",
+    "syntax": "aria-live=\"polite\"",
+    "desc": "Announces changes inside a region without moving focus. polite waits for a pause, assertive interrupts the current sentence.",
+    "example": "<p id=\"cart-count\" aria-live=\"polite\">2 rooms</p>\n\n<script>\n  // the change is spoken and focus stays in the form\n  document.getElementById('cart-count').textContent = '3 rooms';\n</script>",
+    "body": "The region must exist in the page before the text changes. Creating an element with pre-filled text and aria-live usually announces nothing, because there was no change to observe.\n\nrole=\"status\" is polite and role=\"alert\" is assertive. Both imply aria-live, so do not add the attribute twice."
+  },
+  {
+    "id": "html-extra-onclick",
+    "group": "Events",
+    "name": "onclick",
+    "syntax": "onclick=\"handler()\"",
+    "desc": "Runs a script when the element is clicked. Inline handlers are quick for demos, addEventListener keeps behaviour out of the markup.",
+    "example": "<button onclick=\"alert('Room held for 10 minutes')\">Hold room</button>\n\n<!-- the same behaviour, wired from script -->\n<button id=\"hold\">Hold room</button>\n<script>\n  document.getElementById('hold').addEventListener('click', () => {\n    alert('Room held for 10 minutes');\n  });\n</script>"
+  },
+  {
+    "id": "html-extra-onsubmit",
+    "group": "Events",
+    "name": "onsubmit",
+    "syntax": "<form onsubmit=\"return validate()\">",
+    "desc": "Fires when a form is submitted, whether by button or Enter. Returning false from an inline handler stops the navigation.",
+    "example": "<form action=\"/bookings\" method=\"post\" onsubmit=\"return checkDates()\">\n  <input type=\"date\" name=\"start_date\" id=\"start_date\">\n  <input type=\"date\" name=\"end_date\" id=\"end_date\">\n  <button>Book</button>\n</form>\n\n<script>\n  function checkDates() {\n    const start = document.getElementById('start_date').value;\n    const end = document.getElementById('end_date').value;\n    if (start && end && end < start) {\n      alert('End date is before start date');\n      return false; // block the request\n    }\n    return true;\n  }\n</script>"
+  },
+  {
+    "id": "html-extra-onchange",
+    "group": "Events",
+    "name": "onchange",
+    "syntax": "onchange=\"handler()\"",
+    "desc": "Fires when a value is committed: on blur for text fields, immediately for selects, checkboxes and date pickers.",
+    "example": "<select name=\"stars\" onchange=\"this.form.submit()\">\n  <option value=\"\">Any</option>\n  <option value=\"4\">4 stars</option>\n</select>\n\n<!-- a text field fires change after focus leaves it -->\n<input type=\"text\" name=\"city\" onchange=\"console.log(this.value)\">",
+    "body": "Use input instead when you need every keystroke, for example a character counter or a live filter. change is the event for finished values."
+  },
+  {
+    "id": "html-extra-oninput",
+    "group": "Events",
+    "name": "oninput",
+    "syntax": "oninput=\"handler()\"",
+    "desc": "Fires after every change to the value, including paste and drag. It is the event for live counters and search previews.",
+    "example": "<!-- fires on every keystroke and on paste -->\n<textarea id=\"description\" name=\"description\" maxlength=\"200\" oninput=\"count()\"></textarea>\n<p id=\"left\">200 characters left</p>\n\n<script>\n  function count() {\n    const field = document.getElementById('description');\n    document.getElementById('left').textContent =\n      (200 - field.value.length) + ' characters left';\n  }\n</script>"
+  },
+  {
+    "id": "html-extra-onload",
+    "group": "Events",
+    "name": "onload",
+    "syntax": "<body onload=\"init()\">",
+    "desc": "Runs after the page and its images, styles and frames have loaded. DOMContentLoaded is usually the better moment for script setup.",
+    "example": "<body onload=\"init()\">\n  <img id=\"hero\" src=\"img/hotel.jpg\" alt=\"Hotel entrance\">\n  <script>\n    function init() {\n      // images are loaded here, so naturalWidth is known\n      console.log(document.getElementById('hero').naturalWidth);\n    }\n  </script>\n</body>"
+  },
+  {
+    "id": "html-extra-onkeydown",
+    "group": "Events",
+    "name": "onkeydown",
+    "syntax": "onkeydown=\"handler()\"",
+    "desc": "Fires when a key goes down while the element has focus. event.key gives the printable name, event.code the physical key.",
+    "example": "<!-- key names are readable strings: Enter, Escape, ArrowDown -->\n<input id=\"search\" type=\"search\" placeholder=\"City\">\n<script>\n  document.getElementById('search').addEventListener('keydown', (event) => {\n    if (event.key === 'Enter') console.log('search now');\n    if (event.key === 'Escape') event.target.value = '';\n  });\n</script>"
+  },
+  {
+    "id": "html-extra-onfocus-onblur",
+    "group": "Events",
+    "name": "onfocus and onblur",
+    "syntax": "onfocus=\"handler()\" onblur=\"handler()\"",
+    "desc": "Focus and blur fire when an element gains or loses keyboard focus. Neither bubbles, so use focusin and focusout on a parent.",
+    "example": "<input name=\"phone\" onfocus=\"this.select()\" onblur=\"formatPhone(this)\">\n\n<form id=\"booking\">\n  <input name=\"city\">\n</form>\n<script>\n  // focusin bubbles from the input up to the form\n  document.getElementById('booking').addEventListener('focusin', () => console.log('field entered'));\n</script>"
+  },
+  {
+    "id": "html-extra-onmouseover",
+    "group": "Events",
+    "name": "onmouseover",
+    "syntax": "onmouseover=\"handler()\"",
+    "desc": "Fires when the pointer enters the element or one of its children. mouseenter fires once per element and ignores children.",
+    "example": "<li class=\"row\" onmouseover=\"this.classList.add('hot')\" onmouseout=\"this.classList.remove('hot')\">\n  Room 101\n</li>\n\n<script>\n  // mouseenter avoids repeated firing over child spans\n  document.querySelector('.row').addEventListener('mouseenter', () => console.log('in'));\n</script>"
+  },
+  {
+    "id": "html-extra-form-action-method",
+    "group": "Forms",
+    "name": "action and method",
+    "syntax": "<form action=\"/bookings\" method=\"post\">",
+    "desc": "action is the URL that receives the data, method decides how. GET puts fields in the query string, POST sends them in the request body.",
+    "example": "<!-- search is safe to repeat, so GET and a visible query -->\n<form action=\"/search\" method=\"get\">\n  <input name=\"city\" value=\"Budapest\">\n</form>\n\n<!-- creating a booking changes data, so POST -->\n<form action=\"/bookings\" method=\"post\">\n  <input type=\"hidden\" name=\"hotel_id\" value=\"42\">\n</form>\n<!-- never use GET for passwords, the URL is logged and kept in history -->"
+  },
+  {
+    "id": "html-extra-form-enctype",
+    "group": "Forms",
+    "name": "enctype",
+    "syntax": "enctype=\"multipart/form-data\"",
+    "desc": "Sets how the body is encoded. File uploads need multipart/form-data, the default urlencoded cannot carry binary content.",
+    "example": "<form action=\"/upload\" method=\"post\" enctype=\"multipart/form-data\">\n  <input type=\"file\" name=\"image\" accept=\"image/*\">\n  <button>Upload</button>\n</form>\n<!-- enctype is ignored on GET forms -->"
+  },
+  {
+    "id": "html-extra-form-novalidate",
+    "group": "Forms",
+    "name": "novalidate",
+    "syntax": "<form novalidate>",
+    "desc": "Turns off the browser built in checks so your script can validate and show its own messages.",
+    "example": "<form action=\"/bookings\" method=\"post\" novalidate>\n  <input type=\"email\" name=\"customer_email\" required>\n  <button>Book</button>\n</form>\n<script>\n  // checkValidity still works with novalidate\n  document.querySelector('form').addEventListener('submit', (event) => {\n    if (!event.target.checkValidity()) {\n      event.preventDefault();\n      console.log('show custom errors');\n    }\n  });\n</script>"
+  },
+  {
+    "id": "html-extra-input-email",
+    "group": "Forms",
+    "name": "input type=\"email\"",
+    "syntax": "<input type=\"email\" name=\"customer_email\">",
+    "desc": "A text field that expects an address and gets a keyboard with the at sign on mobile. The browser checks the shape, not that the mailbox exists.",
+    "example": "<label for=\"customer_email\">Email</label>\n<input id=\"customer_email\" name=\"customer_email\" type=\"email\"\n       required multiple placeholder=\"name@example.com\">\n<!-- multiple allows a comma separated list of addresses -->"
+  },
+  {
+    "id": "html-extra-input-password",
+    "group": "Forms",
+    "name": "input type=\"password\"",
+    "syntax": "<input type=\"password\" name=\"password\">",
+    "desc": "Masks typed characters. Masking is visual only: the value is plain text in the page, so the form must use HTTPS and POST.",
+    "example": "<form action=\"/login\" method=\"post\">\n  <label for=\"password\">Password</label>\n  <input id=\"password\" type=\"password\" name=\"password\"\n         autocomplete=\"current-password\" required minlength=\"8\">\n  <button>Sign in</button>\n</form>\n<!-- use autocomplete=\"new-password\" on a registration form -->"
+  },
+  {
+    "id": "html-extra-input-checkbox-radio",
+    "group": "Forms",
+    "name": "input type=\"checkbox\" and \"radio\"",
+    "syntax": "<input type=\"checkbox\" name=\"extras\" value=\"breakfast\">",
+    "desc": "A checkbox allows several answers, a radio allows one per name. A value is sent only when checked, and a checkbox with no value sends on.",
+    "example": "<!-- the same name groups radios into one choice -->\n<fieldset>\n  <legend>Extras</legend>\n  <label><input type=\"checkbox\" name=\"extras\" value=\"breakfast\" checked> Breakfast</label>\n  <label><input type=\"checkbox\" name=\"extras\" value=\"parking\"> Parking</label>\n</fieldset>\n\n<fieldset>\n  <legend>Room view</legend>\n  <label><input type=\"radio\" name=\"view\" value=\"city\" checked> City</label>\n  <label><input type=\"radio\" name=\"view\" value=\"sea\"> Sea</label>\n</fieldset>"
+  },
+  {
+    "id": "html-extra-input-file",
+    "group": "Forms",
+    "name": "input type=\"file\"",
+    "syntax": "<input type=\"file\" name=\"image\" accept=\"image/*\">",
+    "desc": "Opens the file picker. The form must use method post and multipart/form-data, or only the filename arrives.",
+    "example": "<form action=\"/upload\" method=\"post\" enctype=\"multipart/form-data\">\n  <label for=\"photo\">Hotel photo</label>\n  <!-- accept filters the picker, it does not validate the upload -->\n  <input id=\"photo\" type=\"file\" name=\"image\" accept=\"image/png,image/jpeg\" multiple>\n  <button>Send</button>\n</form>"
+  },
+  {
+    "id": "html-extra-input-date",
+    "group": "Forms",
+    "name": "input type=\"date\"",
+    "syntax": "<input type=\"date\" name=\"start_date\">",
+    "desc": "A date picker whose value is always YYYY-MM-DD. min and max restrict the range and the browser blocks out of range submits.",
+    "example": "<label for=\"start_date\">Arrival</label>\n<input id=\"start_date\" type=\"date\" name=\"start_date\"\n       value=\"2026-07-01\" min=\"2026-01-01\" max=\"2027-12-31\" required>\n<!-- the wire format stays YYYY-MM-DD even when the display is local -->"
+  },
+  {
+    "id": "html-extra-input-number-range",
+    "group": "Forms",
+    "name": "input type=\"number\" and \"range\"",
+    "syntax": "<input type=\"number\" min=\"0\" max=\"10\" step=\"1\">",
+    "desc": "number accepts digits and arrow keys, range draws a slider. Both send a string, so parse before arithmetic. step decides which values are valid.",
+    "example": "<!-- range needs a small script to show its current value -->\n<label for=\"adults\">Adults</label>\n<input id=\"adults\" type=\"number\" name=\"adults\" min=\"1\" max=\"6\" step=\"1\" value=\"2\">\n\n<label for=\"children\">Children</label>\n<input id=\"children\" type=\"range\" name=\"children\" min=\"0\" max=\"4\" step=\"1\" value=\"0\">\n<output for=\"children\">0</output>"
+  },
+  {
+    "id": "html-extra-input-color",
+    "group": "Forms",
+    "name": "input type=\"color\"",
+    "syntax": "<input type=\"color\" name=\"theme\">",
+    "desc": "A colour picker that returns a lowercase hex value such as #1f6feb. The picker UI is controlled by the browser.",
+    "example": "<label for=\"theme\">Card colour</label>\n<input id=\"theme\" type=\"color\" name=\"theme\" value=\"#1f6feb\">\n<script>\n  // the value is always #rrggbb, never a colour name\n  document.getElementById('theme').addEventListener('input', (event) => {\n    document.body.style.setProperty('--card', event.target.value);\n  });\n</script>"
+  },
+  {
+    "id": "html-extra-input-hidden",
+    "group": "Forms",
+    "name": "input type=\"hidden\"",
+    "syntax": "<input type=\"hidden\" name=\"hotel_id\" value=\"42\">",
+    "desc": "Sends a value the user does not see and cannot edit in the UI. It stays visible in the page source, so never store a secret or a trusted price there.",
+    "example": "<form action=\"/bookings\" method=\"post\">\n  <input type=\"hidden\" name=\"hotel_id\" value=\"42\">\n  <input type=\"hidden\" name=\"start_date\" value=\"2026-07-01\">\n  <button>Book</button>\n</form>\n<!-- the server must re-check hotel_id and the price -->"
+  },
+  {
+    "id": "html-extra-input-required-pattern",
+    "group": "Forms",
+    "name": "required and pattern",
+    "syntax": "<input required pattern=\"[A-Z]{2}-[0-9]{4}\">",
+    "desc": "required blocks an empty submit, pattern checks the whole value against a regular expression. Both produce native messages before submit.",
+    "example": "<input type=\"text\" name=\"booking_code\" required\n       pattern=\"[A-Z]{2}-[0-9]{4}\"\n       title=\"Two capitals, a dash, four digits, for example BK-0042\">\n<!-- pattern is anchored automatically: the whole value must match -->"
+  },
+  {
+    "id": "html-extra-input-placeholder",
+    "group": "Forms",
+    "name": "placeholder",
+    "syntax": "<input placeholder=\"name@example.com\">",
+    "desc": "Shows hint text inside an empty field. It disappears on typing and is not a label, so keep a real label for accessibility.",
+    "example": "<label for=\"customer_email\">Email</label>\n<input id=\"customer_email\" type=\"email\" name=\"customer_email\"\n       placeholder=\"name@example.com\">\n<!-- placeholder is not announced as a label by every screen reader -->"
+  },
+  {
+    "id": "html-extra-select-multiple",
+    "group": "Forms",
+    "name": "select multiple",
+    "syntax": "<select name=\"extras\" multiple size=\"4\">",
+    "desc": "multiple allows more than one option, size sets how many rows are visible. Without size the control collapses to a one line list box.",
+    "example": "<label for=\"extras\">Extras</label>\n<select id=\"extras\" name=\"extras\" multiple size=\"4\">\n  <option value=\"breakfast\">Breakfast</option>\n  <option value=\"parking\" selected>Parking</option>\n  <option value=\"spa\">Spa</option>\n</select>\n<!-- a multiple select sends every selected value under the same name -->"
+  },
+  {
+    "id": "html-extra-textarea-rows-cols",
+    "group": "Forms",
+    "name": "textarea rows and cols",
+    "syntax": "<textarea rows=\"5\" cols=\"40\"></textarea>",
+    "desc": "rows and cols set the visible size in characters, not a hard limit. maxlength limits the value and wrap controls soft wrapping.",
+    "example": "<label for=\"description\">Description</label>\n<textarea id=\"description\" name=\"description\"\n          rows=\"5\" cols=\"40\" maxlength=\"500\"\n          placeholder=\"What should the guest know?\"></textarea>\n<!-- CSS width and height usually replace rows and cols -->"
+  },
+  {
+    "id": "html-extra-autocomplete",
+    "group": "Forms",
+    "name": "autocomplete",
+    "syntax": "autocomplete=\"email\"",
+    "desc": "Tells the browser what a field holds so it can fill saved values. Correct tokens on login and address forms save real typing on mobile.",
+    "example": "<input type=\"email\" name=\"customer_email\" autocomplete=\"email\">\n<input type=\"text\" name=\"first_name\" autocomplete=\"given-name\">\n<input type=\"text\" name=\"last_name\" autocomplete=\"family-name\">\n<input type=\"tel\" name=\"phone\" autocomplete=\"tel\">\n<input type=\"password\" name=\"password\" autocomplete=\"current-password\">\n<!-- new-password on sign up, one-time-code on a code field -->"
+  },
+  {
+    "id": "html-extra-fieldset-disabled",
+    "group": "Forms",
+    "name": "fieldset disabled",
+    "syntax": "<fieldset disabled>",
+    "desc": "Disables every control inside the fieldset at once. Disabled controls are skipped in the submit and cannot be focused.",
+    "example": "<form action=\"/bookings\" method=\"post\">\n  <fieldset disabled>\n    <!-- the whole group is locked until payment is confirmed -->\n    <input name=\"room\" value=\"101\">\n    <button>Confirm</button>\n  </fieldset>\n</form>\n<script>\n  document.querySelector('fieldset').disabled = false;\n</script>"
+  },
+  {
+    "id": "html-extra-video-attributes",
+    "group": "Media",
+    "name": "video attributes",
+    "syntax": "<video controls width=\"640\" poster=\"cover.jpg\">",
+    "desc": "controls adds the player UI and poster shows a still before playback. autoplay works only when muted in most browsers, and preload hints how much to fetch.",
+    "example": "<video controls width=\"640\" poster=\"img/hotel-cover.jpg\"\n       preload=\"metadata\" playsinline muted>\n  <source src=\"media/tour.webm\" type=\"video/webm\">\n  <source src=\"media/tour.mp4\" type=\"video/mp4\">\n  Your browser cannot play this video.\n</video>\n<!-- playsinline stops iOS from going fullscreen on play -->"
+  },
+  {
+    "id": "html-extra-audio-attributes",
+    "group": "Media",
+    "name": "audio attributes",
+    "syntax": "<audio controls src=\"chime.mp3\"></audio>",
+    "desc": "controls shows play, pause and volume. loop repeats, and preload=\"none\" avoids downloading until the user presses play.",
+    "example": "<audio controls preload=\"none\">\n  <source src=\"media/chime.ogg\" type=\"audio/ogg\">\n  <source src=\"media/chime.mp3\" type=\"audio/mpeg\">\n  Your browser cannot play this sound.\n</audio>\n<!-- autoplay with sound is blocked until the visitor interacts with the page -->"
+  },
+  {
+    "id": "html-extra-source-type",
+    "group": "Media",
+    "name": "source type",
+    "syntax": "<source src=\"clip.webm\" type=\"video/webm\">",
+    "desc": "The type attribute lets the browser skip formats it cannot play before downloading. The first source that matches is used.",
+    "example": "<video controls>\n  <!-- order matters: the first supported source wins -->\n  <source src=\"clip.webm\" type=\"video/webm\">\n  <source src=\"clip.mp4\" type=\"video/mp4\">\n</video>\n\n<picture>\n  <source srcset=\"hero.avif\" type=\"image/avif\">\n  <img src=\"hero.jpg\" alt=\"Hotel lobby\">\n</picture>"
+  },
+  {
+    "id": "html-extra-track-vtt",
+    "group": "Media",
+    "name": "track",
+    "syntax": "<track kind=\"captions\" src=\"subs.en.vtt\" srclang=\"en\" label=\"English\">",
+    "desc": "Adds a text track to video or audio. captions also describe sounds, subtitles assume the viewer hears the audio.",
+    "example": "<video controls src=\"media/tour.mp4\">\n  <track kind=\"captions\" src=\"subs/tour.en.vtt\" srclang=\"en\" label=\"English\" default>\n  <track kind=\"captions\" src=\"subs/tour.hu.vtt\" srclang=\"hu\" label=\"Magyar\">\n</video>\n<!-- exactly one default track, the rest appear in the player menu -->"
+  },
+  {
+    "id": "html-extra-picture-media",
+    "group": "Media",
+    "name": "picture media",
+    "syntax": "<picture><source media=\"(min-width: 800px)\" srcset=\"wide.jpg\"><img src=\"small.jpg\" alt=\"\"></picture>",
+    "desc": "Chooses an image by viewport or format. The img inside is required and supplies the fallback, the alt text and the layout size.",
+    "example": "<picture>\n  <!-- art direction: a different crop on wide screens -->\n  <source media=\"(min-width: 800px)\" srcset=\"img/room-wide.jpg\">\n  <source media=\"(min-width: 400px)\" srcset=\"img/room-mid.jpg\">\n  <img src=\"img/room-small.jpg\" alt=\"Room with a city view\" width=\"400\" height=\"300\">\n</picture>"
+  },
+  {
+    "id": "html-extra-iframe-sandbox",
+    "group": "Media",
+    "name": "iframe sandbox",
+    "syntax": "<iframe src=\"map.html\" sandbox=\"allow-scripts\" title=\"Map\"></iframe>",
+    "desc": "sandbox restricts what the embedded page may do: no scripts, forms or same origin access unless you allow them. title names the frame for screen readers.",
+    "example": "<iframe src=\"widgets/booking.html\"\n        sandbox=\"allow-forms allow-scripts\"\n        loading=\"lazy\"\n        title=\"Booking widget\"\n        width=\"400\" height=\"300\"></iframe>\n<!-- without allow-same-origin the frame gets a unique origin -->"
+  },
+  {
+    "id": "html-extra-dfn",
+    "group": "Semantic text",
+    "name": "<dfn>",
+    "syntax": "<dfn id=\"adr\">average daily rate</dfn>",
+    "desc": "Marks the term being defined in the surrounding sentence. Linking to its id gives other pages a stable anchor.",
+    "example": "<!-- the id makes the defined term linkable -->\n<p>The <dfn id=\"adr\">average daily rate</dfn> is room revenue divided by rooms sold.</p>\n<p>See <a href=\"#adr\">average daily rate</a> above.</p>"
+  },
+  {
+    "id": "html-extra-bdi-bdo",
+    "group": "Semantic text",
+    "name": "<bdi> and <bdo>",
+    "syntax": "<bdi>user text</bdi>",
+    "desc": "bdi isolates a run of text so its direction cannot reorder the surrounding sentence. bdo forces a direction on its content.",
+    "example": "<ul>\n  <li>User <bdi>إبراهيم</bdi> booked 2 rooms</li>\n  <li>User <bdi>Ann</bdi> booked 1 room</li>\n</ul>\n\n<!-- bdo overrides the inherited direction -->\n<bdo dir=\"rtl\">Room 101</bdo>"
+  },
+  {
+    "id": "html-extra-ruby",
+    "group": "Semantic text",
+    "name": "<ruby>",
+    "syntax": "<ruby>漢<rt>kan</rt></ruby>",
+    "desc": "Places a small annotation above characters, used for pronunciation in East Asian text. rt holds the annotation, rp the fallback brackets.",
+    "example": "<p lang=\"ja\"><ruby>宿<rt>やど</rt></ruby> means inn.</p>\n\n<!-- rp is shown only when ruby is unsupported -->\n<ruby>東京<rp>(</rp><rt>とうきょう</rt><rp>)</rp></ruby>"
+  },
+  {
+    "id": "html-extra-wbr",
+    "group": "Semantic text",
+    "name": "<wbr>",
+    "syntax": "<wbr>",
+    "desc": "Marks an optional line break inside a long word or URL. The browser breaks there only when the line is too narrow.",
+    "example": "<p>Docs: /reference/<wbr>html-attributes/<wbr>global</p>\n<!-- the URL stays one word, the breaks are only opportunities -->"
+  },
+  {
+    "id": "html-extra-hgroup",
+    "group": "Semantic text",
+    "name": "<hgroup>",
+    "syntax": "<hgroup><h1>Title</h1><p>Subtitle</p></hgroup>",
+    "desc": "Groups a heading with its subtitle so the document outline keeps one entry. The paragraph is not a heading and is not announced as one.",
+    "example": "<!-- one outline entry, not two headings -->\n<hgroup>\n  <h1>Hotel bookings</h1>\n  <p>Exam project, 2026</p>\n</hgroup>"
+  },
+  {
+    "id": "html-extra-search",
+    "group": "Semantic text",
+    "name": "<search>",
+    "syntax": "<search> ... </search>",
+    "desc": "Wraps a search form or filter set. It gives the region a search landmark without adding a role by hand.",
+    "example": "<!-- a search landmark without adding a role -->\n<search>\n  <form action=\"/search\" method=\"get\">\n    <label for=\"city\">City</label>\n    <input id=\"city\" name=\"city\" type=\"search\">\n    <button>Search</button>\n  </form>\n</search>"
+  },
+  {
+    "id": "html-extra-menu",
+    "group": "Semantic text",
+    "name": "<menu>",
+    "syntax": "<menu><li><button>Save</button></li></menu>",
+    "desc": "A list of commands or toolbar actions. It is not the navigation menu of a site, nav with a list is still the right element for that.",
+    "example": "<menu>\n  <li><button onclick=\"save()\">Save</button></li>\n  <li><button onclick=\"cancel()\">Cancel</button></li>\n</menu>\n<!-- menu means a list of commands, not links between pages -->"
+  }
+]

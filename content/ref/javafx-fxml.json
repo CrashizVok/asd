@@ -1,0 +1,164 @@
+[
+  {
+    "id": "javafx-fxml-root",
+    "group": "FXML structure",
+    "name": "Root element and namespaces",
+    "syntax": "<RootType xmlns=\"http://javafx.com/javafx/17\" xmlns:fx=\"http://javafx.com/fxml/1\" fx:controller=\"pkg.Controller\">",
+    "desc": "Every FXML file has one root element. It carries the default JavaFX namespace and the fx namespace, and usually names the controller.",
+    "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<?import javafx.scene.layout.BorderPane?>\n\n<!-- One root. Both namespaces go here and are inherited by children. -->\n<BorderPane xmlns=\"http://javafx.com/javafx/17\"\n            xmlns:fx=\"http://javafx.com/fxml/1\"\n            fx:controller=\"sample.MainController\">\n    <!-- children are added to the parent in document order -->\n</BorderPane>",
+    "body": "The default namespace value is the JavaFX version the file was written for. The runtime does not enforce it strictly, but keep it near your JDK level (`8`, `11`, `17`, `21`).\n\nWithout `xmlns:fx=\"http://javafx.com/fxml/1\"` the parser rejects every `fx:` attribute before the loader runs, so a file that looks fine in an editor fails on startup.\n\nA root must be a class with a no argument constructor. Interfaces, abstract classes and `Node` itself cannot be roots."
+  },
+  {
+    "id": "javafx-fxml-import",
+    "group": "FXML structure",
+    "name": "<?import ...?>",
+    "syntax": "<?import javafx.scene.control.Button?>",
+    "desc": "Declares the class behind a short element name. One processing instruction per class, placed above the root element.",
+    "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<?import javafx.scene.control.Label?>\n<?import javafx.scene.control.TextField?>\n<?import javafx.scene.layout.HBox?>\n\n<HBox xmlns=\"http://javafx.com/javafx/17\"\n      xmlns:fx=\"http://javafx.com/fxml/1\" spacing=\"8\">\n    <Label text=\"City\"/>\n    <TextField fx:id=\"cityField\"/>\n</HBox>",
+    "body": "Attribute values that name a class, such as `fx:controller=\"sample.LoginController\"`, use the fully qualified name and need no import. So do enum values written bare, like `fontWeight=\"BOLD\"`, as long as the compiler import for the enum type exists.\n\nWildcards work (`<?import javafx.scene.control.*?>`), and they hide the mistake you are hunting: a typo inside a wildcard package fails as `ClassNotFoundException` at load time with no useful line number. Write the explicit imports in exam answers."
+  },
+  {
+    "id": "javafx-fxml-fxid",
+    "group": "Injection",
+    "name": "fx:id",
+    "syntax": "fx:id=\"fieldName\"",
+    "desc": "Registers a node in the loader namespace, sets the node id, and matches a controller field by name.",
+    "example": "<?import javafx.scene.control.Label?>\n<?import javafx.scene.layout.VBox?>\n\n<!-- The label is injected into the controller field named totalLabel. -->\n<VBox xmlns=\"http://javafx.com/javafx/17\" xmlns:fx=\"http://javafx.com/fxml/1\">\n    <Label fx:id=\"totalLabel\" text=\"0.00\"/>\n</VBox>",
+    "body": "The value must be a valid Java identifier. `fx:id=\"total label\"` or `fx:id=\"total.label\"` is a parse error.\n\n`fx:id` also sets the node's `id` property, so CSS can select `#totalLabel`. That id selector is fine for a one off; a style class is better when several nodes share a look.\n\nA typo does not throw. The field simply stays null and the failure appears where you use it, which is why the name is the first thing to check when a controller field is unexpectedly null."
+  },
+  {
+    "id": "javafx-fxml-controller",
+    "group": "Injection",
+    "name": "fx:controller",
+    "syntax": "fx:controller=\"pkg.Controller\"",
+    "desc": "Names the class that receives the injected nodes and handles the events. The loader instantiates it with a no argument constructor.",
+    "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<?import javafx.scene.layout.VBox?>\n\n<VBox xmlns=\"http://javafx.com/javafx/17\"\n      xmlns:fx=\"http://javafx.com/fxml/1\"\n      fx:controller=\"sample.LoginController\">\n    <!-- sample.LoginController must be public and have a public no arg constructor -->\n</VBox>",
+    "body": "The class needs a constructor the loader can call without arguments. A controller that only has `LoginController(Repository repo)` cannot be named here: use `setControllerFactory` on the loader instead.\n\nIn a modular project the controller package must be opened to `javafx.fxml` (`opens sample to javafx.fxml;`). Without it the class is loaded but reflection is refused, and the error reads like a missing class."
+  },
+  {
+    "id": "javafx-fxml-controller-field",
+    "group": "Injection",
+    "name": "Controller field for fx:id",
+    "syntax": "@FXML private TextField emailField;",
+    "desc": "Injects the node whose fx:id equals the field name. Public fields work too; @FXML allows private ones.",
+    "example": "package sample;\n\nimport javafx.fxml.FXML;\nimport javafx.scene.control.Label;\nimport javafx.scene.control.TextField;\n\npublic class FormController {\n\n    @FXML private TextField cityField;   // filled from fx:id=\"cityField\"\n    @FXML private Label hintLabel;      // filled from fx:id=\"hintLabel\"\n\n    private int edits;                   // plain state, never injected\n}",
+    "body": "The declared type must be assignable from the node in the FXML. A `Label` field for a `TextField` element fails during load.\n\nInjection order inside one load: objects constructed, ids stored, fields injected, then `initialize()`. That is why a field read in the constructor is null and a field read in `initialize()` is ready.\n\nA private field without `@FXML` is skipped without a warning. This is the single most common null pointer in FXML code."
+  },
+  {
+    "id": "javafx-fxml-initialize",
+    "group": "Lifecycle",
+    "name": "initialize()",
+    "syntax": "@FXML private void initialize() { }",
+    "desc": "Runs once per load, after field injection and before load() returns. Wiring belongs here, layout does not.",
+    "example": "package sample;\n\nimport javafx.collections.FXCollections;\nimport javafx.fxml.FXML;\nimport javafx.scene.control.ComboBox;\n\npublic class FilterController {\n\n    @FXML private ComboBox<String> cityBox;\n\n    @FXML\n    private void initialize() {\n        // fields are injected by now, so it is safe to read them\n        cityBox.setItems(FXCollections.observableArrayList(\"Budapest\", \"Vienna\", \"Prague\"));\n        cityBox.getSelectionModel().selectFirst();\n    }\n}",
+    "body": "The method may be private. It runs again for every new load, so each new controller starts from a clean state.\n\nThe nodes exist but the scene does not: `getScene()` returns null and control sizes are usually zero. Code that needs real measurements goes into `Platform.runLater(...)` or a listener on the scene.\n\nThe `Initializable` interface offers `initialize(URL location, ResourceBundle resources)` and still works. Implementing it and also writing an annotated `initialize()` calls both, in an order not worth relying on. Pick one."
+  },
+  {
+    "id": "javafx-fxml-onaction",
+    "group": "Events",
+    "name": "onAction=\"#handler\"",
+    "syntax": "onAction=\"#methodName\"",
+    "desc": "Connects a control event to a controller method. The handler may take no arguments or one event argument.",
+    "example": "<?import javafx.scene.control.Button?>\n<?import javafx.scene.layout.HBox?>\n\n<!-- The # prefix means: look this name up in the controller -->\n<HBox xmlns=\"http://javafx.com/javafx/17\" xmlns:fx=\"http://javafx.com/fxml/1\"\n      fx:controller=\"sample.ToolbarController\">\n    <Button text=\"Save\" onAction=\"#save\"/>\n    <Button text=\"Cancel\" onAction=\"#cancel\"/>\n</HBox>",
+    "body": "```java\npackage sample;\n\nimport javafx.event.ActionEvent;\nimport javafx.fxml.FXML;\n\npublic class ToolbarController {\n\n    @FXML private void save() { /* no argument form */ }\n\n    @FXML private void cancel(ActionEvent event) { /* event form */ }\n}\n```\n\nBoth signatures are valid. The method must be public or annotated `@FXML`; a private method without the annotation is invisible to reflection and the load fails with a message naming the `onAction` value.\n\nReturn values are ignored. Declare the method `void` so nobody expects one.\n\nThe same pattern applies to other events with their own attributes: `onMouseClicked`, `onKeyPressed`, `onShowing`. Anything more involved than a method name is easier to attach in `initialize()` with a lambda."
+  },
+  {
+    "id": "javafx-fxml-loader-load",
+    "group": "Loading",
+    "name": "FXMLLoader.load(URL)",
+    "syntax": "Parent root = FXMLLoader.load(url);",
+    "desc": "Static helper that builds the tree and returns the root. It gives no access to the controller.",
+    "example": "import java.io.IOException;\nimport javafx.fxml.FXMLLoader;\nimport javafx.scene.Parent;\n\npublic Parent buildHello() throws IOException {\n    // One line, no controller handle. Fine for a screen with nothing to pass in.\n    return FXMLLoader.load(getClass().getResource(\"/fxml/hello.fxml\"));\n}",
+    "body": "The static call creates its own loader internally, so `getController()` is out of reach. When the screen needs data, a reference for navigation, or a resource bundle, use a `new FXMLLoader(...)` instead.\n\n`load()` throws `IOException` for a missing file, bad XML, or a broken controller. It does not throw for a null URL: that fails with a message about the location not being set."
+  },
+  {
+    "id": "javafx-fxml-loader-instance",
+    "group": "Loading",
+    "name": "new FXMLLoader(...).load()",
+    "syntax": "FXMLLoader loader = new FXMLLoader(url); Parent root = loader.load();",
+    "desc": "The instance form. Use it when you need the controller, a controller factory, or a resource bundle.",
+    "example": "import java.io.IOException;\nimport javafx.fxml.FXMLLoader;\nimport javafx.scene.Parent;\n\nFXMLLoader loader = new FXMLLoader(getClass().getResource(\"/fxml/order.fxml\"));\nParent root;\ntry {\n    root = loader.load();\n} catch (IOException e) {\n    throw new IllegalStateException(\"order.fxml is broken\", e);\n}\nOrderController controller = loader.getController();   // non null after a successful load",
+    "body": "A loader is single use in practice. A second `load()` on the same instance rebuilds the tree and creates a second controller, so per screen means per loader.\n\n`load()` returns the root, typed by the FXML root element. Assign it to `Parent` for a scene, or to the concrete type when you need its methods before adding it to the scene."
+  },
+  {
+    "id": "javafx-fxml-getresource",
+    "group": "Loading",
+    "name": "getClass().getResource(path)",
+    "syntax": "getClass().getResource(\"/fxml/login.fxml\")",
+    "desc": "Resolves a file from the classpath. A leading slash starts at the classpath root; without it, resolution starts in the caller's package.",
+    "example": "// Absolute: starts at the classpath root, the safe form.\nvar absolute = getClass().getResource(\"/fxml/login.fxml\");\n\n// Relative: starts in the package of this class, so it only works next to it.\nvar relative = getClass().getResource(\"login.fxml\");\n\n// A wrong path returns null, it does not throw. Print it once when in doubt.\nSystem.out.println(absolute);",
+    "body": "The file has to reach the output directory. `src/main/resources` is copied by Maven and Gradle; a file left in `src/main/java` may not be, which produces a file visible in the IDE and invisible to the loader.\n\nA null URL then fails inside `load()` with a location message that points at the loader, not at the path. Checking for null early saves the detour:\n\n```java\nvar url = getClass().getResource(\"/fxml/login.fxml\");\nif (url == null) throw new IllegalStateException(\"login.fxml missing from the classpath\");\n```"
+  },
+  {
+    "id": "javafx-fxml-getcontroller",
+    "group": "Loading",
+    "name": "loader.getController()",
+    "syntax": "MyController c = loader.getController();",
+    "desc": "Returns the controller instance created during the load, so data and callbacks can be handed to it.",
+    "example": "FXMLLoader loader = new FXMLLoader(getClass().getResource(\"/fxml/profile.fxml\"));\nParent root = loader.load();\n\nProfileController controller = loader.getController();\ncontroller.setProfile(profile);   // initialize() has already run at this point\n",
+    "body": "The method returns null before `load()` finished, and also when the FXML has no `fx:controller` and no controller was set. Call it only after a successful load.\n\nBecause `initialize()` already ran, a setter called here must render the data itself. It cannot expect `initialize()` to pick it up later.\n\nThe generic form `loader.<ProfileController>getController()` avoids a cast in code that cannot use a typed local variable."
+  },
+  {
+    "id": "javafx-fxml-controllerfactory",
+    "group": "Loading",
+    "name": "loader.setControllerFactory()",
+    "syntax": "loader.setControllerFactory(type -> new MyController(dep));",
+    "desc": "Supplies controller instances from code, which allows constructor arguments when initialize() needs the data.",
+    "example": "FXMLLoader loader = new FXMLLoader(getClass().getResource(\"/fxml/order.fxml\"));\n\n// The callback receives the class named in fx:controller and must return\n// an instance of it. The order exists before the controller is built.\nloader.setControllerFactory(type -> new OrderController(order, repository));\n\nParent root = loader.load();",
+    "body": "Returning a subclass of the requested type is fine. Returning an unrelated object throws `ClassCastException` during the load.\n\nThe factory is the right tool when `initialize()` needs the data to build a table model or fill a list. The setter approach from `getController()` runs too late for that.\n\nDo not combine it with `setController(...)` on the same loader, and do not expect the factory to override an `fx:controller` class with a different type."
+  },
+  {
+    "id": "javafx-fxml-include",
+    "group": "Composition",
+    "name": "<fx:include>",
+    "syntax": "<fx:include fx:id=\"name\" source=\"child.fxml\"/>",
+    "desc": "Splices another FXML file into the tree. With fx:id, the parent controller gets both the child root and the child controller.",
+    "example": "<?import javafx.scene.layout.BorderPane?>\n\n<BorderPane xmlns=\"http://javafx.com/javafx/17\"\n            xmlns:fx=\"http://javafx.com/fxml/1\"\n            fx:controller=\"sample.MainController\">\n\n    <!-- Loaded while the parent is built, with its own controller and initialize() -->\n    <bottom>\n        <fx:include fx:id=\"statusBar\" source=\"status-bar.fxml\"/>\n    </bottom>\n</BorderPane>",
+    "body": "```java\npublic class MainController {\n\n    // fx:id=\"statusBar\" produces exactly these two field names\n    @FXML private HBox statusBar;\n    @FXML private StatusBarController statusBarController;\n\n    @FXML private void initialize() {\n        statusBarController.show(\"Ready\");   // child initialize already ran\n    }\n}\n```\n\nThe `source` path is relative to the including file, so keep both files in the same folder. Nested controllers initialize before the parent's `initialize()`, which is why the parent can push data into the child there.\n\nUse includes for repeated chrome: toolbars, status bars, form sections. A screen that gets switched to should be loaded by code, because an include cannot be replaced without replacing its parent."
+  },
+  {
+    "id": "javafx-fxml-fxroot",
+    "group": "Composition",
+    "name": "<fx:root type=\"...\">",
+    "syntax": "<fx:root type=\"javafx.scene.layout.HBox\" xmlns=\"...\" xmlns:fx=\"...\">",
+    "desc": "Builds into an existing instance instead of a new one, so a node subclass can be its own controller.",
+    "example": "package sample;\n\nimport java.io.IOException;\nimport javafx.fxml.FXML;\nimport javafx.fxml.FXMLLoader;\nimport javafx.scene.control.Label;\nimport javafx.scene.layout.HBox;\n\npublic class Row extends HBox {\n\n    @FXML private Label nameLabel;\n\n    public Row(String name) {\n        FXMLLoader loader = new FXMLLoader(getClass().getResource(\"/fxml/row.fxml\"));\n        loader.setRoot(this);        // build into this object\n        loader.setController(this);  // and use it as the controller\n        try {\n            loader.load();\n        } catch (IOException e) {\n            throw new IllegalStateException(\"row.fxml is broken\", e);\n        }\n        nameLabel.setText(name);\n    }\n}",
+    "body": "The FXML root element is `<fx:root type=\"javafx.scene.layout.HBox\">` and the file has no `fx:controller` attribute. The instance passing `setController(this)` is the controller, which is how a typed constructor survives.\n\nSetting both `fx:controller` and `setController` fails with a controller already specified error. With `fx:root` the attribute is always the wrong choice.\n\nThis pattern is useful for list rows, table cells and small reusable widgets; it is overkill for a screen."
+  },
+  {
+    "id": "javafx-fxml-stylesheets",
+    "group": "Styling",
+    "name": "stylesheets and styleClass",
+    "syntax": "stylesheets=\"@app.css\" styleClass=\"panel\"",
+    "desc": "Attaches a stylesheet relative to the FXML file and adds CSS class names to a node.",
+    "example": "<?import javafx.scene.layout.VBox?>\n<?import javafx.scene.control.Label?>\n\n<!-- @app.css is resolved next to this file; styleClass takes a space separated list -->\n<VBox xmlns=\"http://javafx.com/javafx/17\" xmlns:fx=\"http://javafx.com/fxml/1\"\n      stylesheets=\"@app.css\" styleClass=\"panel\">\n\n    <Label text=\"Signed in\" styleClass=\"hint\"/>\n    <Label text=\"Wrong password\" styleClass=\"hint error\"/>\n</VBox>",
+    "body": "From code, attach the sheet to the scene once so it survives `scene.setRoot(...)`:\n\n```java\nscene.getStylesheets().add(getClass().getResource(\"/css/app.css\").toExternalForm());\n```\n\n`toExternalForm()` is not optional: `getStylesheets()` holds strings, and a `URL` does not compile there.\n\nInline `style=\"-fx-text-fill: red;\"` wins over any sheet rule. Keep it for one off debugging, because it cannot be themed and it hides the rule from the CSS file."
+  },
+  {
+    "id": "javafx-fxml-bundle",
+    "group": "Styling",
+    "name": "Resource bundle keys",
+    "syntax": "text=\"%save.label\"",
+    "desc": "Reads a string from the loader's resource bundle instead of hard coding it in the FXML.",
+    "example": "<?import javafx.scene.control.Button?>\n<?import javafx.scene.layout.HBox?>\n\n<HBox xmlns=\"http://javafx.com/javafx/17\" xmlns:fx=\"http://javafx.com/fxml/1\"\n      fx:controller=\"sample.FormController\">\n    <Button text=\"%save.label\" onAction=\"#save\"/>\n</HBox>",
+    "body": "```java\nFXMLLoader loader = new FXMLLoader(getClass().getResource(\"/fxml/form.fxml\"));\nloader.setResources(ResourceBundle.getBundle(\"messages\"));\nParent root = loader.load();\n```\n\nA `%key` with no bundle is shown literally on the button, so the mistake is visible rather than fatal. That also means a missing key slips through review, and the exam answer should mention the bundle file by name."
+  },
+  {
+    "id": "javafx-fxml-scene-switch",
+    "group": "Navigation",
+    "name": "Switching screens with scene.setRoot()",
+    "syntax": "scene.setRoot(new FXMLLoader(url).load());",
+    "desc": "Replaces the visible screen while keeping the stage, its size, and the scene stylesheets.",
+    "example": "// One stage, one scene, many roots. The stylesheet list and the window\n// size belong to the scene and the stage, so they survive the swap.\nFXMLLoader loader = new FXMLLoader(getClass().getResource(\"/fxml/dashboard.fxml\"));\nParent root = loader.load();\n\nDashboardController controller = loader.getController();\ncontroller.setApp(this);          // give the screen a way back\nscene.setRoot(root);\nstage.setTitle(\"Dashboard\");",
+    "body": "Building a new `Scene` per screen throws away the stylesheets and resets the size, which is why beginners end up re adding CSS on every screen.\n\nNavigation belongs to whoever owns the stage. Controllers call one method such as `app.showLogin()` and never touch the stage themselves, so the title and the current screen have a single owner.\n\nA second `Stage` is for dialogs and tool windows. For main navigation, swap the root."
+  },
+  {
+    "id": "javafx-fxml-errors",
+    "group": "Errors",
+    "name": "LoadException and its causes",
+    "syntax": "javafx.fxml.LoadException: ...",
+    "desc": "The wrapper for nearly every FXML failure. The nested cause names the real problem.",
+    "example": "FXMLLoader loader = new FXMLLoader(getClass().getResource(\"/fxml/login.fxml\"));\ntry {\n    Parent root = loader.load();\n    scene.setRoot(root);\n} catch (IOException e) {\n    // The top message names the element or attribute; the cause names the class,\n    // method or field that was not found. Read the cause first.\n    Throwable cause = e.getCause() != null ? e.getCause() : e;\n    throw new IllegalStateException(\"login.fxml failed: \" + cause.getMessage(), e);\n}",
+    "body": "The frequent causes, in the order they appear in practice:\n\n- `ClassNotFoundException`: missing or misspelled `<?import?>`, or a wrong class in `fx:controller`.\n- location not set: `getResource` returned null, so the path, the slash, or the resource folder is wrong.\n- null field later: `fx:id` and field name differ, the field is private without `@FXML`, or the node lives in another file.\n- handler not resolved: the `onAction` method is missing, private without `@FXML`, or has a wrong parameter list.\n- controller already specified: `setController` was called on a loader whose FXML has `fx:controller`.\n- no default constructor: the controller named in `fx:controller` only has constructors with arguments.\n- XML parse error: an unclosed tag, an unquoted attribute, or a raw `&` in text. Use `&amp;`.\n- access error in a modular project: the controller package is not opened to `javafx.fxml`."
+  }
+]

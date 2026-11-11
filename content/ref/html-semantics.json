@@ -1,0 +1,218 @@
+[
+  {
+    "id": "html-semantic-landmarks",
+    "group": "Semantics",
+    "name": "<header> <nav> <main> <aside> <footer>",
+    "syntax": "<header>...</header>\n<nav aria-label=\"Main\">...</nav>\n<main id=\"main\">...</main>\n<footer>...</footer>",
+    "desc": "The page level landmarks. Each element gives the browser a role and gives screen reader users a jump target.",
+    "example": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Bookings</title>\n</head>\n<body>\n  <!-- First tab stop, so keyboard users can skip the menu. -->\n  <a href=\"#main\">Skip to content</a>\n\n  <header>Riverside Hotel</header>\n\n  <nav aria-label=\"Main\">\n    <a href=\"/rooms\">Rooms</a>\n    <a href=\"/bookings\">Bookings</a>\n  </nav>\n\n  <!-- tabindex=\"-1\" lets the skip link put focus here. -->\n  <main id=\"main\" tabindex=\"-1\">\n    <h1>Bookings</h1>\n    <p>One upcoming stay.</p>\n  </main>\n\n  <footer>12 Dock Street, Budapest</footer>\n</body>\n</html>",
+    "body": "Landmarks in the accessibility tree: **header** becomes banner, **nav** becomes navigation, **main** becomes main, **aside** becomes complementary, **footer** becomes contentinfo. The first and last only keep those roles when they are not nested inside article, aside, main, nav or section.\n\nRules that carry marks:\n- One visible main per page, one h1.\n- Every nav beyond the first needs its own label.\n- A section needs a heading or a label before it becomes a region.\n- Landmarks are siblings; do not put main inside header or nav."
+  },
+  {
+    "id": "html-header-landmark",
+    "group": "Semantics",
+    "name": "<header>",
+    "syntax": "<header> ... </header>",
+    "desc": "Introductory content for the page or for the nearest article. At top level it is the banner landmark; inside an article it is the article masthead.",
+    "example": "<!-- Top level: the page banner. -->\n<header>\n  <p>Riverside Hotel</p>\n  <nav aria-label=\"Main\">...</nav>\n</header>\n\n<!-- Inside an article: not a landmark, just the item header. -->\n<article>\n  <header>\n    <h2>Quiet rooms, slow breakfast</h2>\n    <p>Published <time datetime=\"2026-03-02\">2 March 2026</time></p>\n  </header>\n  <p>The room faced the river.</p>\n</article>",
+    "body": "A header inside article, aside, main, nav or section is not the page banner. That scoping rule is why several header elements on one page are normal, and why a header around the top of a sidebar is not a landmark.\n\nDo not use header for a block that merely sits at the top. If it does not introduce the content below it, use a div."
+  },
+  {
+    "id": "html-nav-landmark",
+    "group": "Semantics",
+    "name": "<nav>",
+    "syntax": "<nav aria-label=\"Main\"> ... </nav>",
+    "desc": "A major block of navigation links. Each nav on a page needs a distinct label so the landmark list stays usable.",
+    "example": "<!-- Two navs, two names: the menu and the breadcrumb trail. -->\n<nav aria-label=\"Main\">\n  <ul>\n    <li><a href=\"/rooms\">Rooms</a></li>\n    <li><a href=\"/bookings\" aria-current=\"page\">Bookings</a></li>\n  </ul>\n</nav>\n\n<nav aria-label=\"Breadcrumb\">\n  <ol>\n    <li><a href=\"/\">Home</a></li>\n    <li><a href=\"/bookings\" aria-current=\"page\">Bookings</a></li>\n  </ol>\n</nav>",
+    "body": "A single link in a paragraph is not navigation. A footer list of social links usually is not either. The main menu, a table of contents, breadcrumbs and pagination are.\n\nUnlabelled duplicates are announced as navigation twice, so the user has to visit both to tell them apart. The newer search element wraps a search form and gives it its own landmark."
+  },
+  {
+    "id": "html-main-landmark",
+    "group": "Semantics",
+    "name": "<main>",
+    "syntax": "<main id=\"main\" tabindex=\"-1\"> ... </main>",
+    "desc": "The content unique to this page. It must not sit inside header, footer, nav, aside or article, and there is one visible main per page.",
+    "example": "<a class=\"skip\" href=\"#main\">Skip to main content</a>\n\n<main id=\"main\" tabindex=\"-1\">\n  <h1>Bookings</h1>\n\n  <section aria-labelledby=\"upcoming\">\n    <h2 id=\"upcoming\">Upcoming stays</h2>\n    <p>Check-in on 12 March.</p>\n  </section>\n</main>",
+    "body": "tabindex=\"-1\" makes main programmatically focusable, so the skip link can move focus into it. Without it some browsers scroll but leave focus on the link, and the next Tab press returns to the menu.\n\nSeveral main elements are allowed only when all but one are hidden. That is a single page app pattern, not a normal page."
+  },
+  {
+    "id": "html-section-landmark",
+    "group": "Semantics",
+    "name": "<section>",
+    "syntax": "<section aria-labelledby=\"id\"> ... </section>",
+    "desc": "A thematic group of content, normally introduced by a heading. It becomes a region landmark only when it has an accessible name.",
+    "example": "<!-- The h2 names the region; aria-labelledby points at it. -->\n<section aria-labelledby=\"upcoming\">\n  <h2 id=\"upcoming\">Upcoming stays</h2>\n  <p>One stay in March.</p>\n</section>\n\n<!-- A wrapper for layout only: div, not section. -->\n<div class=\"grid\">\n  <p>...</p>\n</div>",
+    "body": "An unnamed section is generic, so it gives nothing that a div would not give. Use section when the block would appear in a table of contents, and div when the block exists for CSS.\n\nHeading level follows structure: h2 for a section inside the page, h3 for a section inside a section."
+  },
+  {
+    "id": "html-article-landmark",
+    "group": "Semantics",
+    "name": "<article>",
+    "syntax": "<article> ... </article>",
+    "desc": "A self-contained composition that would still make sense on its own, such as a post, a review or a comment. It should have its own heading.",
+    "example": "<article>\n  <header>\n    <h2>Quiet rooms, slow breakfast</h2>\n    <p><time datetime=\"2026-03-02\">2 March 2026</time></p>\n  </header>\n\n  <p>The room faced the river.</p>\n\n  <!-- A comment is also self-contained, so it is a nested article. -->\n  <section aria-labelledby=\"comments\">\n    <h3 id=\"comments\">Comments</h3>\n    <article>\n      <h4>Reply from the hotel</h4>\n      <p>Breakfast now starts at 6:30.</p>\n    </article>\n  </section>\n</article>",
+    "body": "The test is syndication: could this block move to another page or a feed and still stand? If yes, article. A product card in a grid often fails that test and is better as a list item or a div."
+  },
+  {
+    "id": "html-aside-landmark",
+    "group": "Semantics",
+    "name": "<aside>",
+    "syntax": "<aside aria-labelledby=\"id\"> ... </aside>",
+    "desc": "Content related to the main flow but not part of it: a sidebar, a note, related links. It becomes the complementary landmark at top level.",
+    "example": "<main id=\"main\">\n  <h1>Bookings</h1>\n  <p>The booking details.</p>\n</main>\n\n<!-- Optional content, outside main. A screen reader can skip it in one move. -->\n<aside aria-labelledby=\"help\">\n  <h2 id=\"help\">Need help?</h2>\n  <p>Reception is open from 7:00 to 22:00.</p>\n  <p><a href=\"tel:+3612345678\">Call +36 1 234 5678</a></p>\n</aside>",
+    "body": "An aside nested inside an article is a note about that article and does not appear as a top level complementary landmark. That is expected.\n\nNever put the price, the booking form or anything the user must act on inside an aside. If it is required, it belongs in main."
+  },
+  {
+    "id": "html-footer-landmark",
+    "group": "Semantics",
+    "name": "<footer>",
+    "syntax": "<footer> ... </footer>",
+    "desc": "Closing content for the page or the nearest article: contact details, copyright, related links. Top level it is the contentinfo landmark.",
+    "example": "<footer>\n  <!-- Contact details belong in address, not in a paragraph. -->\n  <address>\n    Riverside Hotel<br>\n    12 Dock Street<br>\n    <a href=\"mailto:front@example.test\">front@example.test</a>\n  </address>\n  <p><small>Prices include VAT.</small></p>\n</footer>",
+    "body": "A footer inside article, aside, main, nav or section is not contentinfo. An article footer holds tags or the author, which is a valid and common use.\n\nThe address element is for contact details of the page or article, not for every postal address in the text."
+  },
+  {
+    "id": "html-figure-figcaption-deep",
+    "group": "Semantics",
+    "name": "<figure> and <figcaption>",
+    "syntax": "<figure>\n  <img src=\"...\" alt=\"...\">\n  <figcaption>Caption</figcaption>\n</figure>",
+    "desc": "A figure groups content the text refers to, with an optional caption. The caption must be the first or the last child.",
+    "example": "<p>The room has a balcony facing the river.</p>\n\n<figure>\n  <img src=\"river-view.jpg\"\n       alt=\"A river seen from a hotel window, with a bridge on the left\"\n       width=\"800\" height=\"450\">\n  <figcaption>The view from room 304, taken at sunset.</figcaption>\n</figure>",
+    "body": "The alt text describes the image for someone who cannot see it. The caption is visible text that explains why the image is there. Repeating the same sentence in both makes a screen reader say it twice.\n\nA figure is not required for every image. Use it when the text points at the image or the caption adds information. A decorative image uses alt=\"\" and needs no figure."
+  },
+  {
+    "id": "html-details-summary-deep",
+    "group": "Semantics",
+    "name": "<details> and <summary>",
+    "syntax": "<details>\n  <summary>Question</summary>\n  <p>Answer</p>\n</details>",
+    "desc": "A native disclosure widget. Summary is the always visible label and the click target; the rest is shown when the element is open.",
+    "example": "<section aria-labelledby=\"faq\">\n  <h2 id=\"faq\">Questions</h2>\n\n  <details>\n    <summary>Can I change the dates?</summary>\n    <p>Yes, up to 48 hours before check-in, from the booking page.</p>\n  </details>\n\n  <!-- Starts open. \"open\" is a boolean attribute, no value needed. -->\n  <details open>\n    <summary>Is breakfast included?</summary>\n    <p>Yes, from 6:30 to 10:00.</p>\n  </details>\n</section>",
+    "body": "Summary must be the first child of details. The browser handles focus and the Enter and Space keys, and it announces expanded or collapsed. No JavaScript is needed, and nothing breaks when scripts fail.\n\nClosed content is removed from the accessibility tree, so do not hide essential text there. The name attribute on several details elements builds an exclusive accordion, where opening one closes the others. Do not build a navigation menu out of details; it is announced as a disclosure, not a menu."
+  },
+  {
+    "id": "html-landmark-naming",
+    "group": "Semantics",
+    "name": "aria-label and aria-labelledby",
+    "syntax": "<nav aria-label=\"Main\"> ... </nav>\n<section aria-labelledby=\"section-title\"> ... </section>",
+    "desc": "Gives a landmark or a section its accessible name. aria-labelledby points at visible text; aria-label supplies text that is not on screen.",
+    "example": "<!-- Two navs need two different names. -->\n<nav aria-label=\"Main\">...</nav>\n<nav aria-label=\"Pagination\">...</nav>\n\n<!-- Prefer the visible heading: the label cannot drift out of sync. -->\n<section aria-labelledby=\"upcoming\">\n  <h2 id=\"upcoming\">Upcoming stays</h2>\n  <p>...</p>\n</section>",
+    "body": "aria-label is a string. aria-labelledby takes one or more ids and uses their text content. If visible text already names the block, aria-labelledby is usually the better choice.\n\nDo not label every nav \"Navigation\". Repeated names tell the user nothing. Do not add aria-label to an element that already has a visible heading unless the heading is not descriptive."
+  },
+  {
+    "id": "html-table-caption-deep",
+    "group": "Tables",
+    "name": "<caption>",
+    "syntax": "<table>\n  <caption>Table name</caption>\n  ...\n</table>",
+    "desc": "Names the table. It must be the first child of table, and screen readers announce it when the table is entered.",
+    "example": "<table>\n  <!-- First child: before colgroup, thead, tbody. -->\n  <caption>Room prices in EUR, one night, March 2026</caption>\n\n  <thead>\n    <tr>\n      <th scope=\"col\">Room</th>\n      <th scope=\"col\">Price</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th scope=\"row\">Double</th>\n      <td>80</td>\n    </tr>\n  </tbody>\n</table>",
+    "body": "A heading above the table is not part of the table and is not announced as its name. The caption is.\n\nState unit and period when they are not obvious: prices in EUR, per night, including breakfast. A caption on a layout table is a sign that the table should not exist."
+  },
+  {
+    "id": "html-table-sections-deep",
+    "group": "Tables",
+    "name": "<thead> <tbody> <tfoot>",
+    "syntax": "<table>\n  <thead>...</thead>\n  <tbody>...</tbody>\n  <tfoot>...</tfoot>\n</table>",
+    "desc": "Row groups. Thead holds header rows, tbody the data, tfoot the summary. Browsers insert tbody around any bare tr.",
+    "example": "<table>\n  <caption>Bookings, March 2026</caption>\n\n  <thead>\n    <tr>\n      <th scope=\"col\">Guest</th>\n      <th scope=\"col\">Nights</th>\n    </tr>\n  </thead>\n\n  <tbody>\n    <tr>\n      <th scope=\"row\">Booking 1041</th>\n      <td>2</td>\n    </tr>\n  </tbody>\n\n  <!-- Rendered at the bottom, even though it is written last. -->\n  <tfoot>\n    <tr>\n      <th scope=\"row\">Total</th>\n      <td>2</td>\n    </tr>\n  </tfoot>\n</table>",
+    "body": "The parser inserts tbody, so a CSS selector of table > tr matches nothing in the live DOM. Write tbody tr or table > tbody > tr.\n\nSeveral tbody elements can group rows, for example one per city. Thead repeats on each printed page in most browsers, which is one reason to use the element rather than styling the first row."
+  },
+  {
+    "id": "html-table-colspan",
+    "group": "Tables",
+    "name": "colspan",
+    "syntax": "<td colspan=\"2\">...</td>",
+    "desc": "Makes a cell cover several columns. The row still has to account for the same total number of column slots as every other row.",
+    "example": "<table>\n  <caption>Price per night in EUR, by season</caption>\n  <thead>\n    <!-- The room header covers both header rows. -->\n    <tr>\n      <th rowspan=\"2\" scope=\"col\">Room</th>\n      <th colspan=\"3\" scope=\"colgroup\">Price per night</th>\n    </tr>\n    <tr>\n      <th scope=\"col\">Spring</th>\n      <th scope=\"col\">Summer</th>\n      <th scope=\"col\">Winter</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th scope=\"row\">Double</th>\n      <td>80</td>\n      <td>110</td>\n      <td>70</td>\n    </tr>\n  </tbody>\n  <tfoot>\n    <!-- One cell, four slots: the label spans every column. -->\n    <tr>\n      <td colspan=\"4\">Average double room price: 87</td>\n    </tr>\n  </tfoot>\n</table>",
+    "body": "Count slots, not cells. A cell with colspan 3 takes three slots in its row. The widest row decides the column count, and a row that adds one slot too many silently creates an extra column for the whole table.\n\nscope=\"colgroup\" on the spanning header tells assistive technology that the header covers the columns below it. Colspan 0 means \"to the end of the group\" in the specification and is best avoided."
+  },
+  {
+    "id": "html-table-rowspan",
+    "group": "Tables",
+    "name": "rowspan",
+    "syntax": "<th rowspan=\"2\" scope=\"rowgroup\">...</th>",
+    "desc": "Makes a cell cover several rows. The following rows lose one slot each while the span is active.",
+    "example": "<table>\n  <caption>One night, one room of each type, prices in EUR</caption>\n  <thead>\n    <tr>\n      <th scope=\"col\">Hotel</th>\n      <th scope=\"col\">Room</th>\n      <th scope=\"col\">Price</th>\n    </tr>\n  </thead>\n  <tbody>\n    <!-- The hotel header covers both of its rooms. -->\n    <tr>\n      <th rowspan=\"2\" scope=\"rowgroup\">Riverside</th>\n      <td>Double</td>\n      <td>80</td>\n    </tr>\n    <tr>\n      <!-- Only two cells here: the first slot belongs to the rowspan above. -->\n      <td>Twin</td>\n      <td>75</td>\n    </tr>\n    <tr>\n      <th scope=\"rowgroup\">Dock View</th>\n      <td>Single</td>\n      <td>60</td>\n    </tr>\n  </tbody>\n</table>",
+    "body": "A rowspan that reaches past the last row pushes cells into a column that does not exist. Count the slots per row before writing the markup.\n\nUse scope=\"rowgroup\" when the spanning header labels a group of rows. scope=\"row\" is for a header that labels one row only."
+  },
+  {
+    "id": "html-table-scope-deep",
+    "group": "Tables",
+    "name": "scope",
+    "syntax": "<th scope=\"col\">...</th>",
+    "desc": "Tells assistive technology which cells a header covers. Values are col, row, colgroup and rowgroup.",
+    "example": "<table>\n  <caption>Bookings for March 2026</caption>\n  <thead>\n    <tr>\n      <!-- Header above a column. -->\n      <th scope=\"col\">Guest</th>\n      <th scope=\"col\">Room</th>\n      <th scope=\"col\">Nights</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <!-- Header at the start of a row. -->\n      <th scope=\"row\">Booking 1041</th>\n      <td>Double</td>\n      <td>2</td>\n    </tr>\n  </tbody>\n</table>",
+    "body": "Without scope the browser assumes auto and guesses from position. The guess fails as soon as a colspan or rowspan appears.\n\nscope is enough for nearly every table in the exam. The headers and id attributes are for irregular tables where a cell has more than one header that scope cannot express."
+  },
+  {
+    "id": "html-table-colgroup-deep",
+    "group": "Tables",
+    "name": "<colgroup> and <col>",
+    "syntax": "<colgroup>\n  <col class=\"col-name\">\n  <col class=\"col-value\">\n</colgroup>",
+    "desc": "Groups columns for width and background styling. Col elements are empty and their count should match the real column count.",
+    "example": "<table>\n  <caption>Bookings report</caption>\n\n  <!-- Widths live here so the body rows stay clean. -->\n  <colgroup>\n    <col style=\"width: 40%\">\n    <col style=\"width: 20%\">\n    <col span=\"2\" style=\"width: 20%\">\n  </colgroup>\n\n  <thead>\n    <tr>\n      <th scope=\"col\">Hotel</th>\n      <th scope=\"col\">City</th>\n      <th scope=\"col\">Check-in</th>\n      <th scope=\"col\">Check-out</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th scope=\"row\">Riverside</th>\n      <td>Budapest</td>\n      <td>12 Mar</td>\n      <td>14 Mar</td>\n    </tr>\n  </tbody>\n</table>",
+    "body": "CSS on col supports only a small set of properties: width, background, border and visibility. Text colour and padding on col do nothing.\n\nspan on col covers several columns with one element. If the colgroup declares more columns than the table has, browsers pad or ignore the rest and the widths stop lining up."
+  },
+  {
+    "id": "html-table-headers-id",
+    "group": "Tables",
+    "name": "headers and id",
+    "syntax": "<th id=\"h-price\">Price</th>\n<td headers=\"h-room h-price\">80</td>",
+    "desc": "Explicit header association for irregular tables where scope cannot express which headers apply to a cell.",
+    "example": "<table>\n  <caption>Price by room and season, in EUR</caption>\n  <thead>\n    <tr>\n      <th id=\"h-room\" scope=\"col\">Room</th>\n      <th id=\"h-spring\" scope=\"col\">Spring</th>\n      <th id=\"h-autumn\" scope=\"col\">Autumn</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th id=\"h-double\" scope=\"row\">Double</th>\n      <!-- This cell is named by its row header and its column header. -->\n      <td headers=\"h-double h-spring\">80</td>\n      <td headers=\"h-double h-autumn\">95</td>\n    </tr>\n  </tbody>\n</table>",
+    "body": "The headers attribute takes a space separated list of ids. Order does not matter to assistive technology, but column header before row header is the usual reading order.\n\nLong id lists are hard to maintain, and mixing scope with headers carelessly can make a cell announce the same header twice. Reach for this only after scope stops being enough."
+  },
+  {
+    "id": "html-video-element",
+    "group": "Media",
+    "name": "<video>",
+    "syntax": "<video src=\"clip.mp4\" controls width=\"640\" height=\"360\"></video>",
+    "desc": "Embeds a video player with native controls. Width and height reserve the box, poster shows a still before playback.",
+    "example": "<figure>\n  <video controls width=\"640\" height=\"360\"\n         poster=\"room-poster.jpg\" preload=\"metadata\" playsinline>\n    <source src=\"room-tour.webm\" type=\"video/webm\">\n    <source src=\"room-tour.mp4\" type=\"video/mp4\">\n    <track kind=\"captions\" src=\"room-tour.en.vtt\"\n           srclang=\"en\" label=\"English\" default>\n    <p>\n      Your browser cannot play this video.\n      <a href=\"room-tour.mp4\">Download the room tour</a> (8 MB).\n    </p>\n  </video>\n  <figcaption>Room 304, the double room with a balcony.</figcaption>\n</figure>",
+    "body": "Controls are not optional for content the user is meant to watch. Without them the element is a still frame.\n\nplaysinline stops iOS from taking the video fullscreen on its own. autoplay only works when the video is muted in Chrome and Safari, and moving content over five seconds still needs a pause control. The paragraph inside the element is the fallback for browsers without video support and is worth writing every time."
+  },
+  {
+    "id": "html-audio-element",
+    "group": "Media",
+    "name": "<audio>",
+    "syntax": "<audio src=\"clip.mp3\" controls></audio>",
+    "desc": "Embeds an audio player. It has no visual area, so width, height and poster do not apply.",
+    "example": "<figure>\n  <audio controls preload=\"metadata\">\n    <source src=\"interview.mp3\" type=\"audio/mpeg\">\n    <source src=\"interview.opus\" type=\"audio/ogg; codecs=opus\">\n    <track kind=\"chapters\" src=\"interview.chapters.vtt\"\n           label=\"Chapters\" default>\n    <p><a href=\"interview.mp3\">Download the interview</a> (12 MB, MP3).</p>\n  </audio>\n  <figcaption>Eight minutes with the front desk manager.</figcaption>\n</figure>",
+    "body": "Audio needs a text path. A transcript on the page, or a link to one, is the only way a deaf user gets the content.\n\nThe player is small and unlabelled by itself, so the surrounding heading or figure caption must say what it contains."
+  },
+  {
+    "id": "html-source-element",
+    "group": "Media",
+    "name": "<source>",
+    "syntax": "<source src=\"file.webm\" type=\"video/webm\">",
+    "desc": "Offers the browser one file to choose from. The browser takes the first source it can play, using type to skip formats it does not support.",
+    "example": "<video controls width=\"640\" height=\"360\" poster=\"room-poster.jpg\">\n  <!-- The browser picks the first file it can play, in this order. -->\n  <source src=\"room-tour.webm\" type=\"video/webm\">\n  <source src=\"room-tour.mp4\" type=\"video/mp4; codecs=avc1.42E01E, mp4a.40.2\">\n\n  <!-- Not a retry chain: a failed first file does not fall through. -->\n  <p><a href=\"room-tour.mp4\">Download the room tour</a></p>\n</video>",
+    "body": "Without type the browser may download the whole file just to discover it cannot play it. With type it can skip the file immediately.\n\nThe source list is a preference order, not an error recovery chain. If the chosen file 404s, the browser does not move to the next one. The media attribute on source is for picture, not for video or audio."
+  },
+  {
+    "id": "html-track-element",
+    "group": "Media",
+    "name": "<track>",
+    "syntax": "<track kind=\"captions\" src=\"clip.en.vtt\" srclang=\"en\" label=\"English\" default>",
+    "desc": "Adds timed text to video or audio from a WebVTT file. Kind decides whether it is captions, subtitles, chapters or metadata.",
+    "example": "<video controls width=\"640\" height=\"360\" poster=\"room-poster.jpg\">\n  <source src=\"room-tour.mp4\" type=\"video/mp4\">\n\n  <!-- Captions include sounds, not only dialogue. -->\n  <track kind=\"captions\" src=\"room-tour.en.vtt\"\n         srclang=\"en\" label=\"English\" default>\n  <track kind=\"captions\" src=\"room-tour.hu.vtt\"\n         srclang=\"hu\" label=\"Magyar\">\n\n  <p><a href=\"room-tour.mp4\">Download the room tour</a></p>\n</video>",
+    "body": "Kinds: subtitles translate dialogue for viewers who can hear it; captions also carry non-speech sounds and are what most pages need; descriptions give text descriptions of the visuals; chapters build a chapter menu; metadata is for scripts.\n\nA WebVTT file starts with WEBVTT, then cues with a timing line such as 00:00:01.000 --> 00:00:04.000 and text lines. Serve it as text/vtt. Cross origin tracks fail silently unless the media element has crossorigin=\"anonymous\" and the track server sends CORS headers."
+  },
+  {
+    "id": "html-iframe-element",
+    "group": "Embedding",
+    "name": "<iframe>",
+    "syntax": "<iframe src=\"/embed/map.html\" title=\"Map showing the hotel\" width=\"640\" height=\"360\"></iframe>",
+    "desc": "Embeds another HTML document in its own browsing context. The title is what a screen reader announces for the frame.",
+    "example": "<div class=\"embed\">\n  <iframe\n    src=\"/embed/map.html?q=Dock+Street+12\"\n    title=\"Map showing Riverside Hotel on Dock Street\"\n    width=\"640\"\n    height=\"360\"\n    loading=\"lazy\"\n    referrerpolicy=\"no-referrer\">\n  </iframe>\n</div>\n\n<p>\n  If the map does not load,\n  <a href=\"/embed/map.html?q=Dock+Street+12\">open it in a new page</a>.\n</p>",
+    "body": "The frame is a separate document: its own lang, headings, landmarks and focus order. Nothing from the parent page reaches inside, and the embedded page has to be accessible on its own.\n\nUse frames for maps, players, payment forms and document previews, not for the site navigation or the whole page. Always give a direct link to the content as an alternative. Reserve width and height, or the page shifts when the frame loads."
+  },
+  {
+    "id": "html-iframe-sandbox",
+    "group": "Embedding",
+    "name": "sandbox",
+    "syntax": "<iframe src=\"...\" sandbox=\"allow-scripts allow-forms\"></iframe>",
+    "desc": "Restricts what an embedded document may do. An empty value blocks scripts, forms, popups and same-origin access.",
+    "example": "<!-- Untrusted third party widget: scripts only, no same-origin access. -->\n<iframe\n  src=\"/embed/widget.html\"\n  title=\"Availability calendar\"\n  width=\"480\"\n  height=\"360\"\n  loading=\"lazy\"\n  sandbox=\"allow-scripts allow-forms\">\n</iframe>\n\n<!-- Our own map page: scripts and same origin are fine here. -->\n<iframe\n  src=\"/embed/map.html\"\n  title=\"Map showing Riverside Hotel on Dock Street\"\n  width=\"640\"\n  height=\"360\"\n  sandbox=\"allow-scripts allow-same-origin allow-popups\">\n</iframe>",
+    "body": "Tokens: allow-scripts, allow-same-origin, allow-forms, allow-popups, allow-downloads, allow-presentation, allow-top-navigation-by-user-activation. Start with an empty sandbox and add only what the frame needs.\n\nallow-scripts plus allow-same-origin on a same-origin frame lets the document remove its own sandbox, which defeats the point. Never combine them for content you do not control. Refusing to be framed is a response header (Content-Security-Policy frame-ancestors or X-Frame-Options), not an HTML attribute."
+  }
+]

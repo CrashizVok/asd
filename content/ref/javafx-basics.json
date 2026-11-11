@@ -1,0 +1,263 @@
+[
+  {
+    "id": "javafx-app-class",
+    "group": "Lifecycle",
+    "name": "Application subclass",
+    "syntax": "public class App extends Application { @Override public void start(Stage stage) { ... } }",
+    "desc": "Every JavaFX program starts with a class that extends Application and overrides start. The toolkit creates one instance with the no-argument constructor and calls start on the FX thread.",
+    "example": "public class App extends Application {\n\n    @Override\n    public void start(Stage stage) {\n        stage.setScene(new Scene(new Label(\"Ready\"), 400, 300));\n        stage.show();\n    }\n\n    public static void main(String[] args) {\n        launch(args);\n    }\n}",
+    "body": "`start` receives a stage that is already created but empty and invisible. Build the root node, wrap it in a `Scene`, attach the scene, then call `show()`.\n\nPut file reading in `init()` or in a plain helper class. Keeping the GUI class thin means the data code can run without a display."
+  },
+  {
+    "id": "javafx-launch-args",
+    "group": "Lifecycle",
+    "name": "launch()",
+    "syntax": "Application.launch(args)",
+    "desc": "Boots the JavaFX toolkit, constructs the application instance, and runs the lifecycle. Call it once from main; a second call throws IllegalStateException.",
+    "example": "public static void main(String[] args) {\n    // The only entry point. Do not call launch again to open another window.\n    launch(args);\n}",
+    "body": "Arguments reach the application through `getParameters()`. Named arguments use `--key=value` and are read with `getNamed()`; everything else is in `getRaw()`.\n\n```java\npublic void init() {\n    String file = getParameters().getNamed().get(\"file\");\n    System.out.println(\"Startup file: \" + file);\n}\n```\n\nRun with `mvn javafx:run -Djavafx.args=\"--file=data.csv\"` when the exam supplies a path. If no argument is given, `get` returns `null`, so guard it."
+  },
+  {
+    "id": "javafx-init-hook",
+    "group": "Lifecycle",
+    "name": "init()",
+    "syntax": "public void init() { ... }",
+    "desc": "Runs once before start on the launcher thread. Use it for slow or risky work such as reading a file, and never create controls here.",
+    "example": "@Override\npublic void init() {\n    // Runs off the FX thread: no Label, no Scene, no Stage.\n    loadedRows = readBookings(Path.of(\"bookings.csv\"));\n}",
+    "body": "An exception thrown in `init` prevents the window from appearing, and the stack trace shows up as an application startup failure. Wrap file access in `try` and store the error message for an `Alert` in `start`.\n\nFor exam tasks the method is optional. It becomes useful when the file is large and the window should appear only after the data is ready."
+  },
+  {
+    "id": "javafx-stop-hook",
+    "group": "Lifecycle",
+    "name": "stop()",
+    "syntax": "public void stop() { ... }",
+    "desc": "Runs after the last window closes or after Platform.exit(). Use it to flush data or stop threads, never to ask the user a question.",
+    "example": "@Override\npublic void stop() {\n    // Too late for a confirmation dialog: the window is already going away.\n    saveWindowState();\n}",
+    "body": "For a save prompt use `stage.setOnCloseRequest` and call `event.consume()` when the user cancels. `stop` is for cleanup only.\n\nIf `Platform.setImplicitExit(false)` was called, `stop` runs only when `Platform.exit()` is called explicitly."
+  },
+  {
+    "id": "javafx-stage-show",
+    "group": "Stage",
+    "name": "Stage.setScene() and show()",
+    "syntax": "stage.setScene(scene); stage.show();",
+    "desc": "Attaches the scene to the window and makes the window visible. Nothing is drawn before show() runs.",
+    "example": "Scene scene = new Scene(root, 900, 600);\nstage.setTitle(\"Bookings\");\nstage.setScene(scene);   // build the content\nstage.show();            // make it visible",
+    "body": "Order matters for sizing. Setting the scene first lets the stage compute its size from the scene; changing the root afterwards needs `stage.sizeToScene()` if the window should follow.\n\nA stage without a scene throws no error on `show()` in older versions but shows an empty window. Always attach the scene."
+  },
+  {
+    "id": "javafx-stage-window-settings",
+    "group": "Stage",
+    "name": "Stage window settings",
+    "syntax": "stage.setTitle(text); stage.setMinWidth(value); stage.setResizable(boolean);",
+    "desc": "Sets the title bar text, the smallest size the user may drag to, and whether the window can be resized. The minimum size protects a fixed layout from clipping.",
+    "example": "stage.setTitle(\"BookingBrowser\");\nstage.setMinWidth(720);    // below this the fixed list starts to clip\nstage.setMinHeight(420);\nstage.setResizable(true);\nstage.setScene(scene);\nstage.show();",
+    "body": "A window cannot be made smaller than the sum of the minimum sizes of its content plus padding and spacing. If the stage refuses to shrink even though `setMinWidth` is small, look at the children's `minWidth` values.\n\nIcons are set with `stage.getIcons().add(new Image(...))`. The exam rarely asks for one; a missing image path throws at startup, so skip it unless required."
+  },
+  {
+    "id": "javafx-secondary-stage",
+    "group": "Stage",
+    "name": "Second window",
+    "syntax": "new Stage(); dialog.initOwner(owner); dialog.initModality(Modality.WINDOW_MODAL);",
+    "desc": "Creates another window with its own scene. The owner keeps it above the main window, and the modality decides which windows are blocked while it is open.",
+    "example": "Stage dialog = new Stage();\ndialog.initOwner(primaryStage);\ndialog.initModality(Modality.WINDOW_MODAL);\ndialog.setTitle(\"Details\");\ndialog.setScene(new Scene(new Label(\"Row details\"), 360, 240));\ndialog.show();   // use showAndWait() to block until it closes",
+    "body": "`WINDOW_MODAL` blocks the owner only. `APPLICATION_MODAL` blocks every window of the application. `Modality.NONE` is the default and behaves like an independent window.\n\nFor a message or a single question, use `Alert` instead. A hand-built dialog needs its own buttons and its own close handling, which is three times the code for the same result."
+  },
+  {
+    "id": "javafx-scene-create",
+    "group": "Scene",
+    "name": "new Scene()",
+    "syntax": "new Scene(root, width, height)",
+    "desc": "Wraps the root node into a scene with an initial content size. The scene holds the root, the size, the fill colour and the stylesheets.",
+    "example": "BorderPane root = new BorderPane();\nroot.setCenter(new Label(\"Content\"));\n\n// 900 by 600 is the content area, not the outer window size.\nScene scene = new Scene(root, 900, 600);\nstage.setScene(scene);",
+    "body": "The constructor without a width and height uses the preferred size of the root, which is often too small or too large by accident. Pass both numbers when the task names a size.\n\nA node already attached to another scene must be removed from its parent first, because one node has one parent."
+  },
+  {
+    "id": "javafx-scene-switch",
+    "group": "Scene",
+    "name": "Scene switching",
+    "syntax": "stage.setScene(otherScene)",
+    "desc": "Replaces the content of the current window without creating a new one. Build both scenes once and reuse them.",
+    "example": "Button back = new Button(\"Back\");\nback.setOnAction(event -> stage.setScene(loginScene));\n\nButton enter = new Button(\"Enter\");\nenter.setOnAction(event -> {\n    stage.setScene(mainScene);   // same window, new content\n});",
+    "body": "Swapping scenes loses nothing that is stored outside the scene, so keep shared state in fields or in a small model class. Rebuilding a scene on every switch resets its controls.\n\nWhen only part of the screen changes, replace the centre of a `BorderPane` instead. The menu bar and the status line then stay attached and keep their handlers."
+  },
+  {
+    "id": "javafx-scene-stylesheet",
+    "group": "CSS",
+    "name": "Add a stylesheet",
+    "syntax": "scene.getStylesheets().add(url)",
+    "desc": "Loads a CSS file for one scene. The URL must point at the file on the classpath and must not be null.",
+    "example": "// src/main/resources/app.css lands at the classpath root.\nvar css = getClass().getResource(\"/app.css\");\nif (css != null) {\n    scene.getStylesheets().add(css.toExternalForm());\n}",
+    "body": "`getClass().getResource(\"app.css\")` looks in the package of the class. The leading slash means the classpath root, which is where Maven puts `src/main/resources`.\n\nA wrong path returns `null` and `toExternalForm()` throws `NullPointerException` before the window opens. Guard it while developing, and keep the guard in exam code so a missing file costs styling time only."
+  },
+  {
+    "id": "javafx-button-action",
+    "group": "Controls",
+    "name": "Button action",
+    "syntax": "button.setOnAction(event -> handler());",
+    "desc": "Runs the handler when the button is clicked or when it is the default button and Enter is pressed. Reading control values inside the lambda is what makes the form work.",
+    "example": "TextField email = new TextField();\nButton save = new Button(\"Save\");\nsave.setDefaultButton(true);\n\nsave.setOnAction(event -> {\n    // Read at click time. Reading outside would capture the empty field.\n    System.out.println(\"Saving \" + email.getText().trim());\n});",
+    "body": "`setOnAction` replaces the previous handler. If a button and a menu item must run different code, give them separate lambdas that call one shared method.\n\nWhen two handlers must both run, use `addEventHandler(ActionEvent.ACTION, ...)` instead of calling `setOnAction` twice."
+  },
+  {
+    "id": "javafx-textfield-value",
+    "group": "Controls",
+    "name": "TextField value",
+    "syntax": "field.getText(); field.setPromptText(text);",
+    "desc": "Reads the typed text as a String. The prompt is grey hint text and is never returned by getText, so an empty field reads as an empty string, not null.",
+    "example": "TextField email = new TextField();\nemail.setPromptText(\"customer_email\");\n\n// Validate on submit, not while the user is still typing.\nif (email.getText().isBlank()) {\n    errorLabel.setText(\"Email is required.\");\n}",
+    "body": "Numbers need parsing, and parsing can fail:\n\n```java\nint adults;\ntry {\n    adults = Integer.parseInt(adultsField.getText().trim());\n} catch (NumberFormatException ex) {\n    adults = 0;   // or show an error and return\n}\n```\n\nFor numeric input with a known range, `Spinner<Integer>` avoids the parse and the error case."
+  },
+  {
+    "id": "javafx-label-wrap",
+    "group": "Controls",
+    "name": "Wrapping label",
+    "syntax": "label.setWrapText(true); label.setMaxWidth(value);",
+    "desc": "Makes long label text wrap instead of clipping. Wrapping needs a width limit, otherwise the label grows as wide as its text.",
+    "example": "Label description = new Label(longText);\ndescription.setWrapText(true);\ndescription.setMaxWidth(360);   // without a limit the label keeps one long line",
+    "body": "Inside an `HBox` the label also needs `HBox.setHgrow` or a fixed width, because the row does not shrink a child below its preferred width on its own.\n\nFor a whole block of text with several paragraphs, use a `TextArea` with `setEditable(false)` and `setWrapText(true)`."
+  },
+  {
+    "id": "javafx-checkbox-state",
+    "group": "Controls",
+    "name": "CheckBox",
+    "syntax": "checkBox.isSelected()",
+    "desc": "Returns the current state of the box. Check boxes are independent; a group of them needs no ToggleGroup.",
+    "example": "CheckBox extraBed = new CheckBox(\"Extra bed\");\nextraBed.setSelected(false);\n\nButton save = new Button(\"Save\");\nsave.setOnAction(event -> {\n    String note = extraBed.isSelected() ? \"extra bed\" : \"no extra bed\";\n    System.out.println(note);\n});",
+    "body": "`selectedProperty()` is observable when a label or another control must react immediately:\n\n```java\nsummary.textProperty().bind(\n    Bindings.when(extraBed.selectedProperty())\n            .then(\"Extra bed requested\")\n            .otherwise(\"No extra bed\"));\n```"
+  },
+  {
+    "id": "javafx-radiobutton-group",
+    "group": "Controls",
+    "name": "RadioButton with ToggleGroup",
+    "syntax": "button.setToggleGroup(group); group.selectedToggleProperty().addListener(...)",
+    "desc": "Radio buttons in one ToggleGroup allow exactly one selection. Attach every button and select one before the window is shown.",
+    "example": "ToggleGroup mode = new ToggleGroup();\nRadioButton byYear = new RadioButton(\"Years\");\nRadioButton byHotel = new RadioButton(\"Hotels\");\nbyYear.setToggleGroup(mode);\nbyHotel.setToggleGroup(mode);\nbyYear.setSelected(true);\n\nmode.selectedToggleProperty().addListener((observable, oldToggle, newToggle) -> {\n    if (newToggle == null) {\n        mode.selectToggle(oldToggle);   // keep one mode always selected\n        return;\n    }\n    refreshList();\n});",
+    "body": "The `null` guard matters. Clicking the selected radio button can clear the group, and then `byYear.isSelected()` and `byHotel.isSelected()` are both false.\n\nReading the selection inside the handler with `if (byYear.isSelected())` is clearer than comparing toggle objects, and it survives a later redesign that adds a third mode."
+  },
+  {
+    "id": "javafx-combobox-items",
+    "group": "Controls",
+    "name": "ComboBox",
+    "syntax": "comboBox.getItems().addAll(values); comboBox.getValue()",
+    "desc": "A drop-down list with one selected value. The value is null until the user or the code sets one.",
+    "example": "ComboBox<String> city = new ComboBox<>();\ncity.getItems().addAll(\"Budapest\", \"Debrecen\", \"Szeged\");\ncity.setPromptText(\"Choose a city\");\n\n// Never assume a value: check for null before using it.\nString selected = city.getValue();\nif (selected == null) {\n    errorLabel.setText(\"Pick a city.\");\n}",
+    "body": "`setValue` selects an item and also accepts values that are not in the list, which is useful for a free-text combo after `setEditable(true)`.\n\nFor a long list, `setVisibleRowCount(8)` keeps the popup short. For typed filtering, make it editable and read `getEditor().getText()`."
+  },
+  {
+    "id": "javafx-datepicker-value",
+    "group": "Controls",
+    "name": "DatePicker",
+    "syntax": "datePicker.getValue()",
+    "desc": "Returns the chosen date as a LocalDate, or null when the field is empty. It does not validate ranges for you.",
+    "example": "DatePicker start = new DatePicker(LocalDate.now());\nDatePicker end = new DatePicker(LocalDate.now().plusDays(3));\n\nButton check = new Button(\"Check\");\ncheck.setOnAction(event -> {\n    LocalDate from = start.getValue();\n    LocalDate to = end.getValue();\n    if (from == null || to == null) {\n        errorLabel.setText(\"Both dates are required.\");\n    } else if (to.isBefore(from)) {\n        errorLabel.setText(\"The end date must not be earlier.\");\n    }\n});",
+    "body": "The text shown in the editor follows the locale, while `getValue()` is locale independent. Parse data files with `LocalDate.parse` and let the picker handle display.\n\n`setEditable(false)` stops the user from typing a date in a format the parser does not expect."
+  },
+  {
+    "id": "javafx-spinner-integer",
+    "group": "Controls",
+    "name": "Spinner with an integer range",
+    "syntax": "new Spinner<>(new SpinnerValueFactory.IntegerSpinnerValueFactory(min, max, initial))",
+    "desc": "A numeric field with arrows and a bounded range. getValue returns an Integer, so no parsing is needed.",
+    "example": "Spinner<Integer> adults = new Spinner<>(\n        new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 10, 2));\nadults.setEditable(true);   // typed text commits on Enter or focus loss\n\nint count = adults.getValue();",
+    "body": "A bare `new Spinner<>(1, 10, 2)` also compiles in recent JavaFX versions, but the value factory form shows the intended range and works on every supported version.\n\nWith `setEditable(true)`, text that is outside the range is rejected and the previous value returns. If the user typed a value and clicked Save directly, the focus loss commits it before the handler runs."
+  },
+  {
+    "id": "javafx-listview-items",
+    "group": "Lists",
+    "name": "ListView items",
+    "syntax": "listView.getItems().setAll(values)",
+    "desc": "Replaces the whole content of the list. Use clear() plus addAll() when appending, and setAll() when the old rows must disappear.",
+    "example": "ListView<String> years = new ListView<>();\nyears.setPlaceholder(new Label(\"No data loaded\"));\n\n// setAll replaces, so no stale rows survive a reload.\nyears.getItems().setAll(\"2023\", \"2024\", \"2025\");",
+    "body": "Backing the list with an `ObservableList` keeps it in sync with the data:\n\n```java\nObservableList<Booking> bookings = FXCollections.observableArrayList();\nbookings.addAll(loadBookings(file));   // the list redraws itself\n```\n\n`setItems` swaps the backing list. Calling it twice is fine, but a listener attached to the old list stops seeing changes."
+  },
+  {
+    "id": "javafx-listview-selection",
+    "group": "Lists",
+    "name": "ListView selection listener",
+    "syntax": "listView.getSelectionModel().selectedItemProperty().addListener(...)",
+    "desc": "Fires when the selected row changes, including when the list is cleared and the value becomes null. This is the correct hook for showing details.",
+    "example": "groups.getSelectionModel().selectedItemProperty().addListener(\n        (observable, oldValue, group) -> {\n            details.getItems().clear();\n            if (group == null) {\n                return;   // the list was cleared or the selection removed\n            }\n            details.getItems().setAll(findRows(group));\n        });",
+    "body": "Do not wire row clicks through a cell factory for selection. Cells are recycled while scrolling, and a cell that shows row 40 may later show row 3.\n\nTo preselect a row, call `getSelectionModel().select(index)` after the items are set. `selectFirst()` is a shortcut for the first row."
+  },
+  {
+    "id": "javafx-tableview-column",
+    "group": "Lists",
+    "name": "TableView column",
+    "syntax": "column.setCellValueFactory(cell -> new ReadOnlyStringWrapper(value))",
+    "desc": "Binds a column to one field of the row object. The factory is called for every visible cell, so it must stay cheap.",
+    "example": "TableView<Booking> table = new TableView<>();\n\nTableColumn<Booking, String> city = new TableColumn<>(\"City\");\ncity.setCellValueFactory(cell ->\n        new ReadOnlyStringWrapper(cell.getValue().city()));\n\nTableColumn<Booking, Integer> adults = new TableColumn<>(\"Adults\");\nadults.setCellValueFactory(cell ->\n        new ReadOnlyIntegerWrapper(cell.getValue().adults()).asObject());\n\ntable.getColumns().addAll(city, adults);\ntable.setItems(FXCollections.observableArrayList(bookings));",
+    "body": "`PropertyValueFactory(\"city\")` needs a `getCity()` method. Java records have `city()`, so the explicit wrapper is the reliable option for records. `asObject()` is required on `ReadOnlyIntegerWrapper` when the column type is `Integer`.\n\nColumn widths: `setPrefWidth(180)` per column, and `table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN)` to fill the table width. The older `CONSTRAINED_RESIZE_POLICY` constant is deprecated in JavaFX 20 and later."
+  },
+  {
+    "id": "javafx-alert-showwait",
+    "group": "Dialogs",
+    "name": "Alert",
+    "syntax": "new Alert(Alert.AlertType.INFORMATION); alert.showAndWait();",
+    "desc": "Shows a standard dialog with one OK button. showAndWait blocks until it is closed, which is what a message or an error needs.",
+    "example": "Alert alert = new Alert(Alert.AlertType.ERROR);\nalert.setTitle(\"Error\");\nalert.setHeaderText(\"Could not read the file\");\nalert.setContentText(String.valueOf(error.getMessage()));\nalert.showAndWait();",
+    "body": "`show()` returns immediately and the code continues, so a user can stack five error dialogs before reading one. `showAndWait()` waits.\n\nFor a yes or no question, change the buttons and read the result:\n\n```java\nAlert confirm = new Alert(Alert.AlertType.CONFIRMATION);\nconfirm.setHeaderText(\"Discard changes?\");\nconfirm.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);\nconfirm.showAndWait()\n        .filter(button -> button == ButtonType.YES)\n        .ifPresent(button -> closeWithoutSaving());\n```\n\nThe four types are `INFORMATION`, `WARNING`, `ERROR` and `CONFIRMATION`. The type changes the icon and the default buttons, not the behaviour."
+  },
+  {
+    "id": "javafx-filechooser-open",
+    "group": "Files",
+    "name": "FileChooser open dialog",
+    "syntax": "fileChooser.showOpenDialog(owner)",
+    "desc": "Opens the native file dialog and returns the chosen File, or null when the user cancels. The null check is part of the pattern, not an optional extra.",
+    "example": "FileChooser chooser = new FileChooser();\nchooser.setTitle(\"Open bookings CSV\");\nchooser.getExtensionFilters().add(\n        new FileChooser.ExtensionFilter(\"CSV files\", \"*.csv\"));\n\nFile file = chooser.showOpenDialog(stage);\nif (file == null) {\n    return;   // Cancel is not an error.\n}\nList<Booking> rows = readBookings(file);",
+    "body": "`showSaveDialog` returns a target file that may not exist yet, so write to `file.toPath()` rather than reading it.\n\nReading goes through `Files.readAllLines(file.toPath(), StandardCharsets.UTF_8)` or `Files.newBufferedReader`. Keep the parsing in a method that accepts a `File` or `Path`, so it can be tested from `main` without opening a window.\n\nWrap the read in `try` and show the message in an `Alert` with `AlertType.ERROR`. A raw stack trace in the console is not a user-facing error path."
+  },
+  {
+    "id": "javafx-menu-item-action",
+    "group": "Menus",
+    "name": "MenuItem and accelerator",
+    "syntax": "menuItem.setOnAction(handler); menuItem.setAccelerator(KeyCombination.keyCombination(\"Shortcut+O\"));",
+    "desc": "Adds a clickable command to a menu with an optional keyboard shortcut. Shortcut maps to Ctrl on Windows and Linux and Command on macOS.",
+    "example": "MenuItem open = new MenuItem(\"Open...\");\nopen.setAccelerator(KeyCombination.keyCombination(\"Shortcut+O\"));\nopen.setOnAction(event -> openFile());\n\nMenuItem exit = new MenuItem(\"Exit\");\nexit.setOnAction(event -> Platform.exit());\n\nMenu file = new Menu(\"File\");\nfile.getItems().addAll(open, new SeparatorMenuItem(), exit);\nMenuBar bar = new MenuBar(file);",
+    "body": "Use `Ctrl+O` only when the task explicitly says Ctrl, because that breaks the shortcut on macOS.\n\nA menu item is not a node, so it cannot be added to a layout. It lives in a `Menu`, and the `Menu` lives in a `MenuBar` that is placed in the layout like any other control."
+  },
+  {
+    "id": "javafx-platform-exit",
+    "group": "Lifecycle",
+    "name": "Platform.exit()",
+    "syntax": "Platform.exit()",
+    "desc": "Closes the toolkit and ends the application, running stop() on the way out. Use it for an Exit menu item and for cancelling a close request after a prompt.",
+    "example": "MenuItem exit = new MenuItem(\"Exit\");\nexit.setOnAction(event -> Platform.exit());\n\n// Alternative for a Cancel branch after the user confirmed closing:\n// stage.close() closes one window; Platform.exit() ends the application.",
+    "body": "`System.exit(0)` also kills the process, but it skips `stop()` and can leave threads running. `Platform.exit()` is the supported path.\n\nWith `Platform.setImplicitExit(false)` the application keeps running after the last window closes, and then `Platform.exit()` is the only clean way to end it."
+  },
+  {
+    "id": "javafx-runlater-ui",
+    "group": "Threads",
+    "name": "Platform.runLater()",
+    "syntax": "Platform.runLater(() -> updateUi())",
+    "desc": "Queues a task on the FX thread. Any UI change from a background thread must go through it, otherwise JavaFX throws IllegalStateException.",
+    "example": "new Thread(() -> {\n    List<Booking> rows = readBookings(path);   // slow work, no UI calls\n    Platform.runLater(() -> {\n        list.getItems().setAll(rows);          // back on the FX thread\n        status.setText(rows.size() + \" rows loaded\");\n    });\n}).start();",
+    "body": "The exception text is `Not on FX application thread; currentThread = ...`. It appears the moment a control is touched, which is why the failing line is usually a setter, not the thread creation.\n\n`Task` and `Service` wrap the same pattern with `setOnSucceeded` and progress properties. For one file load, the plain thread plus `Platform.runLater` is shorter and easier to defend in an exam."
+  },
+  {
+    "id": "javafx-close-request",
+    "group": "Lifecycle",
+    "name": "Window close request",
+    "syntax": "stage.setOnCloseRequest(event -> { ... })",
+    "desc": "Runs when the user tries to close the window, before it hides. Calling event.consume() cancels the close.",
+    "example": "stage.setOnCloseRequest(event -> {\n    if (hasUnsavedChanges() && !confirmDiscard()) {\n        event.consume();   // stop the close\n    }\n});",
+    "body": "This is the last moment where a question can be asked, because the window is still open. `stop()` runs too late for a dialog.\n\nA confirmation with `Alert` returns an `Optional<ButtonType>`. Compare it to `ButtonType.OK` and consume the close event when the answer is no."
+  },
+  {
+    "id": "javafx-styleclass-add",
+    "group": "CSS",
+    "name": "Style class",
+    "syntax": "node.getStyleClass().add(\"class-name\")",
+    "desc": "Adds a CSS class to a node so a stylesheet can target it. One node can carry several classes, and every control already has its type class.",
+    "example": "Label total = new Label(\"0\");\ntotal.getStyleClass().add(\"total\");\n\nVBox card = new VBox(4);\ncard.getStyleClass().addAll(\"card\", \"card-compact\");",
+    "body": "CSS for those classes:\n\n```css\n.total {\n    -fx-font-size: 18px;\n    -fx-font-weight: bold;\n}\n\n.card {\n    -fx-background-color: white;\n    -fx-padding: 10;\n    -fx-background-radius: 8;\n}\n```\n\nPseudo classes add state without extra Java code: `:hover`, `:focused`, `:selected`, `:disabled`, `:empty`. An id selector (`#total`) is possible through `setId`, but ids are unique by contract and style classes are the safer habit."
+  },
+  {
+    "id": "javafx-inline-style-set",
+    "group": "CSS",
+    "name": "Inline style",
+    "syntax": "node.setStyle(\"-fx-property: value;\")",
+    "desc": "Applies CSS directly to one node. It beats the stylesheet, which makes it useful for a computed colour and dangerous for layout rules.",
+    "example": "if (row.stars() >= 4) {\n    rowLabel.setStyle(\"-fx-text-fill: #166534; -fx-font-weight: bold;\");\n} else {\n    // An empty string removes the inline rules, the stylesheet wins again.\n    rowLabel.setStyle(\"\");\n}",
+    "body": "Inline style has the highest priority short of a stylesheet `!important`. A value set here will not be overridden by a later theme change, so keep it for colours and weights that depend on data.\n\nOnly `-fx-` properties exist. `color`, `background`, `margin` and `padding` are silently ignored, which looks like the style did nothing."
+  }
+]

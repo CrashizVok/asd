@@ -1,0 +1,137 @@
+[
+  {
+    "id": "react-router-browser-router",
+    "group": "Routing",
+    "name": "BrowserRouter",
+    "syntax": "<BrowserRouter>{children}</BrowserRouter>",
+    "desc": "Provides the history object and the current location to the whole tree. Mount one per app, usually in main.jsx or at the top of App.",
+    "example": "import { BrowserRouter } from 'react-router-dom';\n\n// One router for the app. Every routing hook below it reads this context.\ncreateRoot(document.getElementById('root')).render(\n    <BrowserRouter>\n        <App />\n    </BrowserRouter>\n);",
+    "body": "Two other routers exist for two other problems.\n\n`HashRouter` puts the path after `#` (`/app#/hotels`), so the server never sees it and no rewrite rule is needed. Use it only when the host cannot serve `index.html` for unknown paths.\n\n`MemoryRouter` keeps the history in memory with no address bar at all, which is what tests want.\n\nNever render a second `BrowserRouter` deeper in the tree. Each one creates its own history, so the inner router shows a different location than the outer one and links stop agreeing with the address bar."
+  },
+  {
+    "id": "react-router-routes",
+    "group": "Routing",
+    "name": "Routes",
+    "syntax": "<Routes>{routeChildren}</Routes>",
+    "desc": "Picks the single best matching Route from its children and renders only that one.",
+    "example": "import { Routes, Route } from 'react-router-dom';\n\n// Specificity decides, not the order in this JSX.\n<Routes>\n    <Route path=\"/\" element={<Home />} />\n    <Route path=\"/hotels\" element={<Hotels />} />\n    <Route path=\"/hotels/:hotel_id\" element={<HotelDetail />} />\n    <Route path=\"*\" element={<NotFound />} />\n</Routes>",
+    "body": "React Router 5 used `Switch`, which took the first match in source order. `Routes` ranks instead: a static segment beats a dynamic one, and a dynamic one beats a splat. That is why `*` can sit first and still lose.\n\nA `Routes` only renders one child. If two elements must appear at once, one of them belongs in the parent as layout, or the URL needs a nested route with `Outlet`."
+  },
+  {
+    "id": "react-router-route",
+    "group": "Routing",
+    "name": "Route",
+    "syntax": "<Route path=\"/hotels/:hotel_id\" element={<HotelDetail />} />",
+    "desc": "Maps a path pattern to one element. Relative paths nest under the parent route and must not start with a slash.",
+    "example": "<Route path=\"/hotels\" element={<HotelsLayout />}>\n    {/* index: renders on /hotels exactly */}\n    <Route index element={<HotelList />} />\n    {/* relative: becomes /hotels/:hotel_id */}\n    <Route path=\":hotel_id\" element={<HotelDetail />} />\n    <Route path=\"*\" element={<SectionNotFound />} />\n</Route>",
+    "body": "`element` takes JSX, so props are free: `<Route path=\"/admin\" element={<Admin role=\"owner\" />} />`.\n\nThe 6.4 spelling `<Route path=\"/hotels\" Component={Hotels} />` passes the component type instead and lets the data router keep the element mounted across param changes. Both work, `element` is the one to write in an exam.\n\nThe v4 and v5 `component={Hotels}` and `render={...}` props are gone. A lowercase `component` renders nothing and gives no warning."
+  },
+  {
+    "id": "react-router-index-route",
+    "group": "Routing",
+    "name": "index route",
+    "syntax": "<Route index element={<HotelList />} />",
+    "desc": "The child that renders when the parent path matches exactly and no other child does.",
+    "example": "<Route path=\"/hotels\" element={<HotelsLayout />}>\n    {/* /hotels shows the list inside the layout outlet */}\n    <Route index element={<HotelList />} />\n    <Route path=\":hotel_id\" element={<HotelDetail />} />\n</Route>",
+    "body": "`index` is a boolean flag, not a path. It cannot have children, because an index route is a leaf by definition.\n\nWriting `<Route path=\"\" element={...} />` in the same position does not match `/hotels` and is the usual cause of an empty page under a layout. Use `index`."
+  },
+  {
+    "id": "react-router-link",
+    "group": "Navigation",
+    "name": "Link",
+    "syntax": "<Link to=\"/hotels/7\">Hotel</Link>",
+    "desc": "Renders an anchor and navigates on click without reloading the document.",
+    "example": "import { Link } from 'react-router-dom';\n\n// to accepts a string or an object\n<Link to=\"/hotels\">All hotels</Link>\n<Link to={`/hotels/${hotel.hotel_id}`}>{hotel.name}</Link>\n\n// no new history entry, the back button skips this step\n<Link to=\"/login\" replace>Sign in</Link>",
+    "body": "The rendered `<a>` carries a real `href`, so ctrl click, middle click and \"open in new tab\" behave normally. A plain `<a href>` reloads the page and drops React state, which is the bug `Link` prevents.\n\nFor a path built from parts, `to` also takes an object: `{ pathname: '/hotels', search: '?city=Eger' }`. String interpolation is shorter and reads fine for one param."
+  },
+  {
+    "id": "react-router-nav-link",
+    "group": "Navigation",
+    "name": "NavLink",
+    "syntax": "<NavLink to=\"/hotels\" className={({ isActive }) => (isActive ? 'on' : '')}>Hotels</NavLink>",
+    "desc": "Link with an isActive flag for the current URL, used for menus and tab bars.",
+    "example": "// end stops '/hotels' from staying active on '/hotels/7'\n<NavLink to=\"/\" end className={({ isActive }) => (isActive ? 'nav on' : 'nav')}>\n    Home\n</NavLink>\n<NavLink\n    to=\"/hotels\"\n    style={({ isActive }) => ({ fontWeight: isActive ? 700 : 400 })}\n>\n    Hotels\n</NavLink>",
+    "body": "The default match is a prefix match. `to=\"/hotels\"` is active on `/hotels` and on `/hotels/7`. Add `end` when only the exact URL should count, and always add it on the home link, or `to=\"/\"` matches every path.\n\n`className` and `style` accept a function that receives `{ isActive, isPending }`, so no comparison against `useLocation().pathname` is needed."
+  },
+  {
+    "id": "react-router-outlet",
+    "group": "Layout",
+    "name": "Outlet",
+    "syntax": "<Outlet />",
+    "desc": "Marks where the matched child route renders inside a parent route element.",
+    "example": "function HotelsLayout() {\n    return (\n        <section>\n            <h2>Hotels</h2>\n            <nav><Link to=\"/hotels\">All</Link></nav>\n            {/* child route element goes here */}\n            <Outlet />\n        </section>\n    );\n}",
+    "body": "A parent route renders once and its children swap inside the outlet, so shared chrome does not remount on navigation.\n\nForgetting `<Outlet />` is the most common nested route bug: the URL changes, the parent renders, the child never appears, and the route table looks correct.\n\n`useOutletContext` passes a value from parent to child without prop drilling, but props on the child element are usually simpler."
+  },
+  {
+    "id": "react-router-use-params",
+    "group": "Hooks",
+    "name": "useParams()",
+    "syntax": "const { hotel_id } = useParams();",
+    "desc": "Returns the dynamic segments of the matched route as strings, or an empty object when the route has none.",
+    "example": "import { useParams, Link } from 'react-router-dom';\n\nfunction HotelDetail() {\n    // '/hotels/7' gives { hotel_id: '7' }, always a string\n    const { hotel_id } = useParams();\n    const id = Number(hotel_id);\n\n    if (!Number.isInteger(id)) return <p>Bad id.</p>;\n    return <Link to={`/hotels/${id}/book`}>Book</Link>;\n}",
+    "body": "Two traps. The value is a string, so `hotel_id === 7` is false and a lookup by number quietly fails. And a changed param does not always remount the component, so a fetch effect must list it:\n\n```jsx\nuseEffect(() => {\n    fetch(`/api/hotels/${hotel_id}`).then(...);\n}, [hotel_id]);\n```\n\nWith the `element` API the component remounts on a path change; with the data router `Component` API it does not. The dependency array is correct either way."
+  },
+  {
+    "id": "react-router-use-navigate",
+    "group": "Hooks",
+    "name": "useNavigate()",
+    "syntax": "const navigate = useNavigate();",
+    "desc": "Returns a function that navigates from code: after a POST, after a failed auth check, after a timeout.",
+    "example": "const navigate = useNavigate();\n\nnavigate('/hotels');                          // push a new entry\nnavigate(-1);                                // one step back\nnavigate('/login', { replace: true });       // replace the current entry\nnavigate('/hotels/7', { state: { from: 'search' } });",
+    "body": "`{ replace: true }` keeps the page the user just left out of the history stack. Use it after login, after a delete, and after submitting a form, otherwise the back button returns to a page that no longer makes sense and a refresh repeats the action.\n\n`state` lives in the history entry, not in the URL. It survives a refresh of that entry and is lost when the link is copied, so it suits \"return where you came from\" and nothing that must be shareable.\n\nRead it with `useLocation().state` and guard the first visit: `location.state?.from?.pathname ?? '/'`."
+  },
+  {
+    "id": "react-router-use-search-params",
+    "group": "Hooks",
+    "name": "useSearchParams()",
+    "syntax": "const [searchParams, setSearchParams] = useSearchParams();",
+    "desc": "Reads and writes the query string as URLSearchParams, so a filter survives a refresh and can be shared as a link.",
+    "example": "const [searchParams, setSearchParams] = useSearchParams();\n\nconst city = searchParams.get('city') ?? '';\n\n// object form replaces the whole query string\nsetSearchParams({ city: 'Eger' });\n\n// merge form, the safe one when other keys matter\nconst next = new URLSearchParams(searchParams);\nif (city) next.set('city', city); else next.delete('city');\nsetSearchParams(next, { replace: true });",
+    "body": "`get` returns `null` when the key is absent and `''` for `?city=`. `getAll` returns repeated keys, which is what a set of checkboxes produces.\n\nValues are encoded on write and decoded on read, so an accented city or a value with `&` needs no `encodeURIComponent`.\n\nThe setter also accepts a function of the previous params, and `{ replace: true }` keeps a search box that fires on every keystroke out of the history stack."
+  },
+  {
+    "id": "react-router-navigate",
+    "group": "Navigation",
+    "name": "<Navigate>",
+    "syntax": "<Navigate to=\"/login\" replace state={{ from: location }} />",
+    "desc": "Redirects during render. The declarative form of a redirect, used by protected routes.",
+    "example": "function RequireAuth({ children }) {\n    const { user } = useAuth();\n    const location = useLocation();\n\n    if (!user) {\n        // replace so the back button does not loop between login and the page\n        return <Navigate to=\"/login\" replace state={{ from: location }} />;\n    }\n    return children;\n}",
+    "body": "`Navigate` renders nothing. It changes the location as soon as it renders, which makes it right inside a guard component and wrong inside a handler, where `useNavigate` is clearer.\n\nThe matching pair is a login page that sends the user back:\n\n```jsx\nconst from = useLocation().state?.from?.pathname ?? '/';\nnavigate(from, { replace: true });\n```"
+  },
+  {
+    "id": "react-router-protected-route",
+    "group": "Security",
+    "name": "protected route",
+    "syntax": "<Route path=\"/admin\" element={<RequireAuth><Admin /></RequireAuth>} />",
+    "desc": "A wrapper component that renders its children only when the user is signed in, otherwise redirects to login.",
+    "example": "// App.jsx\n<Route\n    path=\"/admin\"\n    element={\n        <RequireAuth>\n            <Admin />\n        </RequireAuth>\n    }\n/>\n\n// auth state comes from a context or a store, not from the router\nconst { user } = useAuth();",
+    "body": "Client side protection hides UI. It is not security: anyone can call `/api/admin` with curl. The API must verify the session on every request, and the route guard is only the part that avoids showing a broken page.\n\nFor a whole section, wrap the layout route instead of every child:\n\n```jsx\n<Route element={<RequireAuth><AdminLayout /></RequireAuth>}>\n    <Route path=\"/admin\" element={<Dashboard />} />\n    <Route path=\"/admin/bookings\" element={<Bookings />} />\n</Route>\n```"
+  },
+  {
+    "id": "react-router-not-found",
+    "group": "Routing",
+    "name": "404 route",
+    "syntax": "<Route path=\"*\" element={<NotFound />} />",
+    "desc": "A splat route that catches every URL no other route matched.",
+    "example": "<Routes>\n    <Route element={<Layout />}>\n        <Route index element={<Home />} />\n        <Route path=\"hotels\" element={<Hotels />} />\n        {/* root catch all, keeps the layout */}\n        <Route path=\"*\" element={<NotFound />} />\n    </Route>\n</Routes>",
+    "body": "`*` matches one or more segments, including slashes, so it catches `/a/b/c`. Put it inside the layout route to keep the header on the error page.\n\nA section can have its own 404 to keep its own chrome:\n\n```jsx\n<Route path=\"hotels\" element={<HotelsLayout />}>\n    <Route index element={<HotelList />} />\n    <Route path=\":hotel_id\" element={<HotelDetail />} />\n    <Route path=\"*\" element={<SectionNotFound />} />\n</Route>\n```\n\nOrder in JSX does not matter, specificity does: `:hotel_id` beats `*`. If the section 404 never shows, a root `*` or a missing `Outlet` in the layout is the cause. Always put a `Link` home in the 404 body."
+  },
+  {
+    "id": "react-router-layout-route",
+    "group": "Layout",
+    "name": "layout route",
+    "syntax": "<Route element={<Layout />}>{children}</Route>",
+    "desc": "A route with no path that carries shared chrome and renders its children in an outlet.",
+    "example": "<Routes>\n    {/* no path: matches whatever the children match */}\n    <Route element={<Layout />}>\n        <Route index element={<Home />} />\n        <Route path=\"hotels\" element={<Hotels />} />\n        <Route path=\"search\" element={<HotelSearch />} />\n        <Route path=\"*\" element={<NotFound />} />\n    </Route>\n</Routes>",
+    "body": "Pathless routes are how a header, sidebar or footer is written once. Children use relative paths, so `hotels` becomes `/hotels` at the root level.\n\nLayouts nest: a pathless `Layout` can hold a `/hotels` route that has its own `HotelsLayout`, each with an `Outlet`. The order of the outlets decides where the page lands.\n\nA layout route is not the same as an `index` route. An index route is a leaf that fills the parent outlet, a layout route is a parent that provides one."
+  },
+  {
+    "id": "react-router-search-encoding",
+    "group": "Hooks",
+    "name": "search param encoding",
+    "syntax": "new URLSearchParams(searchParams).set(key, value)",
+    "desc": "URLSearchParams percent encodes on write and decodes on read, so accents, spaces and ampersands survive the round trip.",
+    "example": "const city = 'Békéscsaba & környéke';\n\nsetSearchParams({ city });\n// URL: ?city=B%C3%A9k%C3%A9csaba+%26+k%C3%B6rny%C3%A9ke\n\nsearchParams.get('city');\n// 'Békéscsaba & környéke' back again",
+    "body": "Do not call `encodeURIComponent` before `setSearchParams` or before `new URLSearchParams`. The value is encoded twice, the server reads `%2526`, and the bug looks like a server problem.\n\nA space is written as `+` in a query string and read back as a space, together with `%20`. That is form encoding and it is correct.\n\nWhen building a fetch URL, use the same class:\n\n```jsx\nconst query = new URLSearchParams({ city, stars });\nfetch(`/api/hotels?${query}`);\n```\n\nRepeated keys come from `append`, not `set`, and are read with `getAll`."
+  }
+]

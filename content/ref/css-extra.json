@@ -1,0 +1,511 @@
+[
+  {
+    "id": "css-extra-grid-template-areas",
+    "group": "Grid",
+    "name": "grid-template-areas",
+    "syntax": "grid-template-areas: 'header header' 'aside main';",
+    "desc": "Names grid cells with strings so items can be placed by area name. Each string is a row, each word a column, and a dot leaves a cell empty.",
+    "example": ".layout {\n  display: grid;\n  grid-template-columns: 200px 1fr;\n  /* two rows, two columns, named cells */\n  grid-template-areas:\n    \"header header\"\n    \"aside  main\";\n}\n\n.layout > header { grid-area: header; }\n.layout > aside  { grid-area: aside; }\n.layout > main   { grid-area: main; }",
+    "body": "Every row string must name the same number of columns, and a named area must form a rectangle. A typo in grid-area silently places the item in the first free cell.\n\nThe strings are layout, not content. Screen readers still follow the DOM order, so keep the markup in a reading order that makes sense."
+  },
+  {
+    "id": "css-extra-grid-auto-flow",
+    "group": "Grid",
+    "name": "grid-auto-flow",
+    "syntax": "grid-auto-flow: row dense;",
+    "desc": "Controls how automatically placed items fill the grid. dense backfills holes left by larger items, which changes the visual order.",
+    "example": ".gallery {\n  display: grid;\n  grid-template-columns: repeat(3, 1fr);\n  /* fill rows, and let later items fill gaps */\n  grid-auto-flow: row dense;\n}\n.gallery .wide { grid-column: span 2; }",
+    "body": "dense reorders only the paint position. Focus order stays in the DOM, so a keyboard user can move in a different sequence than the eye follows. Use it for image walls, not for forms."
+  },
+  {
+    "id": "css-extra-grid-auto-rows",
+    "group": "Grid",
+    "name": "grid-auto-rows",
+    "syntax": "grid-auto-rows: minmax(120px, auto);",
+    "desc": "Sizes rows created by the implicit grid, meaning rows no template declared. Useful when items are added without a known count.",
+    "example": ".list {\n  display: grid;\n  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));\n  /* each extra row is at least 120px and grows with content */\n  grid-auto-rows: minmax(120px, auto);\n  gap: 1rem;\n}"
+  },
+  {
+    "id": "css-extra-subgrid",
+    "group": "Grid",
+    "name": "subgrid",
+    "syntax": "grid-template-columns: subgrid;",
+    "desc": "Makes a grid item inherit the track lines of its parent grid. Nested content then aligns to the outer columns without repeating sizes.",
+    "example": ".card-grid {\n  display: grid;\n  grid-template-columns: repeat(3, 1fr);\n  gap: 1rem;\n}\n\n.card {\n  grid-column: span 2;\n  display: grid;\n  /* the card uses the two outer column lines */\n  grid-template-columns: subgrid;\n}"
+  },
+  {
+    "id": "css-extra-justify-self",
+    "group": "Grid",
+    "name": "justify-self",
+    "syntax": "justify-self: center;",
+    "desc": "Aligns one grid item along the inline axis, inside its own grid area. Flex items ignore it.",
+    "example": ".cell {\n  display: grid;\n  grid-template-columns: 1fr;\n}\n.cell > button {\n  /* horizontal placement inside the cell */\n  justify-self: end;\n}\n/* in flexbox use margin-inline or justify-content instead */"
+  },
+  {
+    "id": "css-extra-align-self",
+    "group": "Flex and grid alignment",
+    "name": "align-self",
+    "syntax": "align-self: center;",
+    "desc": "Overrides align-items for a single item on the cross axis. In a flex row that is vertical placement, in a grid cell it is the block axis.",
+    "example": ".toolbar {\n  display: flex;\n  align-items: stretch;\n}\n.toolbar .icon {\n  /* this item ignores the stretch and centres itself */\n  align-self: center;\n}"
+  },
+  {
+    "id": "css-extra-justify-items",
+    "group": "Grid",
+    "name": "justify-items",
+    "syntax": "justify-items: center;",
+    "desc": "Sets the default inline axis alignment for every item in a grid container. One item can override it with justify-self.",
+    "example": ".cells {\n  display: grid;\n  grid-template-columns: repeat(3, 120px);\n  /* every child centred in its cell unless it sets justify-self */\n  justify-items: center;\n}"
+  },
+  {
+    "id": "css-extra-align-content",
+    "group": "Flex and grid alignment",
+    "name": "align-content",
+    "syntax": "align-content: space-between;",
+    "desc": "Spreads the tracks of a multi line flex or grid container along the cross axis. It does nothing when the tracks already fill the container.",
+    "example": ".page {\n  display: flex;\n  flex-wrap: wrap;\n  min-height: 100vh;\n  /* pushes the wrapped rows to the top and bottom edges */\n  align-content: space-between;\n}"
+  },
+  {
+    "id": "css-extra-flex-flow",
+    "group": "Flex",
+    "name": "flex-flow",
+    "syntax": "flex-flow: row wrap;",
+    "desc": "Shorthand for flex-direction and flex-wrap. row wrap is the common base for a responsive toolbar.",
+    "example": ".toolbar {\n  display: flex;\n  /* direction first, then wrapping */\n  flex-flow: row wrap;\n  gap: 0.5rem;\n}"
+  },
+  {
+    "id": "css-extra-multi-column",
+    "group": "Layout",
+    "name": "column-count",
+    "syntax": "column-count: 3; column-gap: 2rem;",
+    "desc": "Flows content into newspaper style columns. column-width sets a target width and lets the browser choose the count.",
+    "example": ".terms {\n  /* at most three columns with gaps between them */\n  column-count: 3;\n  column-gap: 2rem;\n}\n@media (max-width: 600px) {\n  .terms { column-count: 1; }\n}"
+  },
+  {
+    "id": "css-extra-column-rule",
+    "group": "Layout",
+    "name": "column-rule",
+    "syntax": "column-rule: 1px solid #d0d7de;",
+    "desc": "Draws a line between multi column boxes. It sits in the middle of column-gap and takes no layout space.",
+    "example": ".terms {\n  column-count: 2;\n  column-gap: 2rem;\n  /* the rule is centred in the gap */\n  column-rule: 1px solid #d0d7de;\n}"
+  },
+  {
+    "id": "css-extra-logical-size",
+    "group": "Layout",
+    "name": "inline-size and block-size",
+    "syntax": "inline-size: 20rem; block-size: auto;",
+    "desc": "Logical width and height that follow writing mode. inline-size is width in a normal left to right document, block-size is height.",
+    "example": ".card {\n  /* width and height that still work in vertical writing mode */\n  inline-size: 20rem;\n  block-size: auto;\n}\n.vertical {\n  writing-mode: vertical-rl;\n  inline-size: 60vh; /* now the vertical extent */\n}"
+  },
+  {
+    "id": "css-extra-margin-inline",
+    "group": "Layout",
+    "name": "margin-inline",
+    "syntax": "margin-inline: auto;",
+    "desc": "Sets the start and end margin on the inline axis. margin-inline auto centres a fixed width block, the same as the left and right auto pair.",
+    "example": ".sheet {\n  max-inline-size: 60rem;\n  /* both inline margins, direction aware */\n  margin-inline: auto;\n}\n.note {\n  margin-block: 1rem 2rem; /* top and bottom */\n}"
+  },
+  {
+    "id": "css-extra-container-queries",
+    "group": "Layout",
+    "name": "@container",
+    "syntax": "@container (min-width: 30rem) { ... }",
+    "desc": "Styles children by the size of their container instead of the viewport. The parent must declare container-type first.",
+    "example": ".card-wrap {\n  container-type: inline-size;\n  container-name: card;\n}\n\n@container card (min-width: 30rem) {\n  /* wide card: image beside the text */\n  .card { display: grid; grid-template-columns: 8rem 1fr; }\n}",
+    "body": "A container query answers the component question: is there room here, inside this column or sidebar. A media query answers the page question. Components reused in several widths need the first one.\n\ncontainer-type: inline-size also creates containment, so the element no longer sizes itself from its content. That is why a card wrapper is a safer container than the card itself."
+  },
+  {
+    "id": "css-extra-font-face",
+    "group": "Typography",
+    "name": "@font-face",
+    "syntax": "@font-face { font-family: \"Name\"; src: url(file.woff2) format(\"woff2\"); }",
+    "desc": "Loads a custom font file and gives it a family name. Each weight and style needs its own block.",
+    "example": "@font-face {\n  font-family: \"Brand Sans\";\n  src: url(\"fonts/brand-sans.woff2\") format(\"woff2\");\n  font-weight: 400 700;   /* range for a variable font */\n  font-display: swap;     /* show fallback text first */\n}\n\nbody {\n  font-family: \"Brand Sans\", system-ui, sans-serif;\n}"
+  },
+  {
+    "id": "css-extra-text-overflow",
+    "group": "Typography",
+    "name": "text-overflow",
+    "syntax": "text-overflow: ellipsis;",
+    "desc": "Adds an ellipsis when text overflows its box. It only works with overflow hidden or clip and white-space nowrap on a single line.",
+    "example": ".cell-name {\n  /* all three are needed, or no ellipsis appears */\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  max-width: 12rem;\n}"
+  },
+  {
+    "id": "css-extra-overflow-wrap",
+    "group": "Typography",
+    "name": "overflow-wrap",
+    "syntax": "overflow-wrap: anywhere;",
+    "desc": "Allows a long word or URL to break when it would otherwise overflow. break-word is the older value with a similar visual effect.",
+    "example": ".message {\n  /* long tokens may break, normal words do not */\n  overflow-wrap: anywhere;\n}\n.url {\n  word-break: break-all; /* breaks anywhere, even mid word */\n}"
+  },
+  {
+    "id": "css-extra-text-shadow",
+    "group": "Typography",
+    "name": "text-shadow",
+    "syntax": "text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);",
+    "desc": "Draws a shadow behind glyphs: offset x, offset y, blur, colour. It follows the text shape and costs no layout.",
+    "example": ".hero-title {\n  color: #fff;\n  /* x, y, blur, colour; a dark halo keeps it readable on photos */\n  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);\n}"
+  },
+  {
+    "id": "css-extra-text-indent",
+    "group": "Typography",
+    "name": "text-indent",
+    "syntax": "text-indent: 2rem;",
+    "desc": "Indents the first line of a block. A negative value plus matching padding produces a hanging indent.",
+    "example": ".prose p { text-indent: 2rem; }\n\n.hanging {\n  /* pull the first line left, pad the wrapped lines */\n  padding-left: 2rem;\n  text-indent: -2rem;\n}"
+  },
+  {
+    "id": "css-extra-font-style",
+    "group": "Typography",
+    "name": "font-style",
+    "syntax": "font-style: italic;",
+    "desc": "Selects an italic or oblique face, or keeps text upright. Oblique accepts an angle in fonts that support it.",
+    "example": "em, .emphasis { font-style: italic; }\n\n.pull-quote {\n  /* slanted by 12 degrees where the font allows it */\n  font-style: oblique 12deg;\n}"
+  },
+  {
+    "id": "css-extra-font-variant",
+    "group": "Typography",
+    "name": "font-variant",
+    "syntax": "font-variant: small-caps;",
+    "desc": "Turns on typographic variants such as small caps. font-variant-numeric controls figure width in aligned columns.",
+    "example": ".label {\n  /* small caps usually need a little letter spacing */\n  font-variant: small-caps;\n  letter-spacing: 0.04em;\n}\n.price { font-variant-numeric: tabular-nums; }"
+  },
+  {
+    "id": "css-extra-text-underline-offset",
+    "group": "Typography",
+    "name": "text-underline-offset",
+    "syntax": "text-underline-offset: 0.2em;",
+    "desc": "Moves the underline away from the baseline so descenders stay readable. text-decoration-thickness sets the line weight.",
+    "example": "a {\n  text-decoration: underline;\n  /* gap under the glyphs, and a heavier line */\n  text-underline-offset: 0.2em;\n  text-decoration-thickness: 2px;\n}"
+  },
+  {
+    "id": "css-extra-writing-mode",
+    "group": "Typography",
+    "name": "writing-mode",
+    "syntax": "writing-mode: vertical-rl;",
+    "desc": "Changes the flow from horizontal to vertical. It flips the meaning of the inline and block axes for every logical property.",
+    "example": ".side-label {\n  /* text runs top to bottom, lines stack right to left */\n  writing-mode: vertical-rl;\n  text-orientation: mixed;\n}"
+  },
+  {
+    "id": "css-extra-hyphens",
+    "group": "Typography",
+    "name": "hyphens",
+    "syntax": "hyphens: auto;",
+    "desc": "Lets the browser break words with a hyphen at line ends. It needs a lang attribute on the element or an ancestor to choose a dictionary.",
+    "example": ".hyphenated {\n  /* uses the dictionary that matches the lang attribute */\n  hyphens: auto;\n  max-width: 30ch;\n}"
+  },
+  {
+    "id": "css-extra-tab-size",
+    "group": "Typography",
+    "name": "tab-size",
+    "syntax": "tab-size: 4;",
+    "desc": "Sets how wide a tab character renders, mostly inside pre and textarea. A number counts spaces, a length is absolute.",
+    "example": "pre, code {\n  /* four space widths per tab, keeps pasted code aligned */\n  tab-size: 4;\n}\ntextarea { tab-size: 2; }"
+  },
+  {
+    "id": "css-extra-color-functions",
+    "group": "Colour",
+    "name": "rgb() and hsl()",
+    "syntax": "color: hsl(210 70% 40% / 0.9);",
+    "desc": "Builds a colour from channels. rgb and hsl accept a slash alpha, and modern browsers also accept oklch and lab.",
+    "example": ".badge {\n  /* hue, saturation, lightness, then alpha after the slash */\n  color: hsl(210 70% 40%);\n  background: hsl(210 70% 40% / 0.12);\n}\n.badge--new { color: oklch(55% 0.16 250); }"
+  },
+  {
+    "id": "css-extra-currentcolor",
+    "group": "Colour",
+    "name": "currentColor",
+    "syntax": "border-color: currentColor;",
+    "desc": "Resolves to whatever color the element has. It keeps borders, icons and underlines in sync with one declaration.",
+    "example": ".link {\n  color: #0b5cad;\n  /* border and icon follow the text colour */\n  border-bottom: 2px solid currentColor;\n}\n.link:hover { color: #083f77; }"
+  },
+  {
+    "id": "css-extra-color-scheme",
+    "group": "Colour",
+    "name": "color-scheme",
+    "syntax": "color-scheme: light dark;",
+    "desc": "Declares which colour schemes an element supports, so form controls, scrollbars and the canvas pick matching defaults.",
+    "example": ":root {\n  /* native widgets may render dark when the system is dark */\n  color-scheme: light dark;\n}\n@media (prefers-color-scheme: dark) {\n  :root { --bg: #10141a; --fg: #e6edf3; }\n}"
+  },
+  {
+    "id": "css-extra-accent-color",
+    "group": "Colour",
+    "name": "accent-color",
+    "syntax": "accent-color: #1f6feb;",
+    "desc": "Recolours the browser drawn parts of checkboxes, radios, range sliders and progress bars. One line instead of custom widgets.",
+    "example": "/* one line instead of custom checkbox widgets */\ninput[type=\"checkbox\"],\ninput[type=\"radio\"],\ninput[type=\"range\"] {\n  accent-color: #1f6feb;\n}"
+  },
+  {
+    "id": "css-extra-mix-blend-mode",
+    "group": "Effects",
+    "name": "mix-blend-mode",
+    "syntax": "mix-blend-mode: multiply;",
+    "desc": "Blends an element with what is painted under it. It works on the element as a whole, not on single colours.",
+    "example": ".overlay-title {\n  /* dark text over a photo, blended with the pixels below */\n  mix-blend-mode: multiply;\n}\n.hero::after {\n  background: linear-gradient(90deg, #000, transparent);\n  mix-blend-mode: screen;\n}"
+  },
+  {
+    "id": "css-extra-border-image",
+    "group": "Borders",
+    "name": "border-image",
+    "syntax": "border-image: linear-gradient(135deg, #1f6feb, #6f42c1) 1;",
+    "desc": "Paints a border from an image or gradient, sliced into nine regions. The number after the source is the slice.",
+    "example": ".frame {\n  border: 10px solid transparent;\n  /* slice 1 stretches the gradient across the border */\n  border-image: linear-gradient(135deg, #1f6feb, #6f42c1) 1;\n}"
+  },
+  {
+    "id": "css-extra-outline-offset",
+    "group": "Borders",
+    "name": "outline-offset",
+    "syntax": "outline-offset: 3px;",
+    "desc": "Pushes the outline away from the border box. A negative value pulls it inside, where it can sit on the content.",
+    "example": ".card:focus-visible {\n  outline: 2px solid #1f6feb;\n  /* space between the border and the ring */\n  outline-offset: 3px;\n}"
+  },
+  {
+    "id": "css-extra-border-style",
+    "group": "Borders",
+    "name": "border-style",
+    "syntax": "border-style: solid dashed;",
+    "desc": "Picks the line style per side: solid, dashed, dotted, double, groove, ridge, inset, outset or none. none hides the width without removing it.",
+    "example": ".notice {\n  border-width: 2px;\n  /* top and bottom solid, left and right dashed */\n  border-style: solid dashed;\n  border-color: #b00020;\n}"
+  },
+  {
+    "id": "css-extra-background-attachment",
+    "group": "Backgrounds",
+    "name": "background-attachment",
+    "syntax": "background-attachment: fixed;",
+    "desc": "Keeps a background fixed to the viewport while content scrolls, or lets it scroll with its element. Fixed can hurt scrolling on mobile.",
+    "example": ".hero {\n  background-image: url(\"img/lobby.jpg\");\n  background-size: cover;\n  /* the image stays put while the page scrolls */\n  background-attachment: fixed;\n}"
+  },
+  {
+    "id": "css-extra-background-clip",
+    "group": "Backgrounds",
+    "name": "background-clip",
+    "syntax": "background-clip: text;",
+    "desc": "Limits painting of the background to the text glyphs or to the padding and content boxes. With transparent text it makes gradient text.",
+    "example": ".headline {\n  background-image: linear-gradient(90deg, #1f6feb, #6f42c1);\n  /* paint only inside the letters */\n  -webkit-background-clip: text;\n  background-clip: text;\n  color: transparent;\n}"
+  },
+  {
+    "id": "css-extra-background-blend-mode",
+    "group": "Backgrounds",
+    "name": "background-blend-mode",
+    "syntax": "background-blend-mode: multiply;",
+    "desc": "Blends the background layers of one element with each other. It is separate from mix-blend-mode, which blends the element with the page.",
+    "example": ".tinted {\n  background-image: linear-gradient(#1f6feb, #1f6feb), url(\"img/room.jpg\");\n  background-size: cover;\n  /* the gradient multiplies into the photo */\n  background-blend-mode: multiply;\n}"
+  },
+  {
+    "id": "css-extra-multiple-backgrounds",
+    "group": "Backgrounds",
+    "name": "multiple background layers",
+    "syntax": "background: url(dots.svg) repeat, linear-gradient(#fff, #eef2f7);",
+    "desc": "Comma separated layers paint front to back: the first layer is on top. Each layer can set its own position and size.",
+    "example": ".pattern {\n  background:\n    url(\"img/dots.svg\") repeat,             /* top layer */\n    linear-gradient(180deg, #fff, #eef2f7); /* bottom layer */\n  background-size: 24px, cover;\n}"
+  },
+  {
+    "id": "css-extra-backdrop-filter",
+    "group": "Effects",
+    "name": "backdrop-filter",
+    "syntax": "backdrop-filter: blur(8px);",
+    "desc": "Filters what shows through a translucent element, the frosted glass effect. Without a transparent background there is nothing to blur.",
+    "example": ".sheet {\n  position: fixed;\n  inset: auto 0 0 0;\n  background: rgba(255, 255, 255, 0.65); /* must be translucent */\n  backdrop-filter: blur(8px) saturate(1.2);\n}"
+  },
+  {
+    "id": "css-extra-clip-path",
+    "group": "Effects",
+    "name": "clip-path",
+    "syntax": "clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);",
+    "desc": "Cuts the painted shape to a polygon, circle, ellipse or path. The element keeps its layout box, only the visible part changes.",
+    "example": ".angled {\n  /* the box still occupies the full rectangle */\n  clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);\n}\n.avatar { clip-path: circle(50%); }",
+    "body": "A clipped element still receives pointer events only inside the visible shape, but a focus ring drawn outside the cut disappears. Keep focusable controls away from the clipped edge or draw the ring inside.\n\nclip-path on a parent also clips positioned children, including dropdowns that open outside the box."
+  },
+  {
+    "id": "css-extra-mask",
+    "group": "Effects",
+    "name": "mask-image",
+    "syntax": "mask-image: linear-gradient(#000 60%, transparent);",
+    "desc": "Hides parts of an element with a mask image: opaque areas stay, transparent areas are removed. It fades edges without touching layout.",
+    "example": ".fade-bottom {\n  /* opaque keeps, transparent hides */\n  mask-image: linear-gradient(#000 60%, transparent);\n  mask-repeat: no-repeat;\n  mask-size: 100% 100%;\n}"
+  },
+  {
+    "id": "css-extra-position-sticky",
+    "group": "Positioning",
+    "name": "position: sticky",
+    "syntax": "position: sticky; top: 0;",
+    "desc": "Sticks an element at a threshold while its scrolling ancestor moves, then stops at the ancestor edge. A top, right, bottom or left value is required.",
+    "example": ".table-head th {\n  position: sticky;\n  top: 0;           /* without this the element does not stick */\n  background: #fff; /* rows would scroll under it */\n  z-index: 1;\n}"
+  },
+  {
+    "id": "css-extra-inset",
+    "group": "Positioning",
+    "name": "inset",
+    "syntax": "inset: 0;",
+    "desc": "Shorthand for top, right, bottom and left. inset 0 stretches an absolutely positioned element over its containing block.",
+    "example": ".overlay {\n  position: absolute;\n  /* top right bottom left, all zero */\n  inset: 0;\n}\n.tooltip {\n  position: absolute;\n  inset: auto auto -0.5rem 50%; /* only bottom and left set */\n}"
+  },
+  {
+    "id": "css-extra-transition-timing",
+    "group": "Transitions",
+    "name": "transition-timing-function",
+    "syntax": "transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);",
+    "desc": "Shapes the speed curve of a transition. ease-out suits entrances, linear only continuous motion, steps sprite frames.",
+    "example": "/* starts fast, settles slowly, no bounce */\n.panel {\n  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);\n}\n.panel.open { transform: translateY(0); }\n.clock { transition: transform 1s steps(60); }"
+  },
+  {
+    "id": "css-extra-keyframes",
+    "group": "Transitions",
+    "name": "@keyframes",
+    "syntax": "@keyframes name { from { ... } to { ... } }",
+    "desc": "Defines named animation steps that animation-name runs. from and to are 0% and 100%, and intermediate percentages are allowed.",
+    "example": "/* 240ms rise, 12px travel, played once */\n@keyframes slide-up {\n  from { transform: translateY(12px); opacity: 0; }\n  to   { transform: translateY(0);    opacity: 1; }\n}\n\n.toast {\n  animation: slide-up 240ms ease-out 1;\n}\n@media (prefers-reduced-motion: reduce) {\n  .toast { animation: none; }\n}",
+    "body": "Animate transform and opacity when possible. Those two can run on the compositor without layout, while width, height and top force work on every frame.\n\nA keyframe name in @keyframes is case sensitive in CSS and must not be quoted in the animation shorthand."
+  },
+  {
+    "id": "css-extra-animation-fill-mode",
+    "group": "Transitions",
+    "name": "animation-fill-mode",
+    "syntax": "animation-fill-mode: forwards;",
+    "desc": "Keeps the values of the first or last keyframe outside the animation. Without it the element snaps back to its own styles.",
+    "example": ".toast {\n  /* backwards applies the from state during the delay */\n  animation: slide-up 240ms ease-out 200ms backwards;\n}\n.stays {\n  animation-fill-mode: forwards; /* last frame held */\n}"
+  },
+  {
+    "id": "css-extra-will-change",
+    "group": "Effects",
+    "name": "will-change",
+    "syntax": "will-change: transform, opacity;",
+    "desc": "Hints which properties will animate so the browser can prepare layers early. On many elements it costs memory and slows the page.",
+    "example": ".dragging {\n  /* set only while the interaction is likely */\n  will-change: transform;\n}\n/* remove it when the drag ends, it is not a permanent optimisation */"
+  },
+  {
+    "id": "css-extra-scroll-behavior",
+    "group": "Scrolling",
+    "name": "scroll-behavior",
+    "syntax": "scroll-behavior: smooth;",
+    "desc": "Makes programmatic and anchor scrolling animate instead of jump. Respect prefers-reduced-motion, because smooth motion can cause nausea.",
+    "example": "/* smooth only when the user allows motion */\nhtml { scroll-behavior: smooth; }\n@media (prefers-reduced-motion: reduce) {\n  html { scroll-behavior: auto; }\n}"
+  },
+  {
+    "id": "css-extra-scroll-snap",
+    "group": "Scrolling",
+    "name": "scroll-snap-type",
+    "syntax": "scroll-snap-type: x mandatory;",
+    "desc": "Makes a scroll container snap to child points. The container sets the axis and strictness, children set scroll-snap-align.",
+    "example": "/* every slide snaps to the left edge */\n.slider {\n  display: flex;\n  overflow-x: auto;\n  scroll-snap-type: x mandatory;\n}\n.slide {\n  flex: 0 0 100%;\n  scroll-snap-align: start;\n}"
+  },
+  {
+    "id": "css-extra-scroll-margin",
+    "group": "Scrolling",
+    "name": "scroll-margin-top",
+    "syntax": "scroll-margin-top: 5rem;",
+    "desc": "Offsets where an element lands when scrolled into view by an anchor or scrollIntoView. It fixes links hidden under a sticky header.",
+    "example": "section[id] {\n  /* the sticky header is 4.5rem tall, keep the heading visible */\n  scroll-margin-top: 5rem;\n}"
+  },
+  {
+    "id": "css-extra-perspective",
+    "group": "Transforms",
+    "name": "perspective",
+    "syntax": "perspective: 800px;",
+    "desc": "Adds depth to 3D children of the element: smaller values exaggerate the effect. perspective-origin moves the vanishing point.",
+    "example": ".scene {\n  /* set on the parent, not on the transformed child */\n  perspective: 800px;\n  perspective-origin: 50% 50%;\n}\n.scene .card { transform: rotateY(20deg); }"
+  },
+  {
+    "id": "css-extra-transform-3d",
+    "group": "Transforms",
+    "name": "3D transforms",
+    "syntax": "transform: translate3d(0, 0, 40px) rotateY(12deg);",
+    "desc": "Moves and rotates on three axes. The z value only shows with perspective on an ancestor, and 3D transforms can blur text.",
+    "example": "/* the faces need a 3D context to flip in */\n.flip-card {\n  transform-style: preserve-3d;\n  transition: transform 400ms;\n}\n.flip-card:hover { transform: rotateY(180deg); }"
+  },
+  {
+    "id": "css-extra-backface-visibility",
+    "group": "Transforms",
+    "name": "backface-visibility",
+    "syntax": "backface-visibility: hidden;",
+    "desc": "Hides the reverse side of a rotated element. Two stacked faces with this property make the classic card flip.",
+    "example": "/* the back face stays invisible until rotated */\n.face {\n  position: absolute;\n  inset: 0;\n  backface-visibility: hidden;\n}\n.back { transform: rotateY(180deg); }"
+  },
+  {
+    "id": "css-extra-print-media",
+    "group": "Print and accessibility",
+    "name": "@media print",
+    "syntax": "@media print { ... }",
+    "desc": "Styles that apply only on paper or PDF. Hide navigation and forms, then let the text use the full width with readable contrast.",
+    "example": "@media print {\n  nav, .no-print, form button { display: none; }\n  body { color: #000; background: #fff; font-size: 11pt; }\n  /* the address stays readable when the link text is not a URL */\n  a::after { content: \" (\" attr(href) \")\"; }\n}"
+  },
+  {
+    "id": "css-extra-page-break",
+    "group": "Print and accessibility",
+    "name": "break-inside",
+    "syntax": "break-inside: avoid;",
+    "desc": "Controls where a printed page may split. break-inside avoid keeps a card or row whole, break-before page starts a new sheet.",
+    "example": ".booking-card {\n  /* do not cut a card across two sheets */\n  break-inside: avoid;\n}\nh2.new-chapter {\n  break-before: page;\n}"
+  },
+  {
+    "id": "css-extra-print-color-adjust",
+    "group": "Print and accessibility",
+    "name": "print-color-adjust",
+    "syntax": "print-color-adjust: exact;",
+    "desc": "Asks the browser to keep backgrounds and colours in print. By default printers drop backgrounds to save ink.",
+    "example": ".status-badge {\n  /* keep the colour instead of white boxes on paper */\n  -webkit-print-color-adjust: exact;\n  print-color-adjust: exact;\n}"
+  },
+  {
+    "id": "css-extra-focus-visible",
+    "group": "Print and accessibility",
+    "name": ":focus-visible",
+    "syntax": ":focus-visible { outline: 2px solid #1f6feb; }",
+    "desc": "Matches keyboard focus and skips the ring on a mouse click. It keeps focus obvious for keyboard users without the click ring on buttons.",
+    "example": "button:focus-visible {\n  outline: 2px solid #1f6feb;\n  outline-offset: 2px;\n}\n/* never remove the ring without a replacement */\nbutton:focus:not(:focus-visible) { outline: none; }"
+  },
+  {
+    "id": "css-extra-forced-colors",
+    "group": "Print and accessibility",
+    "name": "@media (forced-colors: active)",
+    "syntax": "@media (forced-colors: active) { ... }",
+    "desc": "Applies in Windows high contrast mode, where the system replaces colours. Use system colour keywords and keep borders visible.",
+    "example": "@media (forced-colors: active) {\n  .card {\n    /* system colours survive the forced palette */\n    border: 1px solid CanvasText;\n  }\n  .card:focus-visible { outline: 2px solid Highlight; }\n}"
+  },
+  {
+    "id": "css-extra-visually-hidden",
+    "group": "Print and accessibility",
+    "name": "visually hidden text",
+    "syntax": ".sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }",
+    "desc": "Hides content from sight while keeping it for screen readers. Use it for labels and skip links, never with display none.",
+    "example": ".sr-only {\n  position: absolute;\n  inline-size: 1px;\n  block-size: 1px;\n  overflow: hidden;\n  clip-path: inset(50%);\n  white-space: nowrap;\n}\n/* the text is still read aloud */"
+  },
+  {
+    "id": "css-extra-caret-color",
+    "group": "Colour",
+    "name": "caret-color",
+    "syntax": "caret-color: #1f6feb;",
+    "desc": "Sets the colour of the text cursor in inputs and editable areas. It does not change the selection highlight.",
+    "example": "input, textarea {\n  caret-color: #1f6feb;\n  /* the selection highlight uses ::selection instead */\n}"
+  },
+  {
+    "id": "css-extra-selection",
+    "group": "Colour",
+    "name": "::selection",
+    "syntax": "::selection { background: #1f6feb; color: #fff; }",
+    "desc": "Styles the highlighted text after a drag or Ctrl+A. Only colour, background and text shadow apply.",
+    "example": "/* one rule for the page, one override for quotes */\n::selection {\n  background: #1f6feb;\n  color: #fff;\n}\n.quote ::selection {\n  background: #f2cc60;\n  color: #000;\n}"
+  },
+  {
+    "id": "css-extra-placeholder",
+    "group": "Typography",
+    "name": "::placeholder",
+    "syntax": "::placeholder { color: #6b7280; }",
+    "desc": "Styles the placeholder text of inputs and textareas. Only a small set of properties applies, and Firefox lowers opacity by default.",
+    "example": "input::placeholder {\n  color: #6b7280;\n  /* Firefox reduces opacity on its own */\n  opacity: 1;\n}"
+  },
+  {
+    "id": "css-extra-marker",
+    "group": "Typography",
+    "name": "::marker",
+    "syntax": "::marker { color: #1f6feb; }",
+    "desc": "Styles the list bullet or number. Only font, colour and content apply, so background and padding are ignored.",
+    "example": "/* bullets follow the brand colour */\nli::marker {\n  color: #1f6feb;\n  font-weight: 700;\n}\nli.done::marker {\n  content: \"OK \";\n}"
+  },
+  {
+    "id": "css-extra-counters",
+    "group": "Typography",
+    "name": "CSS counters",
+    "syntax": "counter-reset: section;",
+    "desc": "Numbers elements with generated counters through counter-reset, counter-increment and content. It numbers nested sections without manual text.",
+    "example": "body { counter-reset: section; }\nh2 { counter-increment: section; }\nh2::before {\n  /* 1. , 2. , 3. before each heading */\n  content: counter(section) \". \";\n}"
+  }
+]

@@ -1,0 +1,164 @@
+[
+  {
+    "id": "javafx-extra-application-start",
+    "group": "Application",
+    "name": "Application.start",
+    "syntax": "public class App extends Application { public void start(Stage stage) }",
+    "desc": "The entry point of a JavaFX program. launch builds the FX thread and calls start with the primary stage.",
+    "example": "// File: HotelApp.java\nimport javafx.application.Application;\nimport javafx.scene.Scene;\nimport javafx.scene.control.Label;\nimport javafx.scene.layout.StackPane;\nimport javafx.stage.Stage;\n\npublic class HotelApp extends Application {\n\n    @Override\n    public void start(Stage stage) {\n        StackPane root = new StackPane(new Label(\"Hotels\"));\n        Scene scene = new Scene(root, 400, 300);\n        stage.setScene(scene);\n        stage.setTitle(\"Hotel manager\");\n        stage.show(); // without show the window never appears\n    }\n\n    public static void main(String[] args) {\n        launch(args); // calls start on the JavaFX application thread\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-fxmlloader",
+    "group": "FXML",
+    "name": "FXMLLoader",
+    "syntax": "new FXMLLoader(getClass().getResource(\"/view.fxml\"))",
+    "desc": "Builds the scene graph from an FXML file. load returns the root node and getController returns the controller instance.",
+    "example": "// File: Main.java\nimport java.io.IOException;\nimport javafx.fxml.FXMLLoader;\nimport javafx.scene.Parent;\nimport javafx.scene.Scene;\nimport javafx.stage.Stage;\n\npublic class Main {\n    public void show(Stage stage) throws IOException {\n        // The leading slash starts at the classpath root\n        FXMLLoader loader = new FXMLLoader(getClass().getResource(\"/hotel-view.fxml\"));\n\n        Parent root = loader.load(); // parses the file and injects @FXML fields\n        HotelController controller = loader.getController();\n        controller.loadHotels();\n\n        stage.setScene(new Scene(root, 800, 600));\n        stage.show();\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-scene",
+    "group": "Application",
+    "name": "Scene",
+    "syntax": "new Scene(root, width, height)",
+    "desc": "Holds the scene graph that a stage displays. Width and height are the window content size, not the screen size.",
+    "example": "// File: Main.java\nimport javafx.scene.Scene;\nimport javafx.scene.layout.VBox;\nimport javafx.scene.control.Label;\nimport javafx.scene.control.Button;\nimport javafx.stage.Stage;\n\npublic class Main {\n    public void show(Stage stage) {\n        VBox root = new VBox(10, new Label(\"Hotels\"), new Button(\"Add\"));\n\n        Scene scene = new Scene(root, 640, 480);\n\n        // A stylesheet is resolved on the classpath, keep it under resources\n        scene.getStylesheets().add(getClass().getResource(\"/app.css\").toExternalForm());\n\n        // The root can be swapped later with scene.setRoot(other)\n        stage.setScene(scene);\n        stage.show();\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-stage-show",
+    "group": "Application",
+    "name": "Stage title and close",
+    "syntax": "stage.setTitle(\"text\"); stage.show();",
+    "desc": "The stage is the top level window. Set the title, a minimum size, and a close handler before showing it.",
+    "example": "// File: Main.java\nimport javafx.stage.Stage;\nimport javafx.scene.control.Alert;\nimport javafx.scene.control.ButtonType;\n\npublic class Main {\n    public void show(Stage stage) {\n        stage.setTitle(\"Hotel manager\");\n        stage.setMinWidth(480);\n        stage.setMinHeight(320);\n\n        // Ask before closing when there are unsaved changes\n        stage.setOnCloseRequest(event -> {\n            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,\n                \"Close without saving?\", ButtonType.OK, ButtonType.CANCEL);\n            confirm.setHeaderText(null);\n\n            if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {\n                event.consume(); // cancels the close\n            }\n        });\n\n        stage.show();\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-button-action",
+    "group": "Controls",
+    "name": "Button setOnAction",
+    "syntax": "button.setOnAction(event -> { ... })",
+    "desc": "Attaches a handler to a button click. The handler runs on the JavaFX application thread, so keep it short.",
+    "example": "// File: Main.java\nimport javafx.scene.control.Button;\nimport javafx.scene.control.Label;\nimport javafx.scene.layout.VBox;\n\npublic class Main {\n    public VBox build() {\n        Label counter = new Label(\"0\");\n        Button add = new Button(\"Add hotel\");\n\n        add.setOnAction(event -> {\n            // Parsing here is safe because the label holds a number\n            int next = Integer.parseInt(counter.getText()) + 1;\n            counter.setText(String.valueOf(next));\n        });\n\n        // setDisable greys the button out and blocks the handler\n        add.disableProperty().bind(counter.textProperty().isEqualTo(\"5\"));\n\n        return new VBox(8, add, counter);\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-label",
+    "group": "Controls",
+    "name": "Label",
+    "syntax": "new Label(\"text\")",
+    "desc": "Shows read only text. setWrapText and setMaxWidth keep long names inside the layout.",
+    "example": "// File: Main.java\nimport javafx.scene.control.Label;\nimport javafx.scene.layout.VBox;\n\npublic class Main {\n    public VBox build() {\n        Label title = new Label(\"Danube View\");\n        title.setStyle(\"-fx-font-size: 18px; -fx-font-weight: bold;\");\n\n        Label description = new Label(\n            \"A long description that would overflow the window without wrapping.\");\n        description.setWrapText(true);\n        description.setMaxWidth(280);\n\n        // A label bound to a property updates itself\n        Label stars = new Label();\n        stars.textProperty().bind(title.textProperty().concat(\" · 4 stars\"));\n\n        return new VBox(6, title, description, stars);\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-textfield",
+    "group": "Controls",
+    "name": "TextField",
+    "syntax": "new TextField(); field.getText()",
+    "desc": "A single line text input. getText returns an empty string when the field is untouched, never null.",
+    "example": "// File: Main.java\nimport javafx.scene.control.Button;\nimport javafx.scene.control.Label;\nimport javafx.scene.control.TextField;\nimport javafx.scene.layout.HBox;\n\npublic class Main {\n    public HBox build() {\n        TextField nameField = new TextField();\n        nameField.setPromptText(\"Hotel name\");\n        Label result = new Label();\n\n        Button save = new Button(\"Save\");\n        save.setOnAction(event -> {\n            String name = nameField.getText().trim();\n\n            if (name.isEmpty()) {\n                result.setText(\"Name is required\");\n                return;\n            }\n\n            result.setText(\"Saved \" + name);\n            nameField.clear();\n        });\n\n        // Reacting to every keystroke instead of a button click\n        nameField.textProperty().addListener((observable, oldValue, newValue) -> {\n            result.setText(newValue.length() + \" characters\");\n        });\n\n        return new HBox(8, nameField, save, result);\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-textarea",
+    "group": "Controls",
+    "name": "TextArea",
+    "syntax": "new TextArea(); area.appendText(text)",
+    "desc": "A multi line text box. appendText adds to the end and keeps the caret at the bottom, which suits log output.",
+    "example": "// File: Main.java\nimport javafx.scene.control.Button;\nimport javafx.scene.control.TextArea;\nimport javafx.scene.layout.VBox;\n\npublic class Main {\n    public VBox build() {\n        TextArea notes = new TextArea();\n        notes.setPromptText(\"Notes about the booking\");\n        notes.setPrefRowCount(6);\n        notes.setWrapText(true);\n\n        Button addNote = new Button(\"Add note\");\n        addNote.setOnAction(event -> {\n            // appendText does not replace the existing content\n            notes.appendText(\"Checked in at 14:00\" + System.lineSeparator());\n        });\n\n        // getText returns everything, including line breaks\n        Button count = new Button(\"Count lines\");\n        count.setOnAction(event -> {\n            long lines = notes.getText().lines().count();\n            System.out.println(lines);\n        });\n\n        return new VBox(8, notes, addNote, count);\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-combobox",
+    "group": "Controls",
+    "name": "ComboBox",
+    "syntax": "new ComboBox<>(); box.getItems().addAll(...)",
+    "desc": "A drop down list with one selected value. It can be editable, which turns it into a combo of list and text field.",
+    "example": "// File: Main.java\nimport javafx.scene.control.ComboBox;\nimport javafx.scene.control.Label;\nimport javafx.scene.layout.VBox;\n\npublic class Main {\n    public VBox build() {\n        ComboBox<String> cityBox = new ComboBox<>();\n        cityBox.getItems().addAll(\"Budapest\", \"Eger\", \"Gyor\", \"Pecs\");\n        cityBox.setValue(\"Budapest\"); // preselect a value\n\n        Label selected = new Label(cityBox.getValue());\n\n        // The listener fires on user choice and on setValue\n        cityBox.valueProperty().addListener((observable, oldValue, newValue) -> {\n            selected.setText(newValue == null ? \"none\" : newValue);\n        });\n\n        // An editable box lets the user type a new city\n        cityBox.setEditable(true);\n\n        return new VBox(8, cityBox, selected);\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-listview",
+    "group": "Controls",
+    "name": "ListView",
+    "syntax": "new ListView<>(FXCollections.observableArrayList(...))",
+    "desc": "A scrollable list of items. Back it with an ObservableList so the view follows every change.",
+    "example": "// File: Main.java\nimport javafx.collections.FXCollections;\nimport javafx.collections.ObservableList;\nimport javafx.scene.control.Label;\nimport javafx.scene.control.ListView;\nimport javafx.scene.layout.VBox;\n\npublic class Main {\n    public VBox build() {\n        ObservableList<String> hotels = FXCollections.observableArrayList(\n            \"Danube View\", \"City Loft\", \"Lake Garden\");\n\n        ListView<String> list = new ListView<>(hotels);\n        list.setPrefHeight(160);\n\n        Label selected = new Label(\"none\");\n\n        // selectedItemProperty is null until the user picks a row\n        list.getSelectionModel().selectedItemProperty().addListener(\n            (observable, oldValue, newValue) -> {\n                selected.setText(newValue == null ? \"none\" : newValue);\n            });\n\n        // The view updates because the list is observable\n        hotels.add(\"Bridge Inn\");\n\n        return new VBox(8, list, selected);\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-tableview",
+    "group": "Table",
+    "name": "TableView",
+    "syntax": "new TableView<>(); table.getItems().addAll(...)",
+    "desc": "A table bound to a list of row objects. Columns decide what is shown, the items hold the data.",
+    "example": "// File: Main.java\nimport javafx.collections.FXCollections;\nimport javafx.scene.control.TableColumn;\nimport javafx.scene.control.TableView;\nimport javafx.scene.control.cell.PropertyValueFactory;\n\npublic class Main {\n    public record Hotel(int hotel_id, String name, int stars) {}\n\n    public TableView<Hotel> build() {\n        TableView<Hotel> table = new TableView<>();\n\n        TableColumn<Hotel, Integer> idColumn = new TableColumn<>(\"ID\");\n        idColumn.setCellValueFactory(cell -> new javafx.beans.property.SimpleIntegerProperty(\n            cell.getValue().hotel_id()).asObject());\n\n        TableColumn<Hotel, String> nameColumn = new TableColumn<>(\"Name\");\n        nameColumn.setCellValueFactory(cell -> new javafx.beans.property.SimpleStringProperty(\n            cell.getValue().name()));\n\n        table.getColumns().add(idColumn);\n        table.getColumns().add(nameColumn);\n\n        table.setItems(FXCollections.observableArrayList(\n            new Hotel(1, \"Danube View\", 4),\n            new Hotel(2, \"City Loft\", 5)));\n\n        return table;\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-tablecolumn",
+    "group": "Table",
+    "name": "TableColumn cellValueFactory",
+    "syntax": "column.setCellValueFactory(cell -> new SimpleStringProperty(...))",
+    "desc": "Tells a column how to read a value from a row. The lambda runs for every visible cell, so keep it cheap.",
+    "example": "// File: Main.java\nimport javafx.beans.property.SimpleStringProperty;\nimport javafx.scene.control.TableColumn;\nimport javafx.scene.control.TableView;\n\npublic class Main {\n    public static class Hotel {\n        private final String name;\n        private final int stars;\n\n        public Hotel(String name, int stars) {\n            this.name = name;\n            this.stars = stars;\n        }\n\n        public String getName() { return name; }\n        public int getStars() { return stars; }\n    }\n\n    public TableView<Hotel> build() {\n        TableView<Hotel> table = new TableView<>();\n\n        TableColumn<Hotel, String> nameColumn = new TableColumn<>(\"Name\");\n        // PropertyValueFactory reads getName(), the string is the property name\n        nameColumn.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>(\"name\"));\n\n        TableColumn<Hotel, String> starsColumn = new TableColumn<>(\"Stars\");\n        // A lambda is clearer and works without getters\n        starsColumn.setCellValueFactory(cell ->\n            new SimpleStringProperty(String.valueOf(cell.getValue().getStars())));\n\n        table.getColumns().add(nameColumn);\n        table.getColumns().add(starsColumn);\n        return table;\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-vbox",
+    "group": "Layout",
+    "name": "VBox",
+    "syntax": "new VBox(spacing, children...)",
+    "desc": "Stacks children vertically. The spacing constructor argument is the gap in pixels between them.",
+    "example": "// File: Main.java\nimport javafx.geometry.Pos;\nimport javafx.scene.control.Button;\nimport javafx.scene.control.Label;\nimport javafx.scene.layout.Priority;\nimport javafx.scene.layout.VBox;\n\npublic class Main {\n    public VBox build() {\n        Label title = new Label(\"Hotels\");\n        Button add = new Button(\"Add\");\n\n        // 10 pixels between children, aligned to the left\n        VBox box = new VBox(10, title, add);\n        box.setAlignment(Pos.TOP_LEFT);\n        box.setPadding(new javafx.geometry.Insets(12));\n\n        // Grow makes the add button take the free vertical space\n        VBox.setVgrow(add, Priority.ALWAYS);\n\n        return box;\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-hbox",
+    "group": "Layout",
+    "name": "HBox",
+    "syntax": "new HBox(spacing, children...)",
+    "desc": "Places children side by side. Hgrow decides which child absorbs the extra width.",
+    "example": "// File: Main.java\nimport javafx.scene.control.Button;\nimport javafx.scene.control.TextField;\nimport javafx.scene.layout.HBox;\nimport javafx.scene.layout.Priority;\n\npublic class Main {\n    public HBox build() {\n        TextField search = new TextField();\n        search.setPromptText(\"Search hotels\");\n\n        Button find = new Button(\"Find\");\n\n        HBox row = new HBox(8, search, find);\n        row.setPadding(new javafx.geometry.Insets(8));\n\n        // The text field takes the width, the button keeps its size\n        HBox.setHgrow(search, Priority.ALWAYS);\n\n        return row;\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-gridpane",
+    "group": "Layout",
+    "name": "GridPane",
+    "syntax": "grid.add(node, column, row)",
+    "desc": "Arranges nodes in rows and columns with explicit cell coordinates. Column constraints control the widths.",
+    "example": "// File: Main.java\nimport javafx.scene.control.Label;\nimport javafx.scene.control.TextField;\nimport javafx.scene.layout.ColumnConstraints;\nimport javafx.scene.layout.GridPane;\nimport javafx.scene.layout.Priority;\n\npublic class Main {\n    public GridPane build() {\n        GridPane grid = new GridPane();\n        grid.setHgap(8);\n        grid.setVgap(6);\n        grid.setPadding(new javafx.geometry.Insets(12));\n\n        grid.add(new Label(\"Name\"), 0, 0);\n        grid.add(new TextField(), 1, 0);\n\n        grid.add(new Label(\"City\"), 0, 1);\n        grid.add(new TextField(), 1, 1);\n\n        // Span two columns: add(node, column, row, colspan, rowspan)\n        grid.add(new Label(\"Both fields are required\"), 0, 2, 2, 1);\n\n        // The second column absorbs the extra width\n        ColumnConstraints labels = new ColumnConstraints();\n        ColumnConstraints fields = new ColumnConstraints();\n        fields.setHgrow(Priority.ALWAYS);\n        grid.getColumnConstraints().addAll(labels, fields);\n\n        return grid;\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-borderpane",
+    "group": "Layout",
+    "name": "BorderPane",
+    "syntax": "new BorderPane(); pane.setCenter(node)",
+    "desc": "Splits the window into top, left, right, bottom, and center. The center region grows, the others keep their size.",
+    "example": "// File: Main.java\nimport javafx.scene.control.Button;\nimport javafx.scene.control.Label;\nimport javafx.scene.control.TableView;\nimport javafx.scene.layout.BorderPane;\nimport javafx.scene.layout.HBox;\n\npublic class Main {\n    public BorderPane build() {\n        BorderPane pane = new BorderPane();\n\n        // Header row with a title and one action\n        HBox top = new HBox(8, new Label(\"Hotels\"), new Button(\"Add\"));\n        top.setPadding(new javafx.geometry.Insets(8));\n\n        pane.setTop(top);\n        pane.setCenter(new TableView<>());       // takes all remaining space\n        pane.setBottom(new Label(\"12 hotels\"));  // status line\n\n        // setLeft and setRight are for navigation and side panels\n        return pane;\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-alert",
+    "group": "Dialogs",
+    "name": "Alert",
+    "syntax": "new Alert(Alert.AlertType.CONFIRMATION, text, buttons)",
+    "desc": "A modal dialog for messages and confirmations. showAndWait blocks until the user picks a button.",
+    "example": "// File: Main.java\nimport javafx.scene.control.Alert;\nimport javafx.scene.control.ButtonType;\n\npublic class Main {\n    public void deleteHotel(String name) {\n        Alert confirm = new Alert(\n            Alert.AlertType.CONFIRMATION,\n            \"Delete \" + name + \"?\",\n            ButtonType.OK,\n            ButtonType.CANCEL\n        );\n        confirm.setTitle(\"Confirm delete\");\n        confirm.setHeaderText(null); // removes the bold default line\n\n        // showAndWait returns the chosen button, or empty if closed\n        confirm.showAndWait().ifPresent(type -> {\n            if (type == ButtonType.OK) {\n                System.out.println(\"deleted \" + name);\n            }\n        });\n\n        // The other types: INFORMATION, WARNING, ERROR, NONE\n        Alert error = new Alert(Alert.AlertType.ERROR, \"Could not save\");\n        error.show();\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-platform-runlater",
+    "group": "Concurrency",
+    "name": "Platform.runLater",
+    "syntax": "Platform.runLater(() -> { ... })",
+    "desc": "Schedules a task on the JavaFX application thread. UI changes from a worker thread must go through it.",
+    "example": "// File: Main.java\nimport javafx.application.Platform;\nimport javafx.scene.control.Label;\n\npublic class Main {\n    public void loadCount(Label label) {\n        Thread worker = new Thread(() -> {\n            // This code runs off the FX thread, so no UI access here\n            int count = countHotelsInDatabase();\n\n            // The UI update is queued and runs on the FX thread\n            Platform.runLater(() -> label.setText(count + \" hotels\"));\n        });\n\n        worker.setDaemon(true); // does not keep the JVM alive\n        worker.start();\n    }\n\n    private int countHotelsInDatabase() {\n        return 12;\n    }\n}"
+  },
+  {
+    "id": "javafx-extra-task",
+    "group": "Concurrency",
+    "name": "Task",
+    "syntax": "new Task<Result>() { protected Result call() { ... } }",
+    "desc": "Runs background work with success, failure, and progress callbacks that already run on the FX thread.",
+    "example": "// File: Main.java\nimport javafx.concurrent.Task;\nimport javafx.scene.control.Label;\nimport javafx.scene.control.TableView;\nimport java.util.List;\n\npublic class Main {\n    public void load(TableView<String> table, Label status) {\n        Task<List<String>> task = new Task<>() {\n            @Override\n            protected List<String> call() throws Exception {\n                // Runs on a background thread, may throw\n                return List.of(\"Danube View\", \"City Loft\");\n            }\n        };\n\n        // Handlers run on the FX thread, so UI access is safe here\n        task.setOnSucceeded(event -> {\n            table.getItems().setAll(task.getValue());\n            status.setText(\"Loaded \" + task.getValue().size());\n        });\n\n        task.setOnFailed(event -> status.setText(\"Failed: \" + task.getException().getMessage()));\n\n        Thread thread = new Thread(task);\n        thread.setDaemon(true);\n        thread.start();\n    }\n}",
+    "body": "## Task against Platform.runLater\n\n`Platform.runLater` moves one update to the FX thread. `Task` also returns a result and reports failure, so the success path and the error path stay separate.\n\n## Rules\n\n- Only `call` runs on the background thread. Do not touch controls there.\n- `setOnSucceeded`, `setOnFailed`, and `updateMessage` run on the FX thread.\n- Call `setOnCancelled` when a cancel button exists, otherwise the worker keeps running.\n- One `Task` runs once. For repeated work use `Service` and call `restart`."
+  },
+  {
+    "id": "javafx-extra-fxml-controller",
+    "group": "FXML",
+    "name": "FXML controller with @FXML",
+    "syntax": "@FXML private void onSave() { ... }",
+    "desc": "Connects an FXML file to a Java class. fx:id fields are injected and onAction=\"#method\" calls the annotated method.",
+    "example": "// File: HotelController.java\nimport javafx.fxml.FXML;\nimport javafx.scene.control.Label;\nimport javafx.scene.control.TableView;\nimport javafx.scene.control.TextField;\n\npublic class HotelController {\n\n    // The field name must equal the fx:id in the FXML file\n    @FXML private TextField nameField;\n    @FXML private TableView<Hotel> hotelTable;\n    @FXML private Label statusLabel;\n\n    // initialize runs after every @FXML field is injected\n    @FXML\n    private void initialize() {\n        statusLabel.setText(\"Ready\");\n    }\n\n    // onAction=\"#onSave\" in the FXML calls this method\n    @FXML\n    private void onSave() {\n        String name = nameField.getText().trim();\n\n        if (name.isEmpty()) {\n            statusLabel.setText(\"Name is required\");\n            return;\n        }\n\n        hotelTable.getItems().add(new Hotel(name, 4));\n        statusLabel.setText(\"Saved \" + name);\n        nameField.clear();\n    }\n}\n\n// File: hotel-view.fxml (excerpt)\n// <VBox xmlns:fx=\"http://javafx.com/fxml\"\n//       fx:controller=\"HotelController\">\n//   <TextField fx:id=\"nameField\"/>\n//   <Button text=\"Save\" onAction=\"#onSave\"/>\n//   <TableView fx:id=\"hotelTable\"/>\n//   <Label fx:id=\"statusLabel\"/>\n// </VBox>",
+    "body": "## How the wiring works\n\nThe loader reads `fx:controller`, creates that class, and matches every `fx:id` attribute to a field of the same name. A typo in either file leaves the field null and the first click throws a NullPointerException.\n\n## Check before running\n\n- The controller class is public and has a public no argument constructor.\n- Every `@FXML` field is private, matching the attribute name exactly.\n- `onAction=\"#onSave\"` matches a method, and the method takes no arguments or one ActionEvent.\n- `initialize` is optional but must be annotated when used with FXML."
+  }
+]

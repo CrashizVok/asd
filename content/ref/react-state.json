@@ -1,0 +1,137 @@
+[
+  {
+    "id": "react-state-updater",
+    "group": "State updates",
+    "name": "setState(updater)",
+    "syntax": "setValue(current => nextValue)",
+    "desc": "Computes the next state from the latest queued value instead of the value captured by the current render.",
+    "example": "function Counter() {\n  const [count, setCount] = useState(0);\n\n  function addThree() {\n    // All three updaters run in order on the same queued value.\n    setCount(c => c + 1);\n    setCount(c => c + 1);\n    setCount(c => c + 1);\n  }\n\n  // A delayed handler would still add one to the newest value.\n  function addLater() {\n    setTimeout(() => setCount(c => c + 1), 1000);\n  }\n\n  return <button onClick={addThree}>{count}</button>;\n}",
+    "body": "The plain form `setCount(count + 1)` reads `count` from the current render. Two calls in one handler both compute the same number, so the state grows by one. The updater form receives whatever is queued when React runs it.\n\nUse it for counters, queues, toggles inside loops, and any callback that may run after the render that created it. The function must be pure: no setters, no requests, no logging of business events. React may call it twice in development to check."
+  },
+  {
+    "id": "react-state-initializer",
+    "group": "State updates",
+    "name": "useState(initializer)",
+    "syntax": "useState(() => buildInitial())",
+    "desc": "Passes a function so the initial value is computed on mount only, not on every render.",
+    "example": "// Data shape: [{ id, name }]\nfunction buildRows() {\n  // Pretend this does real work over a large array.\n  return Array.from({ length: 5000 }, (_, i) => ({ id: i, name: `Row ${i}` }));\n}\n\nfunction Table() {\n  // Wrong: buildRows() runs on every render and the result is thrown away.\n  // const [rows] = useState(buildRows());\n\n  // Right: React calls the function once, on mount.\n  const [rows] = useState(() => buildRows());\n\n  return <p>{rows.length} rows</p>;\n}",
+    "body": "The argument to `useState` is ignored after the first render, but an expression is still evaluated before the hook sees it. That means `useState(expensive())` pays the cost on every render for a value that is discarded.\n\nPassing a function defers the work. `useState(() => expensive())` is called once per mounted component. If you only need the value, a function is all you keep, and the same rule applies to `useReducer`'s third argument."
+  },
+  {
+    "id": "react-state-batch",
+    "group": "State updates",
+    "name": "batched updates",
+    "syntax": "setA(1); setB(2); // one render",
+    "desc": "React groups setter calls made in the same tick into a single render.",
+    "example": "function SaveButton() {\n  const [saving, setSaving] = useState(false);\n  const [error, setError] = useState(null);\n  const [savedAt, setSavedAt] = useState(null);\n\n  function handleSave() {\n    setSaving(true);\n    setError(null);\n    setSavedAt(null);\n    // One render when the handler returns, not three.\n  }\n\n  async function handleSaveAsync() {\n    setSaving(true); // renders here\n    await save();\n    setSaving(false); // renders again after the await\n  }\n\n  return <button onClick={handleSave}>{saving ? 'Saving' : 'Save'}</button>;\n}",
+    "body": "Batching means the intermediate states are never painted. It also means the state variables keep their old values until the handler returns, so reading `saving` right after `setSaving(true)` gives `false`.\n\nReact 18 batches in promises, timeouts and native listeners too. An `await` splits the batch, because by the time the promise resolves the handler has returned. That split is often what you want for a progress flag."
+  },
+  {
+    "id": "react-state-snapshot",
+    "group": "State updates",
+    "name": "state snapshot",
+    "syntax": "const [value, setValue] = useState(initial)",
+    "desc": "Each render gets its own fixed state and props; a setter affects the next render, not the running one.",
+    "example": "function Counter() {\n  const [count, setCount] = useState(0);\n\n  function handleClick() {\n    setCount(count + 1);\n    // Still the old number, because this render owns a fixed `count`.\n    console.log(count);\n  }\n\n  return <button onClick={handleClick}>{count}</button>;\n}",
+    "body": "Treat every render as a photograph: props, state and the handlers created in it hold that moment. The next render is a new photograph with new values.\n\nThis explains two common questions. Why does a timer log an old value? Because the callback was created in an old render. Why does reading state right after a setter show the old value? Because the setter schedules a render instead of editing the current one."
+  },
+  {
+    "id": "react-state-object-merge",
+    "group": "State updates",
+    "name": "setState({ ...state, field })",
+    "syntax": "setForm(current => ({ ...current, [field]: value }))",
+    "desc": "Replaces a state object with a copy, because React state is not merged for you.",
+    "example": "// Data shape: { customer_email, first_name, last_name }\nfunction CustomerForm() {\n  const [form, setForm] = useState({ customer_email: '', first_name: '', last_name: '' });\n\n  function setField(field, value) {\n    // Spread the old object, then override one key.\n    setForm(current => ({ ...current, [field]: value }));\n  }\n\n  return (\n    <input\n      value={form.first_name}\n      onChange={e => setField('first_name', e.target.value)}\n    />\n  );\n}",
+    "body": "Unlike a class component's `setState`, the hook does not merge keys. `setForm({ first_name: 'Anna' })` drops the email and the last name.\n\nThe computed key `[field]` keeps one handler for many inputs. It is safe as long as the field name comes from your code, never from user input, and the field exists in the state shape."
+  },
+  {
+    "id": "react-state-nested-update",
+    "group": "State updates",
+    "name": "nested state update",
+    "syntax": "setState(s => ({ ...s, address: { ...s.address, city } }))",
+    "desc": "Copies each level of a nested object that lies on the path to the changed field.",
+    "example": "// Data shape: { customer_email, address: { city, street } }\nconst [customer, setCustomer] = useState({\n  customer_email: 'anna@example.com',\n  address: { city: 'Eger', street: 'Fo utca 3' },\n});\n\nfunction setCity(city) {\n  setCustomer(current => ({\n    ...current,\n    address: { ...current.address, city },\n  }));\n}",
+    "body": "Only the path from the root to the changed field needs a fresh object. Copying the whole tree with `JSON.parse(JSON.stringify(x))` loses `undefined`, turns dates into strings and costs time proportional to the data.\n\nPast two levels the spreads hide intent. At that point either flatten the state (`city`, `street` as separate fields) or move it to `useReducer`, where the update gets a name."
+  },
+  {
+    "id": "react-state-array-remove",
+    "group": "State updates",
+    "name": "remove from state array",
+    "syntax": "setItems(items => items.filter(item => item.id !== id))",
+    "desc": "Builds a new array without the item instead of mutating the old one.",
+    "example": "// Data shape: [{ id, name }]\nconst [items, setItems] = useState([\n  { id: 1, name: 'Coffee' },\n  { id: 2, name: 'Tea' },\n]);\n\nfunction removeItem(id) {\n  // filter returns a new array, so React sees a new reference.\n  setItems(current => current.filter(item => item.id !== id));\n}\n\n// Adding is a spread:\n// setItems(current => [...current, { id: 3, name: 'Water' }]);",
+    "body": "`splice` and `push` mutate the array React already holds. The reference stays the same, the render is skipped, and the old render's data changes under it.\n\nUse `filter` to remove, `map` to replace one item, spread to add. `sort` and `reverse` also mutate, so copy first: `setItems([...items].sort(byName))`."
+  },
+  {
+    "id": "react-state-array-toggle",
+    "group": "State updates",
+    "name": "update one state array item",
+    "syntax": "setItems(items => items.map(i => i.id === id ? { ...i, done: !i.done } : i))",
+    "desc": "Replaces a single object inside an array while leaving the other items untouched.",
+    "example": "// Data shape: [{ id, name, done }]\nfunction toggleTask(id) {\n  setTasks(current =>\n    current.map(task =>\n      task.id === id ? { ...task, done: !task.done } : task\n    )\n  );\n}\n\n// The same pattern with a computed value from the row:\n// setTasks(current => current.map(t => t.id === id ? { ...t, name } : t));",
+    "body": "The unchanged rows keep their identity, which helps memoized children skip work. Return the original object for every row that is not the target, never a fresh copy of it.\n\nIf the array is large and updates are frequent, index the rows by id in a `Map` outside the render, or move the collection into `useReducer` so the update rule lives in one place."
+  },
+  {
+    "id": "react-state-reset-key",
+    "group": "State patterns",
+    "name": "reset state with key",
+    "syntax": "<Editor key={record.id} record={record} />",
+    "desc": "Remounts a component when the record changes, so its internal state starts from the initial value.",
+    "example": "function Page({ customer }) {\n  // A new customer_email means a new key, so the editor never shows the\n  // previous draft.\n  return <CustomerEditor key={customer.customer_email} customer={customer} />;\n}\n\nfunction CustomerEditor({ customer }) {\n  const [draft, setDraft] = useState(customer.first_name);\n  return (\n    <input value={draft} onChange={e => setDraft(e.target.value)} />\n  );\n}",
+    "body": "Changing `key` makes React unmount the old instance and mount a new one. The `useState(customer.first_name)` initial value runs again with the new prop. No effect, no comparison, no stale draft.\n\nThis beats the alternative of copying the prop into state and syncing it in `useEffect`, which renders once with the old value and can overwrite edits. Use a value that is stable and unique per record, not an index."
+  },
+  {
+    "id": "react-state-derived",
+    "group": "State patterns",
+    "name": "derived value in render",
+    "syntax": "const total = items.reduce((sum, i) => sum + i.price * i.qty, 0)",
+    "desc": "Computes a value from existing state during render instead of storing and syncing it.",
+    "example": "const [items, setItems] = useState([\n  { id: 1, price: 90, qty: 2 },\n  { id: 2, price: 120, qty: 1 },\n]);\n\n// Recalculated every render. Nothing can make it stale.\nconst total = items.reduce((sum, item) => sum + item.price * item.qty, 0);\nconst count = items.reduce((sum, item) => sum + item.qty, 0);\n\nreturn <p>{count} items, {total} EUR</p>;",
+    "body": "A stored copy starts correct and drifts the first time an update path forgets to refresh it. An effect that syncs the copy adds a render and a moment where the screen shows a number that does not match the list.\n\nWrap the calculation in `useMemo` only when it is measurably slow or when its identity is passed to a memoized child. For a filter over a few hundred rows, plain code is faster and easier to read."
+  },
+  {
+    "id": "react-state-lift",
+    "group": "State patterns",
+    "name": "lift state up",
+    "syntax": "<Parent value={value} onChange={setValue} />",
+    "desc": "Moves shared state to the closest common parent and passes the value down with a change handler.",
+    "example": "function SearchPage() {\n  // One owner for the query, shared by the input and the result list.\n  const [query, setQuery] = useState('');\n  const visible = hotels.filter(h => h.city.toLowerCase().includes(query.toLowerCase()));\n\n  return (\n    <>\n      <SearchBox value={query} onChange={setQuery} />\n      <HotelList hotels={visible} />\n    </>\n  );\n}\n\nfunction SearchBox({ value, onChange }) {\n  return <input value={value} onChange={e => onChange(e.target.value)} />;\n}",
+    "body": "Two components cannot each own the same fact. Move it to their nearest common parent, pass the value down as a prop, and pass a function down so children can report what happened. Data flows one way and there is one place to debug.\n\nDo not lift by default. State used by one component belongs there. Lifting to the top of the tree turns a keystroke into a render of everything below."
+  },
+  {
+    "id": "react-state-field",
+    "group": "Forms",
+    "name": "controlled field",
+    "syntax": "value={value} onChange={e => setValue(e.target.value)}",
+    "desc": "Binds an input to state so React is the single source of the displayed value.",
+    "example": "function EmailField() {\n  const [email, setEmail] = useState('');\n\n  return (\n    <label>\n      customer_email\n      <input\n        type=\"email\"\n        value={email}\n        onChange={event => setEmail(event.target.value)}\n      />\n      <span>{email.length} characters</span>\n    </label>\n  );\n}",
+    "body": "The input shows what the state says. Typing fires `onChange`, the handler stores the string, and the next render paints it back. Because the value flows from state, validation, formatting and reset all work in one place.\n\nAn input with `value` and no `onChange` is read-only and logs a warning. An input with `defaultValue` is uncontrolled, so state updates cannot change what it shows."
+  },
+  {
+    "id": "react-state-number",
+    "group": "Forms",
+    "name": "number input state",
+    "syntax": "setAdults(Math.max(0, Number(e.target.value) || 0))",
+    "desc": "Converts the string from a number input and guards against an empty or invalid field.",
+    "example": "const [adults, setAdults] = useState(2);\n\n<input\n  type=\"number\"\n  min=\"0\"\n  value={adults}\n  onChange={event => {\n    // Number('') is 0, so the || 0 catches NaN and keeps state a number.\n    const next = Math.max(0, Number(event.target.value) || 0);\n    setAdults(next);\n  }}\n/>",
+    "body": "Every input event carries a string, even when `type=\"number\"`. Storing the string works until you compare or add it. `\"2\" + 1` gives `\"21\"`.\n\n`Number('abc')` is `NaN`, and an input bound to `NaN` warns. The `|| 0` turns both `NaN` and an empty string into zero, and `Math.max` keeps the value from going negative through the spinner. Clamp in the handler so the state shape stays clean for the rest of the app."
+  },
+  {
+    "id": "react-state-form-object",
+    "group": "Forms",
+    "name": "form state as one object",
+    "syntax": "setForm(f => ({ ...f, [event.target.name]: event.target.value }))",
+    "desc": "Keeps many fields in one object and updates them through each input's name attribute.",
+    "example": "// Data shape: { first_name, last_name, phone }\nconst [form, setForm] = useState({ first_name: '', last_name: '', phone: '' });\n\nfunction handleChange(event) {\n  const { name, value } = event.target;\n  setForm(current => ({ ...current, [name]: value }));\n}\n\nreturn (\n  <form>\n    <input name=\"first_name\" value={form.first_name} onChange={handleChange} />\n    <input name=\"last_name\" value={form.last_name} onChange={handleChange} />\n    <input name=\"phone\" value={form.phone} onChange={handleChange} />\n  </form>\n);",
+    "body": "One handler for every field removes a row of near identical functions. The `name` attribute must match a key in the state object, and the key must already exist in the initial object.\n\nThis shape is the natural entry point for `useReducer`, because adding validation and a submit status to the same object quickly outgrows a single setter."
+  },
+  {
+    "id": "react-state-toggle",
+    "group": "State updates",
+    "name": "toggle boolean state",
+    "syntax": "setOpen(open => !open)",
+    "desc": "Flips a boolean through the updater form so rapid clicks each see the last value.",
+    "example": "const [open, setOpen] = useState(false);\n\n// Wrong for two clicks in one tick: both handlers read the same `open`,\n// so the panel opens and stays open.\n// onDoubleClick={() => { setOpen(!open); setOpen(!open); }}\n\n// Right: each updater receives the result of the previous one.\n<button onClick={() => setOpen(value => !value)}>\n  {open ? 'Hide' : 'Show'} details\n</button>",
+    "body": "For a single click `setOpen(!open)` is correct and shorter. The updater form earns its place when the same handler runs more than once before a render, or when the handler was created in an older render and captured an older `open`.\n\nKeep the boolean itself in state, not a string like `\"open\"` and `\"closed\"`. The toggle logic then lives in one expression, and the JSX condition is a plain `open && ...`."
+  }
+]

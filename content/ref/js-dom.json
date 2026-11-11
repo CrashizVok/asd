@@ -1,0 +1,208 @@
+[
+  {
+    "id": "js-dom-query-selector-all",
+    "group": "DOM selection",
+    "name": "querySelectorAll: static list",
+    "syntax": "document.querySelectorAll(\".card\")",
+    "desc": "querySelector returns the first matching element or null. querySelectorAll returns a static NodeList of every match, so it does not update after the page changes.",
+    "example": "// Data shape: NodeList of Element\nconst title = document.querySelector(\"h1\");\nconst cards = document.querySelectorAll(\".hotel-card\");\n\nconsole.log(title ? title.textContent : \"no heading\");\nconsole.log(cards.length);\n\n// A NodeList is not an array. Spread it before map or filter.\nconst ids = [...cards].map((card) => card.dataset.hotelId);\nconsole.log(ids);",
+    "body": "An invalid selector throws a `SyntaxError` instead of returning `null`.\n\n`element.querySelector` searches only inside that element:\n\n```js\nconst form = document.querySelector(\"#booking-form\");\nconst email = form.querySelector(\"input[name=customer_email]\");\n```\n\nUse `:scope` when the match must be a direct child:\n\n```js\nconst rows = document.querySelectorAll(\"#room-list > li\");\n```"
+  },
+  {
+    "id": "js-dom-id-lookup",
+    "group": "DOM selection",
+    "name": "element by id",
+    "syntax": "document.getElementById(\"content\")",
+    "desc": "Finds the element with that id and returns null when no element has it. The id is passed without the # sign, and the method exists only on document.",
+    "example": "const content = document.getElementById(\"content\");\n\nif (content) {\n  content.textContent = \"Loaded\";\n} else {\n  console.warn(\"#content is missing from the page\");\n}",
+    "body": "An id such as `room.204` is awkward in a CSS selector, because the dot means a class. `getElementById` takes the raw string and does not parse it, which makes it the safer call when the id comes from data."
+  },
+  {
+    "id": "js-dom-scoped-query",
+    "group": "DOM selection",
+    "name": "element.querySelector",
+    "syntax": "form.querySelector(\"input[name=customer_email]\")",
+    "desc": "Searches only inside the element, not the whole document. Use it when several cards or forms repeat the same inner markup.",
+    "example": "const form = document.querySelector(\"#booking-form\");\nconst email = form.querySelector(\"input[name=customer_email]\");\n\nconst cards = document.querySelectorAll(\".hotel-card\");\n\n// Each card looks up its own title, not the first title on the page.\nfor (const card of cards) {\n  console.log(card.querySelector(\"h2\").textContent);\n}\n\nconsole.log(email.value);"
+  },
+  {
+    "id": "js-dom-create-element",
+    "group": "DOM structure",
+    "name": "createElement",
+    "syntax": "document.createElement(\"li\")",
+    "desc": "Creates a detached element. It is not on the page until you insert it.",
+    "example": "// Data shape: { id: number, label: string }\nconst room = { id: 204, label: \"Room 204\" };\n\nconst item = document.createElement(\"li\");\nitem.className = \"room\";\nitem.dataset.id = String(room.id);\nitem.textContent = room.label;\n\nconsole.log(item.isConnected); // false, still detached\ndocument.querySelector(\"#room-list\").append(item);\nconsole.log(item.isConnected); // true",
+    "body": "For repeated markup, clone a `template` instead of building every node by hand:\n\n```html\n<template id=\"room-template\">\n  <li class=\"room\"><span class=\"room-name\"></span></li>\n</template>\n```\n\n```js\nconst template = document.querySelector(\"#room-template\");\nconst copy = template.content.cloneNode(true);\ncopy.querySelector(\".room-name\").textContent = \"Room 204\";\ndocument.querySelector(\"#room-list\").append(copy);\n```\n\nListeners are not copied by `cloneNode`, so delegated events stay the simplest choice."
+  },
+  {
+    "id": "js-dom-append-prepend",
+    "group": "DOM structure",
+    "name": "append, prepend, before, after",
+    "syntax": "parent.append(node)",
+    "desc": "append inserts at the end and accepts several nodes and strings. prepend inserts at the start, and before and after insert siblings next to a node.",
+    "example": "const list = document.querySelector(\"#room-list\");\n\nconst first = document.createElement(\"li\");\nfirst.textContent = \"Room 101\";\nlist.prepend(first);\n\nconst last = document.createElement(\"li\");\nlast.textContent = \"Room 305\";\nlist.append(last, \" (new)\"); // the string becomes a text node\n\nconst note = document.createElement(\"p\");\nnote.textContent = \"Prices include breakfast\";\nlist.after(note); // sibling after the whole list",
+    "body": "`appendChild` accepts one node only and returns it. `append` returns nothing and takes any number of arguments.\n\nAppending a node that is already in the document moves it. Clone it when you need a second copy."
+  },
+  {
+    "id": "js-dom-remove-node",
+    "group": "DOM structure",
+    "name": "remove and replaceChildren",
+    "syntax": "element.remove()\nparent.replaceChildren(...nodes)",
+    "desc": "remove takes the element out of the document without needing its parent. replaceChildren clears the parent and inserts the new nodes in one call.",
+    "example": "const row = document.querySelector(\"tr.is-selected\");\nif (row) row.remove();\n\nconst list = document.querySelector(\"#room-list\");\n\n// Clear everything in one call\nlist.replaceChildren();\n\n// Build new content and swap it in\nconst item = document.createElement(\"li\");\nitem.textContent = \"Room 410\";\nlist.replaceChildren(item);",
+    "body": "A removed node still exists in memory while a variable points at it. Its listeners still run if you keep a reference and dispatch events on it, but the user cannot see it and CSS no longer applies.\n\n`removeChild(child)` throws when the node is not a child of that parent. `remove()` has no such failure mode."
+  },
+  {
+    "id": "js-dom-text-vs-html",
+    "group": "DOM content",
+    "name": "safe text vs parsed HTML",
+    "syntax": "element.textContent = \"text\"\nelement.innerHTML = \"<b>text</b>\"",
+    "desc": "textContent writes plain text and is safe for user input. innerHTML parses markup, and injected attributes such as onerror can run script.",
+    "example": "const name = '<img src=x onerror=alert(1)>';\nconst box = document.querySelector(\"#box\");\n\nbox.textContent = name;      // shows the characters\nconsole.log(box.innerHTML);  // escaped markup, no element created\n\n// Only for markup you control\nbox.innerHTML = \"<strong>Confirmed</strong>\";",
+    "body": "`innerHTML +=` re-parses the whole subtree and replaces every child. Listeners on the old children are lost, and variables holding them point at detached nodes.\n\n`innerText` reads rendered text and forces layout. Use `textContent` unless the visible text, with line breaks and hidden elements, is what you need."
+  },
+  {
+    "id": "js-dom-classlist-api",
+    "group": "DOM styling",
+    "name": "classList methods",
+    "syntax": "element.classList.add(\"is-open\")",
+    "desc": "Adds, removes, toggles, replaces, and tests classes one at a time. Assigning className replaces every class on the element.",
+    "example": "const card = document.querySelector(\".hotel-card\");\n\ncard.classList.add(\"is-open\");\ncard.classList.toggle(\"is-open\");\nconsole.log(card.classList.contains(\"is-open\")); // false\n\ncard.classList.replace(\"is-open\", \"is-closed\");\n\n// Avoid this in a component: it wipes every other class.\n// card.className = \"is-open\";",
+    "body": "`toggle` takes a second argument that forces the state:\n\n```js\ncard.classList.toggle(\"is-hidden\", !matches);\n```\n\nSVG elements expose `className` as an object, not a string, so `classList` is the portable choice."
+  },
+  {
+    "id": "js-dom-inline-style",
+    "group": "DOM styling",
+    "name": "style and getComputedStyle",
+    "syntax": "element.style.display = \"none\"",
+    "desc": "style edits inline CSS. Dash names become camelCase properties, or use setProperty. getComputedStyle returns the resolved value that applies.",
+    "example": "const panel = document.querySelector(\".panel\");\n\npanel.style.display = \"none\";\npanel.style.backgroundColor = \"#f5f5f5\";\npanel.style.setProperty(\"--columns\", \"3\");\n\npanel.style.removeProperty(\"display\");\n\nconst width = getComputedStyle(panel).width;\nconsole.log(width); // resolved value such as \"320px\"",
+    "body": "Reading `panel.style.width` returns only the inline value, an empty string when the width comes from a stylesheet.\n\nPrefer a class for a named state. Inline styles beat stylesheet rules, so a forgotten inline value is hard to override later."
+  },
+  {
+    "id": "js-dom-attributes",
+    "group": "DOM styling",
+    "name": "getAttribute and setAttribute",
+    "syntax": "element.setAttribute(\"aria-hidden\", \"true\")",
+    "desc": "Attributes are strings. getAttribute returns null when the attribute is missing, and a boolean attribute such as disabled works by presence, not by value.",
+    "example": "// <a id=\"details\" href=\"/rooms/4\" target=\"_blank\">\nconst link = document.querySelector(\"#details\");\n\nconsole.log(link.getAttribute(\"href\")); // \"/rooms/4\"\nconsole.log(link.href);                 // full absolute URL\n\nlink.setAttribute(\"aria-label\", \"Open room 4\");\nlink.removeAttribute(\"target\");\n\nconst email = document.querySelector(\"#email\");\nconsole.log(email.value);               // current text\nconsole.log(email.getAttribute(\"value\")); // default from the HTML",
+    "body": "`setAttribute(\"disabled\", \"false\")` still disables the control. Remove the attribute to enable it.\n\nA property such as `checked` is the live state. The attribute `checked` is the default state, and changing it does not change what the user sees."
+  },
+  {
+    "id": "js-dom-dataset",
+    "group": "DOM styling",
+    "name": "dataset",
+    "syntax": "element.dataset.hotelId",
+    "desc": "Reads and writes data-* attributes as camelCase keys. Every value is a string, including numbers you assign.",
+    "example": "// <li data-hotel-id=\"42\" data-city=\"Budapest\">\nconst item = document.querySelector(\"li\");\n\nconsole.log(item.dataset.hotelId);          // \"42\"\nconsole.log(Number(item.dataset.hotelId) + 1); // 43\n\nitem.dataset.stars = 4;   // writes data-stars=\"4\"\ndelete item.dataset.city; // removes data-city\n\nconsole.log(item.getAttribute(\"data-stars\")); // \"4\"",
+    "body": "HTML lowercases attribute names. `data-hotelId` in markup becomes `data-hotelid`, which does not match `dataset.hotelId`. Write kebab case in HTML and camelCase in JavaScript.\n\nAfter `delete`, the key reads as `undefined`, not `null`."
+  },
+  {
+    "id": "js-dom-form-values",
+    "group": "DOM forms",
+    "name": "reading form controls",
+    "syntax": "form.elements.customer_email.value",
+    "desc": "Reads control state. Text values are always strings, checkboxes and radios use checked, and a select exposes value plus selectedOptions.",
+    "example": "// Data shape: { customer_email: string, rooms: boolean, city: string }\nconst form = document.querySelector(\"#booking-form\");\n\nconst email = form.elements.customer_email.value;\nconst rooms = form.elements.rooms.checked;\nconst city = form.elements.city.value;\nconst adults = Number(form.elements.adults.value);\n\nconsole.log(email, rooms, city, adults);",
+    "body": "`form.elements` allows lookup by name, and a name that collides with a form property such as `submit` shadows it. Choose field names that cannot collide with the form API.\n\nRadio buttons with the same name form a group. `form.elements.rooms.value` returns the checked value or an empty string."
+  },
+  {
+    "id": "js-dom-formdata-collect",
+    "group": "DOM forms",
+    "name": "FormData: collect fields",
+    "syntax": "new FormData(form)",
+    "desc": "Collects successful controls as key and value pairs. Disabled fields, unchecked checkboxes, and the submit button are skipped.",
+    "example": "const form = document.querySelector(\"#booking-form\");\nconst data = new FormData(form);\n\nconsole.log(data.get(\"customer_email\"));\nconsole.log(data.getAll(\"children\")); // repeated names keep every value\n\nfor (const [key, value] of data.entries()) {\n  console.log(key, value);\n}\n\n// Repeated names collapse to the last value here.\nconst plain = Object.fromEntries(data);\nconsole.log(plain);",
+    "body": "Pass the submitter to include the button that submitted the form:\n\n```js\nform.addEventListener(\"submit\", (event) => {\n  const data = new FormData(form, event.submitter);\n});\n```\n\nFile inputs produce `File` objects, which can be sent with `fetch` without reading the file first."
+  },
+  {
+    "id": "js-dom-form-validation",
+    "group": "DOM forms",
+    "name": "constraint validation",
+    "syntax": "input.setCustomValidity(\"\")",
+    "desc": "Constraint checks live on input.validity. Clear a custom message with an empty string, then check or report the form.",
+    "example": "const form = document.querySelector(\"#booking-form\");\nconst email = form.elements.customer_email;\n\nemail.setCustomValidity(\"\");\n\nif (!email.value.includes(\"@\")) {\n  email.setCustomValidity(\"Enter a valid email address\");\n}\n\nconsole.log(form.checkValidity()); // false while the message is set\nform.reportValidity();            // shows the browser message",
+    "body": "The browser blocks the `submit` event while a constraint fails. Your own submit handler will not run for an invalid form unless the form has `novalidate`. That is a common exam trick: a handler that seems broken is simply never called.\n\n`setCustomValidity(\"\")` clears the error. Forgetting the empty call leaves the field permanently invalid."
+  },
+  {
+    "id": "js-event-listener-options",
+    "group": "Events",
+    "name": "addEventListener options",
+    "syntax": "el.addEventListener(\"click\", fn, { once: true })",
+    "desc": "The third argument controls capture, once, passive, and an abort signal. Removal needs the same function and the same capture flag.",
+    "example": "const button = document.querySelector(\"#save\");\n\nbutton.addEventListener(\"click\", () => {\n  console.log(\"runs once\");\n}, { once: true });\n\nconst controller = new AbortController();\n\nwindow.addEventListener(\"resize\", onResize, { signal: controller.signal });\ndocument.addEventListener(\"keydown\", onKey, { signal: controller.signal });\n\nfunction onResize() {}\nfunction onKey() {}\n\ncontroller.abort(); // removes both listeners at once",
+    "body": "`passive: true` promises not to call `preventDefault`, which lets the browser scroll without waiting. A `preventDefault` inside a passive listener is ignored.\n\nAdding the same function twice for the same type and capture flag does nothing. Different `once` or `passive` values do not create a second listener."
+  },
+  {
+    "id": "js-event-object-fields",
+    "group": "Events",
+    "name": "event object fields",
+    "syntax": "event.target\nevent.currentTarget",
+    "desc": "Each dispatch creates one event object. target is where the event started, currentTarget is the node running the current listener.",
+    "example": "const list = document.querySelector(\"#results\");\n\nlist.addEventListener(\"click\", (event) => {\n  console.log(event.type);          // \"click\"\n  console.log(event.target);        // innermost clicked element\n  console.log(event.currentTarget); // the list\n  console.log(event.isTrusted);     // true for a real user click\n  console.log(event.cancelable);    // whether preventDefault applies\n});",
+    "body": "`currentTarget` is set to `null` after dispatch finishes, so do not read it inside a timeout. Store `event.target` in a variable if the value is needed later.\n\nKeyboard events add `key`, `code`, `repeat`, and the modifier booleans. Submit events add `submitter`."
+  },
+  {
+    "id": "js-event-bubbling",
+    "group": "Event flow",
+    "name": "bubbling and capture",
+    "syntax": "el.addEventListener(\"click\", fn, true)",
+    "desc": "Capture runs from the root down, then the target handler runs, then the event bubbles back up. focus, blur, mouseenter, mouseleave, load, and scroll on an element do not bubble.",
+    "example": "document.addEventListener(\"click\", () => console.log(\"capture\"), true);\ndocument.addEventListener(\"click\", () => console.log(\"bubble\"));\n\nconst button = document.querySelector(\"#save\");\nbutton.addEventListener(\"click\", () => console.log(\"target\"));\n\n// Clicking the button logs: capture, target, bubble",
+    "body": "Use `focusin` and `focusout` for focus delegation, because `focus` and `blur` do not bubble. `mouseover` and `mouseout` bubble where `mouseenter` and `mouseleave` do not.\n\nA capturing listener is the only way to observe a non-bubbling event on an ancestor."
+  },
+  {
+    "id": "js-event-delegation-pattern",
+    "group": "Event flow",
+    "name": "event delegation with closest",
+    "syntax": "parent.addEventListener(\"click\", (e) => e.target.closest(sel))",
+    "desc": "One listener on a stable parent handles current rows and rows created later. closest walks up from the real click target to the matching element.",
+    "example": "// Data shape: { id: string } stored in each row\nconst list = document.querySelector(\"#todo-list\");\n\nlist.addEventListener(\"click\", (event) => {\n  const button = event.target.closest(\"button[data-action=delete]\");\n  if (!button) return; // click on padding or plain text\n\n  const item = button.closest(\"li\");\n  console.log(\"deleting\", item.dataset.id);\n  item.remove();\n});",
+    "body": "Delegation survives re-rendering. A listener attached to each row is lost as soon as the row is replaced, which is the usual cause of a button that works once.\n\nGuard the case where `closest` returns `null`, and keep the selector narrow so a click in the container itself does not match."
+  },
+  {
+    "id": "js-event-propagation-control",
+    "group": "Event flow",
+    "name": "stopPropagation and stopImmediatePropagation",
+    "syntax": "event.stopPropagation()\nevent.stopImmediatePropagation()",
+    "desc": "stops the event from moving to the next node. It does not cancel the browser default action, which is preventDefault. Immediate also skips the remaining listeners on the current node.",
+    "example": "function openDetails(id) {\n  console.log(\"open\", id);\n}\n\nconst row = document.querySelector('tr[data-id=\"4\"]');\nconst remove = row.querySelector(\"button.delete\");\n\nremove.addEventListener(\"click\", (event) => {\n  event.stopPropagation(); // the row click must not open details\n  row.remove();\n});\n\nrow.addEventListener(\"click\", () => openDetails(row.dataset.id));",
+    "body": "A `stopPropagation` call on a link does not stop the navigation. Use `preventDefault` for that, and check `event.cancelable` when the event may not support cancellation.\n\nOrder the checks inside one delegated listener before reaching for propagation control. It is easier to follow and cannot silently break other features."
+  },
+  {
+    "id": "js-event-prevent-default",
+    "group": "Events",
+    "name": "preventDefault",
+    "syntax": "event.preventDefault()",
+    "desc": "Cancels the browser default for a cancelable event. A non-cancelable event ignores the call, and a passive listener cannot use it.",
+    "example": "const form = document.querySelector(\"#booking-form\");\n\nform.addEventListener(\"submit\", (event) => {\n  event.preventDefault(); // no page reload, no navigation\n  const data = Object.fromEntries(new FormData(form));\n  console.log(data);\n});\n\nconst link = document.querySelector(\"a.confirm\");\n\nlink.addEventListener(\"click\", (event) => {\n  if (!confirm(\"Leave the booking?\")) event.preventDefault();\n});",
+    "body": "`preventDefault` must run during dispatch. Calling it after the handler returns, for example inside a timeout, changes nothing.\n\nCheck `event.defaultPrevented` when another part of the page may already have cancelled the action."
+  },
+  {
+    "id": "js-event-input-change",
+    "group": "Forms and keyboard",
+    "name": "input and change",
+    "syntax": "input.addEventListener(\"input\", fn)\nselect.addEventListener(\"change\", fn)",
+    "desc": "input fires on every value change, including paste and drop. change fires when the user commits: on blur for text, immediately for checkbox, radio, select, and date fields.",
+    "example": "const search = document.querySelector(\"#search\");\nlet timer;\n\nsearch.addEventListener(\"input\", (event) => {\n  if (event.isComposing) return; // IME is mid-word\n  clearTimeout(timer);\n  timer = setTimeout(() => {\n    console.log(\"filter for\", search.value.trim());\n  }, 150);\n});\n\ndocument.querySelector(\"#city\").addEventListener(\"change\", (event) => {\n  console.log(\"city committed\", event.target.value);\n});",
+    "body": "Use `input` for live feedback and `change` for an action that should run once per decision.\n\nA debounce timer stops an expensive filter from running on every keystroke. The composition guard keeps a half-typed Japanese or Chinese word from being searched."
+  },
+  {
+    "id": "js-event-submit",
+    "group": "Forms and keyboard",
+    "name": "submit",
+    "syntax": "form.addEventListener(\"submit\", fn)",
+    "desc": "Fires on the form for a submit button click and for Enter in a single-line field. An invalid form blocks the event unless the form has novalidate.",
+    "example": "const form = document.querySelector(\"#booking-form\");\n\nform.addEventListener(\"submit\", (event) => {\n  event.preventDefault();\n  const data = new FormData(form, event.submitter);\n\n  console.log(\"submitted by\", event.submitter ? event.submitter.name : \"Enter\");\n  console.log(data.get(\"customer_email\"));\n});\n\n// requestSubmit runs validation and fires submit. submit() skips both.\n// form.requestSubmit();",
+    "body": "A button inside a form defaults to `type=\"submit\"`. A button that must only run script needs `type=\"button\"`.\n\nPressing Enter in a `textarea` inserts a newline and does not submit, so a chat-style editor can live inside a form safely."
+  },
+  {
+    "id": "js-event-keydown",
+    "group": "Forms and keyboard",
+    "name": "keydown and event.key",
+    "syntax": "event.key\nevent.code",
+    "desc": "keydown fires when a key goes down and repeats while it is held. key is the character or name, code is the physical key, and the modifier booleans cover Ctrl, Alt, Shift, and Meta.",
+    "example": "document.addEventListener(\"keydown\", (event) => {\n  const typing = event.target.closest(\n    \"input, textarea, select, [contenteditable=true]\"\n  );\n  if (typing) return; // do not steal keys from a field\n\n  if (event.key === \"Escape\") closeDialog();\n\n  const save = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === \"s\";\n  if (save) {\n    event.preventDefault();\n    saveDraft();\n  }\n});\n\nfunction closeDialog() {}\nfunction saveDraft() {}",
+    "body": "`event.key` values include `\"Enter\"`, `\"Escape\"`, `\"ArrowLeft\"`, `\" \"` for space, and `\"a\"` or `\"A\"` depending on Shift. `event.code` values include `\"KeyA\"`, `\"Space\"`, and `\"Digit1\"`.\n\n`event.repeat` is true for the repeated events while a key is held, which is useful for scrolling a list and wrong for toggling a dialog.\n\n`keypress` is deprecated. `keyCode` is deprecated and layout dependent."
+  }
+]

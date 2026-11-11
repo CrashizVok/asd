@@ -1,0 +1,226 @@
+[
+  {
+    "id": "css-layout-flex-display",
+    "group": "Flexbox",
+    "name": "display: flex",
+    "syntax": ".container { display: flex; }",
+    "desc": "Turns an element into a flex container. Its direct children become flex items on one axis.",
+    "example": ".toolbar {\n  display: flex;      /* children flow left to right */\n  align-items: center; /* one centre line for all of them */\n  gap: 16px;\n}\n\n.toolbar > * {\n  /* every direct child is a flex item now */\n}",
+    "body": "Only direct children become items. A grandchild keeps its own display type, so a nav inside a flex header needs `display: flex` of its own before its links behave as items.\n\nUse `inline-flex` when the container should shrink to its content and sit inside a line of text."
+  },
+  {
+    "id": "css-layout-flex-direction-axis",
+    "group": "Flexbox",
+    "name": "flex-direction",
+    "syntax": "flex-direction: row | row-reverse | column | column-reverse",
+    "desc": "Sets the main axis of a flex container, which decides what justify-content and align-items act on.",
+    "example": ".page {\n  display: flex;\n  flex-direction: column; /* main axis is now vertical */\n  min-height: 100vh;      /* needed before vertical distribution works */\n}\n\n.page__main {\n  flex: 1; /* takes the free height, pushing the footer down */\n}"
+  },
+  {
+    "id": "css-layout-flex-wrap-lines",
+    "group": "Flexbox",
+    "name": "flex-wrap",
+    "syntax": "flex-wrap: nowrap | wrap | wrap-reverse",
+    "desc": "Allows items to move to a new line when the main axis is full. The default nowrap shrinks items instead.",
+    "example": ".chips {\n  display: flex;\n  flex-wrap: wrap;   /* items drop to a second line instead of shrinking */\n  gap: 8px;\n}\n\n.chip {\n  flex: 0 0 auto;    /* a chip keeps its label width */\n  padding: 4px 10px;\n}",
+    "body": "Wrapping creates lines. Each line is sized and aligned on its own, which is why `justify-content: space-between` leaves a lone item on the last line at the start. `align-content` only has an effect once there is more than one line."
+  },
+  {
+    "id": "css-layout-flex-justify-main",
+    "group": "Flexbox",
+    "name": "justify-content",
+    "syntax": "justify-content: flex-start | flex-end | center | space-between | space-around | space-evenly",
+    "desc": "Distributes free space along the main axis. It does nothing when the items already fill that axis.",
+    "example": ".row {\n  display: flex;\n  justify-content: space-between; /* first at start, last at end */\n  align-items: center;\n}\n\n/* One item to the far end, without justify-content: */\n.row__action {\n  margin-left: auto;\n}",
+    "body": "The values are easy to mix up:\n\n- `space-between` puts no space at the edges.\n- `space-around` gives each item half a gap at the edges.\n- `space-evenly` gives one equal gap everywhere, edges included.\n\nWith `flex-direction: column` this property controls vertical placement, and it needs a height or `min-height` on the container to have space to distribute."
+  },
+  {
+    "id": "css-layout-flex-align-cross",
+    "group": "Flexbox",
+    "name": "align-items",
+    "syntax": "align-items: stretch | flex-start | flex-end | center | baseline",
+    "desc": "Aligns items on the cross axis inside their line. The default stretch makes items as tall as the line.",
+    "example": ".media {\n  display: flex;\n  align-items: flex-start; /* stop the image from stretching to text height */\n  gap: 12px;\n}\n\n.media__img {\n  flex: none;   /* the picture keeps its size */\n  width: 64px;\n  height: 64px;\n  object-fit: cover;\n}"
+  },
+  {
+    "id": "css-layout-flex-align-content-lines",
+    "group": "Flexbox",
+    "name": "align-content",
+    "syntax": "align-content: stretch | flex-start | center | space-between | space-around | space-evenly",
+    "desc": "Distributes space between wrapped lines on the cross axis. It is ignored when the container has a single line.",
+    "example": ".tags {\n  display: flex;\n  flex-wrap: wrap;      /* required, otherwise align-content does nothing */\n  align-content: center; /* centres the block of lines vertically */\n  min-height: 200px;\n  gap: 8px;\n}"
+  },
+  {
+    "id": "css-layout-gap-row-column",
+    "group": "Shared",
+    "name": "gap",
+    "syntax": "gap: 16px;  gap: 12px 24px;",
+    "desc": "Sets the space between flex or grid items. Two values mean row gap then column gap.",
+    "example": ".grid {\n  display: grid;\n  grid-template-columns: repeat(3, 1fr);\n  gap: 12px 24px; /* 12px between rows, 24px between columns */\n}\n\n.flex-row {\n  display: flex;\n  gap: 16px; /* replaces margins between items */\n}"
+  },
+  {
+    "id": "css-layout-flex-grow-item",
+    "group": "Flex items",
+    "name": "flex-grow",
+    "syntax": "flex-grow: 0;",
+    "desc": "A share of the container's free space, distributed in proportion to the value. Default 0 means no growth.",
+    "example": ".split {\n  display: flex;\n  gap: 16px;\n}\n\n.split__aside { flex-grow: 1; } /* one third of the extra width */\n.split__main  { flex-grow: 2; } /* two thirds */"
+  },
+  {
+    "id": "css-layout-flex-shrink-item",
+    "group": "Flex items",
+    "name": "flex-shrink",
+    "syntax": "flex-shrink: 1;",
+    "desc": "How much an item gives up when items overflow. Default 1 shrinks, 0 locks the size.",
+    "example": ".field-row {\n  display: flex;\n  gap: 8px;\n}\n\n.field-row__input {\n  flex: 1 1 auto;\n  min-width: 0;   /* allows shrinking below the longest word */\n}\n\n.field-row__button {\n  flex-shrink: 0; /* the button keeps its padding and label */\n}"
+  },
+  {
+    "id": "css-layout-flex-basis-item",
+    "group": "Flex items",
+    "name": "flex-basis",
+    "syntax": "flex-basis: auto | 200px | 0 | 30%;",
+    "desc": "The starting main size of an item before grow and shrink run. It wins over width on the main axis.",
+    "example": ".card {\n  flex-basis: 260px; /* start at 260px */\n  flex-grow: 1;      /* then take a share of what is left */\n  flex-shrink: 1;    /* then give way when the row overflows */\n}\n\n/* auto falls back to width, then to content size */\n.card--content-sized {\n  flex-basis: auto;\n}"
+  },
+  {
+    "id": "css-layout-flex-shorthand-values",
+    "group": "Flex items",
+    "name": "flex shorthand",
+    "syntax": "flex: 1;  flex: auto;  flex: none;  flex: 2 1 200px;",
+    "desc": "Sets grow, shrink and basis in one line. The one value form is the most common and the most misunderstood.",
+    "example": ".a { flex: 1; }      /* 1 1 0%   -> equal columns whatever the content */\n.b { flex: auto; }   /* 1 1 auto -> content shaped columns */\n.c { flex: none; }   /* 0 0 auto -> fixed by content */\n.d { flex: 2 1 200px; } /* starts at 200px, takes double share */",
+    "body": "`flex: 1` sets the basis to zero, so three items split the container into equal thirds even when one label is much longer. `flex: auto` keeps the content width as the starting point, so the longer label keeps a wider column.\n\nWhen a column looks wider than its siblings, check whether the shorthand was written as `flex: auto` somewhere."
+  },
+  {
+    "id": "css-layout-flex-order",
+    "group": "Flex items",
+    "name": "order",
+    "syntax": "order: 0;",
+    "desc": "Changes paint order among flex or grid items. Lower numbers come first, ties keep source order.",
+    "example": ".row {\n  display: flex;\n}\n\n.row__badge {\n  order: -1; /* painted first, still last in the DOM */\n}\n\n.row__hint {\n  order: 1; /* painted last */\n}",
+    "body": "Order changes the visual sequence only. Tab order and screen reader order stay in DOM order, so moving a link or a button with `order` produces a mismatch for keyboard users. Keep it for decoration, or reorder the markup instead."
+  },
+  {
+    "id": "css-layout-flex-align-self",
+    "group": "Flex items",
+    "name": "align-self",
+    "syntax": "align-self: auto | stretch | flex-start | flex-end | center | baseline;",
+    "desc": "Overrides the container's align-items for a single item.",
+    "example": ".cards {\n  display: flex;\n  align-items: stretch; /* cards share the tallest height */\n}\n\n.cards__note {\n  align-self: flex-start; /* this one stays at its own height */\n  background: #fffbe6;\n}"
+  },
+  {
+    "id": "css-layout-flex-auto-margin",
+    "group": "Flex items",
+    "name": "auto margin in flex",
+    "syntax": "margin-left: auto;",
+    "desc": "An auto margin absorbs the free space on that side, pushing an item to the far end without a spacer element.",
+    "example": ".navbar {\n  display: flex;\n  align-items: center;\n  gap: 24px;\n}\n\n.navbar__signin {\n  margin-left: auto; /* everything after this sits at the far end */\n}"
+  },
+  {
+    "id": "css-layout-grid-display",
+    "group": "Grid",
+    "name": "display: grid",
+    "syntax": ".container { display: grid; }",
+    "desc": "Turns an element into a grid container. Direct children become grid items placed in cells.",
+    "example": ".layout {\n  display: grid; /* one column by default, items stack */\n  gap: 16px;\n}\n\n.layout > * {\n  /* each direct child occupies one cell in source order */\n}"
+  },
+  {
+    "id": "css-layout-grid-template-columns",
+    "group": "Grid",
+    "name": "grid-template-columns",
+    "syntax": "grid-template-columns: 220px 1fr;",
+    "desc": "Defines the column tracks: fixed lengths, fractions of free space, or a repeat pattern.",
+    "example": ".layout {\n  display: grid;\n  grid-template-columns: 240px minmax(0, 1fr); /* sidebar plus fluid main */\n  gap: 24px;\n}\n\n/* fr shares what is left after fixed tracks and gaps */\n.halves {\n  display: grid;\n  grid-template-columns: 1fr 2fr; /* one third, two thirds */\n}"
+  },
+  {
+    "id": "css-layout-grid-repeat-fr",
+    "group": "Grid",
+    "name": "repeat()",
+    "syntax": "repeat(3, 1fr);",
+    "desc": "Repeats a track definition a fixed number of times, or as many times as fit when combined with auto-fill or auto-fit.",
+    "example": ".equal {\n  display: grid;\n  grid-template-columns: repeat(3, 1fr); /* three equal columns */\n  gap: 16px;\n}\n\n.mixed {\n  display: grid;\n  grid-template-columns: 80px repeat(2, 1fr) 120px;\n  gap: 8px;\n}",
+    "body": "`repeat()` takes either a count or an auto keyword, never both: `repeat(3, 1fr)` and `repeat(auto-fit, 1fr)` are legal, `repeat(3, auto-fill)` is not. A `1fr` track is really `minmax(auto, 1fr)`, so long unbreakable content can widen it."
+  },
+  {
+    "id": "css-layout-grid-minmax",
+    "group": "Grid",
+    "name": "minmax()",
+    "syntax": "minmax(240px, 1fr);",
+    "desc": "Gives a track a minimum and a maximum size. The common fix for both fixed floors and content overflow.",
+    "example": ".cards {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));\n  gap: 24px;\n}\n\n/* 0 as the minimum lets the track shrink below its content */\n.two {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);\n}"
+  },
+  {
+    "id": "css-layout-grid-autofill-autofit",
+    "group": "Grid",
+    "name": "auto-fill and auto-fit",
+    "syntax": "repeat(auto-fit, minmax(240px, 1fr));",
+    "desc": "auto-fill keeps empty tracks, auto-fit collapses them so the remaining items stretch to fill the row.",
+    "example": "/* stretches: one item fills the whole row */\n.stretch {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));\n  gap: 16px;\n}\n\n/* keeps card sized slots, empty space stays at the right */\n.fixed-slots {\n  display: grid;\n  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));\n  gap: 16px;\n}"
+  },
+  {
+    "id": "css-layout-grid-template-rows",
+    "group": "Grid",
+    "name": "grid-template-rows",
+    "syntax": "grid-template-rows: auto 1fr auto;",
+    "desc": "Defines the explicit row tracks. Sizes rows, not items, and is often left to content.",
+    "example": ".page {\n  display: grid;\n  grid-template-rows: auto 1fr auto; /* header, scroll area, footer */\n  min-height: 100vh;\n}\n\n.page__main {\n  overflow: auto; /* the 1fr row scrolls instead of stretching the page */\n}"
+  },
+  {
+    "id": "css-layout-grid-auto-rows",
+    "group": "Grid",
+    "name": "grid-auto-rows",
+    "syntax": "grid-auto-rows: 200px;  grid-auto-rows: minmax(200px, auto);",
+    "desc": "Sizes rows the browser creates for items that do not fit the declared grid. Default auto means each row hugs its content.",
+    "example": ".gallery {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));\n  grid-auto-rows: minmax(220px, auto); /* equal tiles with a height floor */\n  gap: 16px;\n}"
+  },
+  {
+    "id": "css-layout-grid-placement-lines",
+    "group": "Grid items",
+    "name": "grid-column and grid-row",
+    "syntax": "grid-column: 1 / -1;  grid-row: span 2;",
+    "desc": "Places an item by line number or by a span. Negative lines count from the end of the grid.",
+    "example": ".grid {\n  display: grid;\n  grid-template-columns: repeat(4, 1fr);\n}\n\n.grid__banner {\n  grid-column: 1 / -1; /* full width whatever the column count */\n}\n\n.grid__wide {\n  grid-column: span 2; /* two cells from wherever it lands */\n  grid-row: 2;         /* second row, one cell tall */\n}",
+    "body": "The `/` form is start then end. In a four column grid the lines are 1 to 5, so `grid-column: 2 / 4` covers two columns. `-1` is the last line, which makes `1 / -1` the full row and saves you from updating numbers after a track change."
+  },
+  {
+    "id": "css-layout-grid-template-areas",
+    "group": "Grid",
+    "name": "grid-template-areas",
+    "syntax": "grid-template-areas: \"header header\" \"sidebar main\";",
+    "desc": "Describes the layout as a visual map of area names, one quoted string per row. Items attach with grid-area.",
+    "example": ".layout {\n  display: grid;\n  grid-template-columns: 220px 1fr;\n  grid-template-areas:\n    \"header  header\"\n    \"sidebar main\";\n  gap: 16px;\n}\n\n.layout__header  { grid-area: header; }\n.layout__sidebar { grid-area: sidebar; }\n.layout__main    { grid-area: main; }",
+    "body": "Every string must describe the same number of columns. A repeated name makes an area span, and a dot marks an empty cell. Each area must form a rectangle; an L shape makes the whole declaration invalid, so the layout silently falls back to auto placement."
+  },
+  {
+    "id": "css-layout-grid-area-name",
+    "group": "Grid items",
+    "name": "grid-area",
+    "syntax": "grid-area: header;  grid-area: 2 / 1 / 3 / 3;",
+    "desc": "Attaches an item to a named area, or places it with four line values in row start, column start, row end, column end order.",
+    "example": ".panel {\n  grid-area: 2 / 1 / 3 / 3; /* row 2 to 3, columns 1 to 3 */\n}\n\n.card--featured {\n  grid-area: feature; /* matches grid-template-areas */\n}"
+  },
+  {
+    "id": "css-layout-grid-place-items",
+    "group": "Grid",
+    "name": "place-items",
+    "syntax": "place-items: center;",
+    "desc": "Shorthand for align-items and justify-items, which align items inside their cells. The shortest way to centre one child.",
+    "example": ".hero {\n  display: grid;\n  place-items: center; /* one child, centred on both axes */\n  min-height: 60vh;\n}\n\n/* track alignment is a different pair:\n   justify-content and align-content move the tracks themselves */"
+  },
+  {
+    "id": "css-layout-grid-dense-flow",
+    "group": "Grid",
+    "name": "grid-auto-flow",
+    "syntax": "grid-auto-flow: row dense;",
+    "desc": "Controls how auto placed items fill the grid. dense backfills holes left by spanning items.",
+    "example": ".news {\n  display: grid;\n  grid-template-columns: repeat(3, 1fr);\n  grid-auto-rows: 120px;\n  grid-auto-flow: row dense;\n  gap: 16px;\n}\n\n.news__feature {\n  grid-column: span 2;\n  grid-row: span 2; /* leaves a hole that dense fills with later items */\n}"
+  },
+  {
+    "id": "css-layout-grid-card-gallery",
+    "group": "Layout patterns",
+    "name": "responsive card gallery",
+    "syntax": "grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));",
+    "desc": "A card row that reflows by available width, with no media query. The track count changes as the container changes.",
+    "example": ".gallery {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));\n  grid-auto-rows: minmax(260px, auto);\n  gap: 24px;\n  padding: 24px;\n}\n\n.gallery .card {\n  display: grid;\n  grid-template-rows: 160px 1fr; /* image band, then text */\n  overflow: hidden;\n  border-radius: 12px;\n  background: #fff;\n}\n\n.gallery .card img {\n  width: 100%;\n  height: 100%;\n  object-fit: cover; /* crop, do not distort */\n  display: block;\n}"
+  }
+]

@@ -1,0 +1,183 @@
+[
+  {
+    "id": "js-callback-async",
+    "group": "Callbacks",
+    "name": "error first callback",
+    "syntax": "fn(args, (error, result) => {})",
+    "desc": "The older async style: the last argument is a function, called once with an error or a result. Only one of the two is non null.",
+    "example": "function loadHotels(callback) {\n  setTimeout(() => {\n    callback(null, [{ hotel_id: 1, city: \"Zurich\" }]);\n  }, 200);\n}\n\nloadHotels((error, hotels) => {\n  if (error) return console.error(error.message);\n  console.log(hotels.length);\n});",
+    "body": "The `return` in the error branch is load bearing. Without it the success branch runs with a null result. Nesting several of these calls is what promises were invented to flatten."
+  },
+  {
+    "id": "js-promise-constructor",
+    "group": "Promises",
+    "name": "new Promise()",
+    "syntax": "new Promise((resolve, reject) => { ... })",
+    "desc": "Creates a promise. The executor runs immediately and synchronously. A throw inside it rejects the promise.",
+    "example": "function wait(ms) {\n  return new Promise((resolve) => {\n    setTimeout(resolve, ms);\n  });\n}\n\nwait(300).then(() => console.log(\"done\"));",
+    "body": "A promise settles once. Calling `resolve` after `reject` or the reverse does nothing. Do not wrap a function that already returns a promise; return it unchanged."
+  },
+  {
+    "id": "js-promise-resolve",
+    "group": "Promises",
+    "name": "Promise.resolve()",
+    "syntax": "Promise.resolve(value)",
+    "desc": "Returns an already fulfilled promise. Useful as a default value or to start a chain with a known value.",
+    "example": "const start = Promise.resolve({ hotel_id: 1 });\n\nstart\n  .then((hotel) => hotel.hotel_id)\n  .then((id) => console.log(id)); // 1"
+  },
+  {
+    "id": "js-promise-then",
+    "group": "Promises",
+    "name": ".then()",
+    "syntax": "promise.then(onFulfilled, onRejected)",
+    "desc": "Registers handlers for success and failure and returns a new promise. The handler's return value becomes the next promise's value.",
+    "example": "fetch(\"/api/hotels\")\n  .then((response) => response.json())\n  .then((hotels) => console.log(hotels.length));",
+    "body": "Returning a promise from `then` makes the chain wait for it. Forgetting the `return` in a handler written with braces passes `undefined` down the chain."
+  },
+  {
+    "id": "js-promise-catch",
+    "group": "Promises",
+    "name": ".catch()",
+    "syntax": "promise.catch(onRejected)",
+    "desc": "Handles a rejection from this promise or from any earlier link in the chain. It returns a new promise, so a handler that does not rethrow turns the chain back to fulfilled.",
+    "example": "fetch(\"/api/hotels\")\n  .then((response) => {\n    if (!response.ok) throw new Error(`HTTP ${response.status}`);\n    return response.json();\n  })\n  .catch((error) => console.error(error.message));"
+  },
+  {
+    "id": "js-promise-finally",
+    "group": "Promises",
+    "name": ".finally()",
+    "syntax": "promise.finally(onFinally)",
+    "desc": "Runs on both outcomes and receives no argument. Use it for cleanup such as hiding a spinner. A value returned from it is ignored.",
+    "example": "showSpinner();\nloadBookings()\n  .then((rows) => render(rows))\n  .catch((error) => renderError(error.message))\n  .finally(() => hideSpinner());"
+  },
+  {
+    "id": "js-promise-chain",
+    "group": "Promises",
+    "name": "chaining",
+    "syntax": "p.then(f).then(g).catch(h)",
+    "desc": "Runs steps in order without nesting. An error skips every then until the next catch.",
+    "example": "loadHotel(7)\n  .then((hotel) => loadOwner(hotel.owner_email))\n  .then((owner) => console.log(owner.first_name))\n  .catch((error) => console.error(error.message));"
+  },
+  {
+    "id": "js-promise-all-combinator",
+    "group": "Combinators",
+    "name": "Promise.all()",
+    "syntax": "await Promise.all([p1, p2])",
+    "desc": "Waits for all promises and returns their values in input order. Rejects on the first rejection, and the other promises keep running.",
+    "example": "const [hotels, bookings] = await Promise.all([\n  fetch(\"/api/hotels\").then((r) => r.json()),\n  fetch(\"/api/bookings\").then((r) => r.json())\n]);\nconsole.log(hotels.length, bookings.length);",
+    "body": "Order comes from the input array, not from completion. `all` is the right tool when every result is required and one failure should stop the page."
+  },
+  {
+    "id": "js-promise-allsettled",
+    "group": "Combinators",
+    "name": "Promise.allSettled()",
+    "syntax": "await Promise.allSettled([p1, p2])",
+    "desc": "Waits for all promises and never rejects. Each result is { status: \"fulfilled\", value } or { status: \"rejected\", reason }.",
+    "example": "const results = await Promise.allSettled([loadHotels(), loadBookings()]);\n\nconst hotels = results[0].status === \"fulfilled\" ? results[0].value : [];\nconsole.log(hotels, results[1].status);"
+  },
+  {
+    "id": "js-promise-race",
+    "group": "Combinators",
+    "name": "Promise.race()",
+    "syntax": "await Promise.race([p1, p2])",
+    "desc": "Settles with the first promise that settles, success or failure. The slower promises keep running and their results are ignored.",
+    "example": "const winner = await Promise.race([\n  loadHotels(),\n  wait(2000).then(() => {\n    throw new Error(\"timeout\");\n  })\n]);\nconsole.log(winner);"
+  },
+  {
+    "id": "js-async-function",
+    "group": "async/await",
+    "name": "async function",
+    "syntax": "async function name() { return value; }",
+    "desc": "Marks a function that always returns a promise and may use await inside. A returned value fulfils the promise, a thrown error rejects it.",
+    "example": "async function countHotels() {\n  const hotels = await loadHotels();\n  return hotels.length; // wrapped in a promise\n}\n\ncountHotels().then((n) => console.log(n));"
+  },
+  {
+    "id": "js-await-try-catch",
+    "group": "Errors",
+    "name": "await with try/catch",
+    "syntax": "try { const value = await p; } catch (error) { ... }",
+    "desc": "Turns a rejected promise into a caught exception. finally runs on both paths and is the place to reset loading state.",
+    "example": "async function loadPage() {\n  try {\n    const hotels = await loadHotels();\n    render(hotels);\n  } catch (error) {\n    renderError(error.message);\n  } finally {\n    hideSpinner();\n  }\n}"
+  },
+  {
+    "id": "js-async-parallel",
+    "group": "async/await",
+    "name": "parallel await",
+    "syntax": "const [a, b] = await Promise.all([p1, p2])",
+    "desc": "Two independent awaits in a row cost the sum of both waits. Start them together and await once to pay only the slower one.",
+    "example": "// slow\nconst hotels = await loadHotels();\nconst bookings = await loadBookings();\n\n// fast\nconst [h, b] = await Promise.all([loadHotels(), loadBookings()]);"
+  },
+  {
+    "id": "js-fetch-get",
+    "group": "fetch",
+    "name": "fetch GET",
+    "syntax": "await fetch(url)",
+    "desc": "Sends a GET request and resolves with a Response. GET is the default method, and the body arrives in a second await.",
+    "example": "async function loadHotels() {\n  const response = await fetch(\"/api/hotels\");\n  if (!response.ok) throw new Error(`HTTP ${response.status}`);\n  return response.json();\n}"
+  },
+  {
+    "id": "js-fetch-post",
+    "group": "fetch",
+    "name": "fetch POST JSON",
+    "syntax": "fetch(url, { method: \"POST\", headers, body: JSON.stringify(data) })",
+    "desc": "Creates a resource. Needs the method, a JSON content type, and a string body. The server parses the body only when the type is correct.",
+    "example": "const response = await fetch(\"/api/bookings\", {\n  method: \"POST\",\n  headers: { \"Content-Type\": \"application/json\" },\n  body: JSON.stringify({ first_name: \"Anna\", hotel_id: 3, adults: 2 })\n});\nif (!response.ok) throw new Error(`HTTP ${response.status}`);\nconst saved = await response.json();"
+  },
+  {
+    "id": "js-fetch-put-delete",
+    "group": "fetch",
+    "name": "fetch PUT and DELETE",
+    "syntax": "fetch(url, { method: \"PUT\" | \"DELETE\" })",
+    "desc": "PUT replaces the whole resource. DELETE removes it and often answers 204 with no body, so do not parse it.",
+    "example": "await fetch(`/api/hotels/${id}`, {\n  method: \"PUT\",\n  headers: { \"Content-Type\": \"application/json\" },\n  body: JSON.stringify(hotel)\n});\n\nconst removed = await fetch(`/api/hotels/${id}`, { method: \"DELETE\" });\nif (!removed.ok) throw new Error(`HTTP ${removed.status}`);"
+  },
+  {
+    "id": "js-fetch-headers",
+    "group": "fetch",
+    "name": "headers",
+    "syntax": "fetch(url, { headers: { \"Content-Type\": \"application/json\" } })",
+    "desc": "Sets request metadata. JSON bodies need Content-Type. Do not set it for FormData, because the browser adds the multipart boundary.",
+    "example": "const response = await fetch(\"/api/hotels\", {\n  headers: {\n    \"Content-Type\": \"application/json\",\n    Accept: \"application/json\",\n    Authorization: `Bearer ${token}`\n  }\n});\n\nconsole.log(response.headers.get(\"content-type\"));"
+  },
+  {
+    "id": "js-response-ok",
+    "group": "fetch",
+    "name": "response.ok",
+    "syntax": "if (!response.ok) throw new Error(response.status)",
+    "desc": "True for status 200 to 299. fetch does not reject on 404 or 500, so this check is the only thing between an error page and your render.",
+    "example": "const response = await fetch(\"/api/hotels/99\");\n\nif (!response.ok) {\n  throw new Error(`hotel not found: HTTP ${response.status}`);\n}\n\nconst hotel = await response.json();"
+  },
+  {
+    "id": "js-response-json",
+    "group": "fetch",
+    "name": "response.json()",
+    "syntax": "const data = await response.json()",
+    "desc": "Reads and parses the body. The body can be read once, and a malformed body rejects with a SyntaxError.",
+    "example": "const response = await fetch(\"/api/hotels\");\nif (!response.ok) throw new Error(`HTTP ${response.status}`);\n\nconst hotels = await response.json();\nconsole.log(hotels[0].city);"
+  },
+  {
+    "id": "js-abort-controller",
+    "group": "fetch",
+    "name": "AbortController",
+    "syntax": "fetch(url, { signal: controller.signal })",
+    "desc": "Cancels an in flight request. The promise rejects with an error whose name is AbortError, which is not a failure to show the user.",
+    "example": "const controller = new AbortController();\nconst timer = setTimeout(() => controller.abort(), 5000);\n\ntry {\n  const response = await fetch(\"/api/hotels\", { signal: controller.signal });\n  render(await response.json());\n} catch (error) {\n  if (error.name !== \"AbortError\") renderError(error.message);\n} finally {\n  clearTimeout(timer);\n}",
+    "body": "Abort is also the cure for a stale search response. Keep one controller per view, call `abort()` when a new request starts, and compare a request token before rendering."
+  },
+  {
+    "id": "js-fetch-error-mapping",
+    "group": "Errors",
+    "name": "fetch error handling",
+    "syntax": "try { await fetch(url) } catch (error) { ... }",
+    "desc": "Separates three failures: a network rejection, an HTTP status with ok false, and a body parse error. Only the first reaches catch on its own.",
+    "example": "async function getJson(url) {\n  let response;\n  try {\n    response = await fetch(url);\n  } catch (error) {\n    throw new Error(`network: ${error.message}`);\n  }\n  if (!response.ok) throw new Error(`HTTP ${response.status}`);\n  return response.json();\n}"
+  },
+  {
+    "id": "js-loading-state",
+    "group": "UI state",
+    "name": "loading and error state",
+    "syntax": "state = { status, data, message }",
+    "desc": "One object drives the screen: idle, loading, success, or error. Two booleans allow loading and error at the same time.",
+    "example": "const state = { status: \"idle\", data: [], message: \"\" };\n\nasync function load() {\n  state.status = \"loading\";\n  render();\n  try {\n    state.data = await loadHotels();\n    state.status = \"success\";\n  } catch (error) {\n    state.message = error.message;\n    state.status = \"error\";\n  }\n  render();\n}"
+  }
+]

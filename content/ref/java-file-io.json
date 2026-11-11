@@ -1,0 +1,215 @@
+[
+  {
+    "id": "java-path-of",
+    "group": "Paths",
+    "name": "Path.of()",
+    "syntax": "Path.of(\"data\", \"bookings.csv\")",
+    "desc": "Builds a file path from parts without hard coding the separator. A Path is an address only; it does not open or create anything.",
+    "example": "import java.nio.file.Path;\n\nPath file = Path.of(\"data\", \"bookings.csv\");\nSystem.out.println(file);                       // data/bookings.csv on Linux\nSystem.out.println(file.toAbsolutePath());      // resolved against the working directory\n\nPath backup = file.resolveSibling(\"backup.csv\");\nSystem.out.println(backup);                     // data/backup.csv",
+    "body": "`Paths.get` does the same job on Java 7 to 10. Use `Path.of` on Java 11 and later.\n\nA relative path is resolved against the directory where `java` was started, not the folder of the source file. When a read fails unexpectedly, print `toAbsolutePath()` before looking for a bug in the code."
+  },
+  {
+    "id": "java-files-exists",
+    "group": "Paths",
+    "name": "Files.exists()",
+    "syntax": "Files.exists(path)",
+    "desc": "Reports whether a path exists. Use it before reading an optional input, not as proof that a later write will succeed.",
+    "example": "import java.nio.file.Files;\nimport java.nio.file.Path;\n\nPath input = Path.of(\"bookings.csv\");\n\nif (!Files.exists(input)) {\n    System.out.println(\"Missing input: \" + input.toAbsolutePath());\n    return;\n}\n\nSystem.out.println(\"size: \" + Files.size(input));",
+    "body": "`Files.notExists` is not always the negation: when access is denied, both can return false. For a required input, `Files.exists` followed by a read is the useful pair."
+  },
+  {
+    "id": "java-files-create-directories",
+    "group": "Paths",
+    "name": "Files.createDirectories()",
+    "syntax": "Files.createDirectories(out.getParent())",
+    "desc": "Creates a directory and every missing parent, and does nothing if the directory already exists. Call it before writing into a new folder.",
+    "example": "import java.nio.file.Files;\nimport java.nio.file.Path;\n\nPath out = Path.of(\"out\", \"reports\", \"report.txt\");\n\n// Without this line the write throws NoSuchFileException on out/reports.\nFiles.createDirectories(out.getParent());\nFiles.writeString(out, \"first line\\n\");",
+    "body": "`Files.createDirectory` fails when the parent is missing, so it is the wrong call for a nested output folder. `createDirectories` is also safe to call on every run."
+  },
+  {
+    "id": "java-files-read-all-lines",
+    "group": "Reading",
+    "name": "Files.readAllLines()",
+    "syntax": "Files.readAllLines(Path.of(\"bookings.csv\"), StandardCharsets.UTF_8)",
+    "desc": "Reads a whole text file into a List<String>, one element per line with the terminators removed. Simple and fast for exam sized files.",
+    "example": "import java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.List;\n\nList<String> lines = Files.readAllLines(Path.of(\"bookings.csv\"), StandardCharsets.UTF_8);\n\nfor (int i = 0; i < lines.size(); i++) {\n    System.out.println((i + 1) + \": \" + lines.get(i));\n}",
+    "body": "A file with no final newline still yields its last line, and a file ending in a newline does not add an empty element. On a very large file this loads everything into memory; use a `BufferedReader` or `Files.lines` instead."
+  },
+  {
+    "id": "java-files-read-string",
+    "group": "Reading",
+    "name": "Files.readString()",
+    "syntax": "Files.readString(Path.of(\"notes.txt\"), StandardCharsets.UTF_8)",
+    "desc": "Reads the whole file into one String, newlines kept. Available since Java 11.",
+    "example": "import java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\nString json = Files.readString(Path.of(\"hotel.json\"), StandardCharsets.UTF_8);\n\n// String.lines() splits on any line break, so this counts rows too.\nlong lines = json.lines().count();\nSystem.out.println(json.length() + \" chars, \" + lines + \" lines\");",
+    "body": "Good for a small template or a JSON document that goes to a parser in one piece. To count lines, `lines().count()` or `readAllLines().size()` says it more directly than scanning the string."
+  },
+  {
+    "id": "java-files-lines-stream",
+    "group": "Reading",
+    "name": "Files.lines()",
+    "syntax": "try (Stream<String> lines = Files.lines(path)) { ... }",
+    "desc": "Reads a file lazily as a Stream of lines. The stream holds an open file and must be closed.",
+    "example": "import java.io.IOException;\nimport java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.stream.Stream;\n\npublic class CountErrors {\n    public static void main(String[] args) throws IOException {\n        try (Stream<String> lines = Files.lines(Path.of(\"app.log\"), StandardCharsets.UTF_8)) {\n            long errors = lines.filter(line -> line.contains(\"ERROR\")).count();\n            System.out.println(\"errors: \" + errors);\n        }\n    }\n}"
+  },
+  {
+    "id": "java-files-new-buffered-reader",
+    "group": "Reading",
+    "name": "Files.newBufferedReader()",
+    "syntax": "Files.newBufferedReader(path, StandardCharsets.UTF_8)",
+    "desc": "Opens a BufferedReader with a chosen charset. The usual way to read line by line without depending on the platform default encoding.",
+    "example": "import java.io.BufferedReader;\nimport java.io.IOException;\nimport java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\npublic class CountRows {\n    public static void main(String[] args) throws IOException {\n        int rows = 0;\n        try (BufferedReader reader = Files.newBufferedReader(\n                Path.of(\"bookings.csv\"), StandardCharsets.UTF_8)) {\n            String line;\n            while ((line = reader.readLine()) != null) {\n                if (!line.isBlank()) rows++;\n            }\n        }\n        System.out.println(\"rows: \" + rows);\n    }\n}"
+  },
+  {
+    "id": "java-files-write-string",
+    "group": "Writing",
+    "name": "Files.writeString()",
+    "syntax": "Files.writeString(path, text, StandardCharsets.UTF_8)",
+    "desc": "Writes one String to a file. Replaces an existing file unless APPEND is passed. Available since Java 11.",
+    "example": "import java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\n\nPath out = Path.of(\"out\", \"summary.txt\");\nFiles.createDirectories(out.getParent());\n\nFiles.writeString(out, \"rows: 12\\n\", StandardCharsets.UTF_8);",
+    "body": "Default options are `CREATE`, `TRUNCATE_EXISTING`, `WRITE`. Add `StandardOpenOption.APPEND` to keep old content. A missing parent folder still throws `NoSuchFileException`, so create the folder first."
+  },
+  {
+    "id": "java-files-write-lines",
+    "group": "Writing",
+    "name": "Files.write() with a List",
+    "syntax": "Files.write(path, lines, StandardCharsets.UTF_8)",
+    "desc": "Writes an Iterable of lines and puts the platform line separator after each element. Replaces the file by default.",
+    "example": "import java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.ArrayList;\nimport java.util.List;\n\nList<String> report = new ArrayList<>();\nreport.add(\"city,bookings\");\nreport.add(\"Budapest,2\");\nreport.add(\"Szeged,2\");\n\nFiles.write(Path.of(\"out\", \"report.csv\"), report, StandardCharsets.UTF_8);\nSystem.out.println(Files.readAllLines(Path.of(\"out\", \"report.csv\")).size());",
+    "body": "The last element also gets a trailing separator, which is fine for CSV and text. Build the list first, then write once; rewriting the file per row is much slower."
+  },
+  {
+    "id": "java-files-append",
+    "group": "Writing",
+    "name": "Files.write() with APPEND",
+    "syntax": "Files.write(path, lines, charset, CREATE, APPEND)",
+    "desc": "Adds lines to the end of a file instead of replacing it. Pass CREATE as well so the first run can create the file.",
+    "example": "import java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.nio.file.StandardOpenOption;\nimport java.util.List;\n\nPath log = Path.of(\"out\", \"runs.log\");\nFiles.createDirectories(log.getParent());\n\nFiles.write(log, List.of(\"run 1 ok\"), StandardCharsets.UTF_8,\n        StandardOpenOption.CREATE, StandardOpenOption.APPEND);\n\nFiles.writeString(log, \"run 2 ok\\n\", StandardCharsets.UTF_8,\n        StandardOpenOption.CREATE, StandardOpenOption.APPEND);",
+    "body": "`APPEND` alone fails with `NoSuchFileException` when the file does not exist yet, and `Files.write` without any option truncates. The pair `CREATE, APPEND` is the one to memorise."
+  },
+  {
+    "id": "java-files-new-buffered-writer",
+    "group": "Writing",
+    "name": "Files.newBufferedWriter()",
+    "syntax": "Files.newBufferedWriter(path, charset, CREATE, TRUNCATE_EXISTING)",
+    "desc": "Opens a BufferedWriter with a chosen charset and file options. Use it when many small writes are generated in a loop.",
+    "example": "import java.io.BufferedWriter;\nimport java.io.IOException;\nimport java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.nio.file.StandardOpenOption;\n\npublic class WriteRows {\n    public static void main(String[] args) throws IOException {\n        Path out = Path.of(\"out\", \"rows.txt\");\n        Files.createDirectories(out.getParent());\n\n        try (BufferedWriter writer = Files.newBufferedWriter(out, StandardCharsets.UTF_8,\n                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {\n            for (int i = 1; i <= 3; i++) {\n                writer.write(\"row \" + i);\n                writer.newLine();   // platform line separator\n            }\n        }\n    }\n}"
+  },
+  {
+    "id": "java-scanner-file",
+    "group": "Reading",
+    "name": "Scanner on a file",
+    "syntax": "new Scanner(Path.of(\"scores.txt\"), StandardCharsets.UTF_8)",
+    "desc": "Reads whitespace separated tokens from a file and converts them with nextInt, nextDouble, or next. Close it when done.",
+    "example": "import java.io.IOException;\nimport java.nio.charset.StandardCharsets;\nimport java.nio.file.Path;\nimport java.util.Scanner;\n\npublic class ReadScores {\n    public static void main(String[] args) throws IOException {\n        try (Scanner scanner = new Scanner(Path.of(\"scores.txt\"), StandardCharsets.UTF_8)) {\n            double sum = 0;\n            int count = 0;\n            while (scanner.hasNextDouble()) {\n                sum += scanner.nextDouble();\n                count++;\n            }\n            System.out.println(count == 0 ? \"no data\" : \"avg=\" + (sum / count));\n        }\n    }\n}",
+    "body": "`hasNextDouble` stops at a word instead of throwing. The classic trap is mixing `nextInt` with `nextLine`: `nextInt` leaves the newline in the buffer, so the next `nextLine` returns an empty string. Read whole lines and split them when the file has records."
+  },
+  {
+    "id": "java-charset-utf8",
+    "group": "Charset",
+    "name": "StandardCharsets.UTF_8",
+    "syntax": "StandardCharsets.UTF_8",
+    "desc": "The charset to pass to every file call that accepts one. Without it, FileReader and FileWriter use the platform default, which can corrupt accented text.",
+    "example": "import java.nio.charset.StandardCharsets;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.List;\n\nPath file = Path.of(\"nevek.txt\");\nList<String> lines = List.of(\"Kovacs Anna\", \"Toth Cara\");\n\nFiles.write(file, lines, StandardCharsets.UTF_8);\nList<String> back = Files.readAllLines(file, StandardCharsets.UTF_8);\nSystem.out.println(back.get(0));   // Kovacs Anna, accents intact",
+    "body": "Read and write with the same charset. A mismatch does not throw; it silently produces question marks or broken characters. `Files.readAllLines(Path)`, `Files.readString(Path)`, and `Files.newBufferedReader(Path)` already use UTF-8, but the explicit overload documents the intent and survives a JDK change."
+  },
+  {
+    "id": "java-files-list-directory",
+    "group": "Paths",
+    "name": "Files.list()",
+    "syntax": "try (Stream<Path> files = Files.list(dir)) { ... }",
+    "desc": "Lists the entries of one directory as a Stream<Path>. The stream holds a directory handle and must be closed.",
+    "example": "import java.io.IOException;\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.stream.Stream;\n\npublic class ListCsv {\n    public static void main(String[] args) throws IOException {\n        try (Stream<Path> files = Files.list(Path.of(\"data\"))) {\n            files.filter(p -> p.toString().endsWith(\".csv\"))\n                 .sorted()\n                 .forEach(p -> System.out.println(p.getFileName()));\n        }\n    }\n}",
+    "body": "`Files.walk(dir)` goes into subdirectories and also returns a stream that must be closed. Do not use `File.list()` in new code; it returns null on failure instead of throwing a useful exception."
+  },
+  {
+    "id": "java-csv-split-keep-empty",
+    "group": "CSV",
+    "name": "split(\",\", -1)",
+    "syntax": "line.split(\",\", -1)",
+    "desc": "Splits a CSV line and keeps trailing empty fields. Without the -1 limit, empty fields at the end disappear and indexes shift.",
+    "example": "String line = \"101,Budapest,2,\";\n\nString[] bad = line.split(\",\");      // length 3, the last empty field is gone\nString[] good = line.split(\",\", -1); // length 4, good[3] is \"\"\n\nSystem.out.println(bad.length);\nSystem.out.println(good.length);\nSystem.out.println(\"last=[\" + good[3] + \"]\");\n\n// An empty field in the middle is kept either way.\nString middle = \"anna@example.com,Kovacs,Anna,,1998-05-12\";\nSystem.out.println(middle.split(\",\").length); // 5",
+    "body": "The first argument is a regex. Escape pipes as `\"\\\\|\"` and use `\"\\\\t\"` for tabs. The limit `-1` means keep all fields, including empty trailing ones; a positive limit stops after that many fields.\n\nOnly trailing empties vanish without the limit. An empty field between two values stays."
+  },
+  {
+    "id": "java-csv-header-index",
+    "group": "CSV",
+    "name": "CSV header to index map",
+    "syntax": "col.putIfAbsent(header[i].trim().toLowerCase(), i)",
+    "desc": "Reads the first line, trims and lowercases each name, and maps a column name to its index. Rows then survive a reordered file.",
+    "example": "import java.util.HashMap;\nimport java.util.Map;\n\nString headerLine = \"customer_email,first_name,last_name\";\nString[] header = headerLine.split(\",\", -1);\n\nMap<String, Integer> col = new HashMap<>();\nfor (int i = 0; i < header.length; i++) {\n    col.putIfAbsent(header[i].trim().toLowerCase(), i);\n}\n\nString[] row = \"anna@example.com,Kovacs,Anna\".split(\",\", -1);\nString email = row[col.get(\"customer_email\")].trim();\nString first = row[col.get(\"first_name\")].trim();\nSystem.out.println(first + \" <\" + email + \">\");",
+    "body": "Check for the columns you need before the loop. A missing key makes `col.get` return null, and unboxing that to an int throws a `NullPointerException` far from the real cause.\n\nIf the header starts with `\\uFEFF`, a byte order mark from a Windows editor, strip it before splitting."
+  },
+  {
+    "id": "java-csv-quote-field",
+    "group": "CSV",
+    "name": "CSV field quoting",
+    "syntax": "value.contains(\",\") ? \"\\\"\" + value.replace(\"\\\"\", \"\\\"\\\"\") + \"\\\"\" : value",
+    "desc": "Quotes a field only when it contains a comma, a quote, or a line break, and doubles the quotes inside. Required for a CSV that another program can read.",
+    "example": "static String csvField(String value) {\n    if (value == null) return \"\";\n    boolean needsQuotes = value.contains(\",\") || value.contains(\"\\\"\")\n            || value.contains(\"\\n\") || value.contains(\"\\r\");\n    return needsQuotes ? \"\\\"\" + value.replace(\"\\\"\", \"\\\"\\\"\") + \"\\\"\" : value;\n}\n\nSystem.out.println(csvField(\"Kovacs, Anna\"));   // \"Kovacs, Anna\"\nSystem.out.println(csvField(\"He said \\\"hi\\\"\")); // \"He said \"\"hi\"\"\"",
+    "body": "A row built with plain `join(\",\")` breaks on the first city name with a comma. The reader then sees one extra column and every value after it is wrong. Quote on write, and parse quotes on read."
+  },
+  {
+    "id": "java-csv-parse-quoted",
+    "group": "CSV",
+    "name": "CSV parser for quoted fields",
+    "syntax": "boolean quoted; char by char; \"\" -> one quote",
+    "desc": "A small state machine that splits a CSV line while respecting quotes. Handles commas and doubled quotes inside a quoted field.",
+    "example": "static List<String> parseCsvLine(String line) {\n    List<String> fields = new ArrayList<>();\n    StringBuilder field = new StringBuilder();\n    boolean quoted = false;\n\n    for (int i = 0; i < line.length(); i++) {\n        char c = line.charAt(i);\n        if (quoted) {\n            if (c == '\"') {\n                if (i + 1 < line.length() && line.charAt(i + 1) == '\"') {\n                    field.append('\"');\n                    i++;\n                } else {\n                    quoted = false;\n                }\n            } else {\n                field.append(c);\n            }\n        } else if (c == '\"') {\n            quoted = true;\n        } else if (c == ',') {\n            fields.add(field.toString());\n            field.setLength(0);\n        } else {\n            field.append(c);\n        }\n    }\n\n    fields.add(field.toString());\n    return fields;\n}",
+    "body": "The limit: a quote inside an unquoted value, such as `12\" screen`, is treated as an opening quote. Check that the quote starts the field when the data can contain that pattern."
+  },
+  {
+    "id": "java-json-write-manual",
+    "group": "JSON",
+    "name": "Build JSON with StringBuilder",
+    "syntax": "json.append(\"{\\\"city\\\": \").append(jsonString(city)).append(\"}\")",
+    "desc": "Builds a JSON document without a library. Numbers, booleans, and null go in raw; every string goes through an escaper.",
+    "example": "StringBuilder json = new StringBuilder();\njson.append(\"{\\n\");\njson.append(\"  \\\"city\\\": \").append(jsonString(\"Budapest\")).append(\",\\n\");\njson.append(\"  \\\"stars\\\": \").append(4).append(\",\\n\");\njson.append(\"  \\\"open\\\": \").append(true).append(\",\\n\");\nInteger ownerId = null;\njson.append(\"  \\\"owner_id\\\": \").append(ownerId).append(\"\\n\");\njson.append(\"}\");\n\nSystem.out.println(json);",
+    "body": "No trailing comma before a closing bracket. Keys are always quoted. A null reference must print `null`, not the four character string `\"null\"`; the second is a String and a reader will type it as one.\n\nThis is fine for a fixed, small object that the program writes. Do not hand parse a document that nests or that someone else produced."
+  },
+  {
+    "id": "java-json-escape",
+    "group": "JSON",
+    "name": "JSON string escaping",
+    "syntax": "switch (c) { case '\"': ... case '\\\\': ... }",
+    "desc": "Escapes the characters that JSON does not allow raw: quote, backslash, newline, carriage return, tab, and control characters below 0x20.",
+    "example": "static String jsonString(String value) {\n    if (value == null) return \"null\";\n    StringBuilder b = new StringBuilder(\"\\\"\");\n    for (char c : value.toCharArray()) {\n        switch (c) {\n            case '\"':  b.append(\"\\\\\\\"\"); break;\n            case '\\\\': b.append(\"\\\\\\\\\"); break;\n            case '\\n': b.append(\"\\\\n\");  break;\n            case '\\r': b.append(\"\\\\r\");  break;\n            case '\\t': b.append(\"\\\\t\");  break;\n            default:\n                if (c < 0x20) b.append(String.format(\"\\\\u%04x\", (int) c));\n                else b.append(c);\n        }\n    }\n    return b.append('\\\"').toString();\n}\n\nSystem.out.println(jsonString(\"He said \\\"hi\\\"\\\\\"));",
+    "body": "Escape the backslash and the quote; the order matters inside the switch because each character is handled once. A name with a quote that is not escaped produces a file that no JSON parser accepts, and the error usually points at the next line."
+  },
+  {
+    "id": "java-jackson-read-value",
+    "group": "Jackson",
+    "name": "ObjectMapper.readValue()",
+    "syntax": "mapper.readValue(json, Customer.class)",
+    "desc": "Deserializes JSON into a class or record. Requires jackson-databind plus core and annotations on the classpath.",
+    "example": "ObjectMapper mapper = new ObjectMapper();\n\n// One object from a file\nHotel hotel = mapper.readValue(Path.of(\"hotel.json\").toFile(), Hotel.class);\n\n// A list needs a TypeReference, because generics are erased at runtime\nList<Hotel> hotels = mapper.readValue(json,\n        new TypeReference<List<Hotel>>() {});\n\nSystem.out.println(hotels.size());",
+    "body": "The class needs a no argument constructor or, on Jackson 2.12 and later, record components that match the JSON keys. Unknown properties throw by default; see the ignore unknown entry. `readValue` also accepts a `String`, an `InputStream`, and a `File`."
+  },
+  {
+    "id": "java-jackson-read-tree",
+    "group": "Jackson",
+    "name": "ObjectMapper.readTree()",
+    "syntax": "JsonNode root = mapper.readTree(json)",
+    "desc": "Parses JSON into a tree when the shape is unknown or changes between tasks. Read fields with path() and convert with asText, asInt, asBoolean.",
+    "example": "import com.fasterxml.jackson.databind.JsonNode;\nimport com.fasterxml.jackson.databind.ObjectMapper;\n\nObjectMapper mapper = new ObjectMapper();\nJsonNode root = mapper.readTree(\"{\\\"hotel\\\":{\\\"city\\\":\\\"Budapest\\\",\\\"stars\\\":4}}\");\n\nString city = root.path(\"hotel\").path(\"city\").asText(\"unknown\");\nint stars = root.path(\"hotel\").path(\"stars\").asInt(0);\nSystem.out.println(city + \" \" + stars);\n\n// path() returns a MissingNode; get() returns null and needs a null check.\nSystem.out.println(root.path(\"missing\").asText(\"default\"));",
+    "body": "`asText()` on a number returns its text form, and `asInt()` on a text field parses it when possible. Use `isArray()` before iterating, and `for (JsonNode item : root.path(\"rooms\"))` over an array node."
+  },
+  {
+    "id": "java-jackson-write-value",
+    "group": "Jackson",
+    "name": "ObjectMapper.writeValueAsString()",
+    "syntax": "mapper.writerWithDefaultPrettyPrinter().writeValueAsString(object)",
+    "desc": "Serializes an object or a tree to JSON. Use the pretty printer for a report a human will read, and the plain writer for a compact file.",
+    "example": "ObjectMapper mapper = new ObjectMapper();\n\nMap<String, Object> report = new LinkedHashMap<>();\nreport.put(\"city\", \"Budapest\");\nreport.put(\"bookings\", 2);\nreport.put(\"open\", true);\n\nString json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report);\nFiles.writeString(Path.of(\"out\", \"report.json\"), json, StandardCharsets.UTF_8);\nSystem.out.println(json);",
+    "body": "Jackson writes UTF-8 bytes for `writeValue(File, ...)`. `writeValueAsString` returns a String, so write it with an explicit charset. LocalDate fields need the Java time module, or keep dates as String in the DTO."
+  },
+  {
+    "id": "java-jackson-ignore-unknown",
+    "group": "Jackson",
+    "name": "Ignore unknown JSON fields",
+    "syntax": "mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)",
+    "desc": "Stops Jackson from throwing when the JSON has a property the class does not declare. Useful when the input gains fields between tasks.",
+    "example": "ObjectMapper mapper = new ObjectMapper();\nmapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);\n\nHotel hotel = mapper.readValue(json, Hotel.class);\n\n// Or on the class, which keeps the setting next to the data shape:\n// @JsonIgnoreProperties(ignoreUnknown = true)\n// record Hotel(int hotel_id, String name, String city) { }",
+    "body": "The default is to fail on an unknown property, which is a useful check for a typo in a field name. Turn it off only when the input is outside your control. The annotation version needs `jackson-annotations` on the classpath, which databind already pulls in."
+  }
+]

@@ -1,0 +1,213 @@
+[
+  {
+    "id": "html-form-action-method",
+    "group": "Form",
+    "name": "form action and method",
+    "syntax": "<form action=\"/book\" method=\"post\"> ... </form>",
+    "desc": "action is the URL that receives the submitted data. method decides whether the pairs travel in the query string or in the request body.",
+    "example": "<!-- GET: pairs land in the URL, good for search -->\n<form action=\"/search\" method=\"get\">\n  <label for=\"q\">Search</label>\n  <input id=\"q\" name=\"q\" type=\"search\">\n  <button type=\"submit\">Search</button>\n</form>\n\n<!-- POST: pairs land in the body, used for changes and private data -->\n<form action=\"/book\" method=\"post\">\n  <label for=\"customer_email\">Email</label>\n  <input id=\"customer_email\" name=\"customer_email\" type=\"email\" required>\n  <button type=\"submit\">Book</button>\n</form>",
+    "body": "The default method is `get`, and an omitted or empty `action` posts back to the current document URL. With GET, the form data replaces any query string already present on the action URL. With POST, the action URL keeps its query string and the pairs go into the body. Never use GET for passwords, for large text, or for a request that changes state, because query strings end up in history, logs, and referrer headers."
+  },
+  {
+    "id": "html-form-enctype",
+    "group": "Form",
+    "name": "form enctype",
+    "syntax": "<form action=\"/upload\" method=\"post\" enctype=\"multipart/form-data\">",
+    "desc": "Sets how the request body is encoded. File uploads need multipart/form-data; everything else uses the default urlencoded form.",
+    "example": "<!-- A file input needs multipart, or the server gets a filename -->\n<form action=\"/profile\" method=\"post\" enctype=\"multipart/form-data\">\n  <label for=\"first_name\">First name</label>\n  <input id=\"first_name\" name=\"first_name\" type=\"text\" required>\n\n  <label for=\"image\">Photo</label>\n  <input id=\"image\" name=\"image\" type=\"file\" accept=\"image/jpeg, image/png\">\n\n  <button type=\"submit\">Save</button>\n</form>"
+  },
+  {
+    "id": "html-form-novalidate",
+    "group": "Form",
+    "name": "novalidate and formnovalidate",
+    "syntax": "<form novalidate> | <button formnovalidate>",
+    "desc": "novalidate turns off browser validation for the whole form. formnovalidate turns it off for one submit button, which is the usual Save draft behaviour.",
+    "example": "<form action=\"/article\" method=\"post\">\n  <label for=\"title\">Title</label>\n  <input id=\"title\" name=\"title\" required>\n\n  <!-- Publish runs validation, draft does not -->\n  <button type=\"submit\" name=\"intent\" value=\"publish\">Publish</button>\n  <button type=\"submit\" name=\"intent\" value=\"draft\" formnovalidate>Save draft</button>\n</form>"
+  },
+  {
+    "id": "html-input-name-id",
+    "group": "Form",
+    "name": "input name and id",
+    "syntax": "<input id=\"customer_email\" name=\"customer_email\" type=\"email\">",
+    "desc": "name is the key sent to the server and can repeat. id is a unique page hook used by label, CSS, and JavaScript, and is never submitted.",
+    "example": "<!-- name: submitted key, id: label hook -->\n<label for=\"customer_email\">Email</label>\n<input id=\"customer_email\" name=\"customer_email\" type=\"email\" required>\n\n<!-- Repeated name: one pair per ticked box -->\n<label><input type=\"checkbox\" name=\"extras\" value=\"breakfast\"> Breakfast</label>\n<label><input type=\"checkbox\" name=\"extras\" value=\"parking\"> Parking</label>",
+    "body": "A control without `name` is skipped at submit time even when the user filled it in. A control without `id` still submits, but a `label for` cannot point at it. Duplicate ids are invalid HTML and make the second label focus the first element. The `form=\"form-id\"` attribute lets a control sit outside the form element and still be submitted with it."
+  },
+  {
+    "id": "html-label-for",
+    "group": "Labels",
+    "name": "label for",
+    "syntax": "<label for=\"id\">Text</label> <input id=\"id\" ...>",
+    "desc": "Pairs visible text with a control by matching id. Clicking the label focuses the input or toggles the checkbox.",
+    "example": "<!-- for points at the id, never at the name -->\n<label for=\"first_name\">First name</label>\n<input id=\"first_name\" name=\"first_name\" type=\"text\" autocomplete=\"given-name\" required>\n\n<label for=\"terms\">I accept the terms</label>\n<input id=\"terms\" name=\"terms\" type=\"checkbox\" required>"
+  },
+  {
+    "id": "html-label-wrapping",
+    "group": "Labels",
+    "name": "wrapping label",
+    "syntax": "<label>Text <input ...></label>",
+    "desc": "Wraps the control instead of using for and id. No id is needed, and the whole label area becomes clickable.",
+    "example": "<!-- One labelable control per wrapping label -->\n<label>\n  Breakfast included\n  <input type=\"checkbox\" name=\"extras\" value=\"breakfast\">\n</label>\n\n<label>\n  Email\n  <input name=\"customer_email\" type=\"email\" required>\n</label>",
+    "body": "A wrapping label may contain only one labelable control. It is the shorter option for checkboxes and radios, where each option needs its own label. For text inputs the `for` form is easier to style, because the text and the input are separate boxes."
+  },
+  {
+    "id": "html-input-required",
+    "group": "Validation",
+    "name": "required",
+    "syntax": "<input type=\"email\" name=\"customer_email\" required>",
+    "desc": "Blocks submission while the control is empty. On a radio group, one member carrying it makes the whole group mandatory.",
+    "example": "<!-- One required member makes the whole radio group mandatory -->\n<label for=\"customer_email\">Email</label>\n<input id=\"customer_email\" name=\"customer_email\" type=\"email\" required>\n\n<fieldset>\n  <legend>Room</legend>\n  <label><input type=\"radio\" name=\"room\" value=\"single\" required> Single</label>\n  <label><input type=\"radio\" name=\"room\" value=\"double\"> Double</label>\n</fieldset>",
+    "body": "`required` is ignored on `type=\"hidden\"`, because hidden controls are barred from constraint validation. It has no practical effect on `range` and `color`, which always carry a value. The browser can enforce it only until the user opens devtools, so the server repeats every check."
+  },
+  {
+    "id": "html-input-pattern",
+    "group": "Validation",
+    "name": "pattern",
+    "syntax": "<input pattern=\"[0-9]{4}\" title=\"Four digits\">",
+    "desc": "Requires the whole value to match a JavaScript regular expression. No slashes and no anchors, because the match is already anchored.",
+    "example": "<!-- Anchored full match: no slashes, no ^ and $ -->\n<label for=\"postal_code\">Postal code</label>\n<input id=\"postal_code\" name=\"postal_code\" type=\"text\"\n       pattern=\"[0-9]{4}\" maxlength=\"4\"\n       inputmode=\"numeric\" title=\"Four digits\">\n\n<label for=\"code\">Verification code</label>\n<input id=\"code\" name=\"code\" type=\"text\"\n       pattern=\"[0-9]{6}\" maxlength=\"6\"\n       autocomplete=\"one-time-code\" title=\"Six digits\">",
+    "body": "`pattern` applies only to text-like inputs: text, search, url, tel, email, and password. It is ignored on number, date, time, range, color, checkbox, radio, file, hidden, and the button types. Modern browsers compile the pattern with the `v` regex flag, so escape characters such as `-` inside a character class. Always add a `title` that states the rule in words."
+  },
+  {
+    "id": "html-input-min-max-step",
+    "group": "Validation",
+    "name": "min, max, and step",
+    "syntax": "<input type=\"number\" min=\"1\" max=\"6\" step=\"1\">",
+    "desc": "Bounds numeric, date, and time values and sets the allowed increment. Numbers default to a step of 1, so decimals need step=\"0.01\" or step=\"any\".",
+    "example": "<!-- step=\"0.01\" is what allows cents -->\n<label for=\"adults\">Adults</label>\n<input id=\"adults\" name=\"adults\" type=\"number\"\n       min=\"1\" max=\"6\" step=\"1\" value=\"2\" required>\n\n<label for=\"price\">Price per night</label>\n<input id=\"price\" name=\"price\" type=\"number\"\n       min=\"0\" max=\"999\" step=\"0.01\">\n\n<label for=\"start_date\">Arrival</label>\n<input id=\"start_date\" name=\"start_date\" type=\"date\"\n       min=\"2026-11-11\" max=\"2027-12-31\">",
+    "body": "For dates, `step` counts days. For times, it counts seconds, so `step=\"900\"` allows quarter hours. The step grid starts at `min` when it is present, otherwise at the `value` attribute, otherwise at zero. A value off the grid produces a `stepMismatch` validity error."
+  },
+  {
+    "id": "html-input-placeholder",
+    "group": "Input",
+    "name": "placeholder",
+    "syntax": "<input name=\"q\" type=\"search\" placeholder=\"Sea view\">",
+    "desc": "Shows example text inside an empty field. It disappears on the first keystroke and never replaces a label.",
+    "example": "<label for=\"q\">Search rooms</label>\n<input id=\"q\" name=\"q\" type=\"search\" placeholder=\"Sea view\">\n\n<label for=\"site\">Website</label>\n<input id=\"site\" name=\"site\" type=\"url\" placeholder=\"https://example.com\">",
+    "body": "Placeholder text is usually rendered at low contrast and is not announced as the field name by every screen reader. Some browsers do not support it on `number`, and it is meaningless on `date`, `color`, `range`, `file`, `checkbox`, and `radio`. Keep a visible `label` and treat the placeholder as an optional hint."
+  },
+  {
+    "id": "html-input-autocomplete",
+    "group": "Input",
+    "name": "autocomplete",
+    "syntax": "<input name=\"customer_email\" type=\"email\" autocomplete=\"email\">",
+    "desc": "Names the field's meaning so the browser can autofill it. Use the standard tokens instead of inventing values.",
+    "example": "<label for=\"first_name\">First name</label>\n<input id=\"first_name\" name=\"first_name\" type=\"text\" autocomplete=\"given-name\">\n\n<label for=\"last_name\">Last name</label>\n<input id=\"last_name\" name=\"last_name\" type=\"text\" autocomplete=\"family-name\">\n\n<label for=\"customer_email\">Email</label>\n<input id=\"customer_email\" name=\"customer_email\" type=\"email\" autocomplete=\"email\">\n\n<label for=\"birthday\">Birthday</label>\n<input id=\"birthday\" name=\"birthday\" type=\"date\" autocomplete=\"bday\">\n\n<!-- A new password field is not the same token as an existing one -->\n<label for=\"password\">Password</label>\n<input id=\"password\" name=\"password\" type=\"password\" autocomplete=\"new-password\">"
+  },
+  {
+    "id": "html-input-default-value",
+    "group": "Input",
+    "name": "value attribute and value property",
+    "syntax": "<input value=\"2026-11-11\"> | input.value = '...'",
+    "desc": "The value attribute sets the initial value. The value property is the live text the user typed, and the two drift apart after the first edit.",
+    "example": "<label for=\"start_date\">Arrival</label>\n<input id=\"start_date\" name=\"start_date\" type=\"date\" value=\"2026-11-11\">\n\n<script>\n  const field = document.querySelector('#start_date');\n\n  // Attribute: the default, unchanged by typing\n  console.log(field.getAttribute('value')); // 2026-11-11\n\n  // Property: what the form will actually submit\n  console.log(field.value);\n\n  // Reset restores the attribute value, not the last typed one\n  field.value = '2026-12-01';\n</script>"
+  },
+  {
+    "id": "html-input-radio-group",
+    "group": "Choice",
+    "name": "radio group",
+    "syntax": "<input type=\"radio\" name=\"room\" value=\"single\">",
+    "desc": "Radios sharing a name form one group where only one option can be checked. Each radio needs its own value and its own label.",
+    "example": "<!-- Shared name is the group; fieldset only labels it -->\n<fieldset>\n  <legend>Room type</legend>\n  <label><input type=\"radio\" name=\"room\" value=\"single\" required> Single</label>\n  <label><input type=\"radio\" name=\"room\" value=\"double\" checked> Double</label>\n  <label><input type=\"radio\" name=\"room\" value=\"twin\"> Twin</label>\n</fieldset>",
+    "body": "The group is defined by the shared `name`, not by the fieldset. The fieldset and legend only supply the spoken group label. Without a `value`, the checked radio submits the string `on`, which tells the server nothing. Give exactly one option a `checked` attribute when a default makes sense."
+  },
+  {
+    "id": "html-input-checkbox",
+    "group": "Choice",
+    "name": "checkbox",
+    "syntax": "<input type=\"checkbox\" name=\"extras\" value=\"breakfast\" checked>",
+    "desc": "An independent on or off control. Checked boxes submit their value, and boxes sharing a name produce repeated keys.",
+    "example": "<label><input type=\"checkbox\" name=\"extras\" value=\"breakfast\" checked> Breakfast</label>\n<label><input type=\"checkbox\" name=\"extras\" value=\"parking\"> Parking</label>\n\n<!-- Consent: required means must be ticked -->\n<label>\n  <input type=\"checkbox\" name=\"terms\" value=\"accepted\" required>\n  I accept the house rules\n</label>",
+    "body": "A checkbox with no `value` submits `on` when ticked. An unchecked box submits nothing at all, so the server has to treat a missing key as false. `required` on a checkbox means it must be checked before the form can submit."
+  },
+  {
+    "id": "html-input-file",
+    "group": "Input",
+    "name": "file upload",
+    "syntax": "<input type=\"file\" name=\"image\" accept=\"image/png\" multiple>",
+    "desc": "Opens the system file picker. accept filters the dialog, multiple allows several files, and the form needs multipart encoding.",
+    "example": "<!-- The form needs multipart/form-data for this to work -->\n<form action=\"/profile\" method=\"post\" enctype=\"multipart/form-data\">\n  <label for=\"image\">Profile photo</label>\n  <input id=\"image\" name=\"image\" type=\"file\"\n         accept=\"image/png, image/jpeg\" required>\n\n  <label for=\"documents\">Documents</label>\n  <input id=\"documents\" name=\"documents\" type=\"file\" multiple>\n\n  <button type=\"submit\">Upload</button>\n</form>",
+    "body": "Without `enctype=\"multipart/form-data\"` the server receives a filename string instead of file bytes. `accept` is a picker hint, not a security check, so verify the real type and size on the server. Scripts cannot set the input value to a local path, and reading `value` gives a fake path. Use `input.files` to inspect the selection."
+  },
+  {
+    "id": "html-input-hidden",
+    "group": "Input",
+    "name": "hidden field",
+    "syntax": "<input type=\"hidden\" name=\"hotel_id\" value=\"1\">",
+    "desc": "Sends a fixed value without showing a control. It is visible in the page source and can be edited with devtools.",
+    "example": "<form action=\"/book\" method=\"post\">\n  <!-- State flag, not a trust boundary -->\n  <input type=\"hidden\" name=\"hotel_id\" value=\"1\">\n  <input type=\"hidden\" name=\"step\" value=\"confirm\">\n\n  <label for=\"customer_email\">Email</label>\n  <input id=\"customer_email\" name=\"customer_email\" type=\"email\" required>\n  <button type=\"submit\">Confirm</button>\n</form>",
+    "body": "Hidden inputs are barred from constraint validation, so `required` on them does nothing. Never put a price, a role, or a permission in a hidden field without checking it again on the server. A CSRF token in a hidden field is fine because the server issued it and verifies it."
+  },
+  {
+    "id": "html-input-range-output",
+    "group": "Input",
+    "name": "range with output",
+    "syntax": "<input type=\"range\" min=\"0\" max=\"100\" step=\"10\"> <output for=\"id\">",
+    "desc": "A slider for coarse numeric input, paired with an output element that shows the current value.",
+    "example": "<!-- The slider always has a value; required would do nothing -->\n<label for=\"max_price\">Maximum price</label>\n<input id=\"max_price\" name=\"max_price\" type=\"range\"\n       min=\"40\" max=\"300\" step=\"10\" value=\"120\">\n<output id=\"price_out\" for=\"max_price\">120 EUR</output>\n\n<script>\n  const slider = document.querySelector('#max_price');\n  const out = document.querySelector('#price_out');\n\n  slider.addEventListener('input', () => {\n    out.textContent = `${slider.value} EUR`;\n  });\n</script>",
+    "body": "A range always has a value, defaulting to the midpoint of `min` and `max` when no `value` is set, so `required` on it is pointless. Use `number` when the user must type an exact figure. The output element associates with the slider through `for`, and the script keeps the text in step with the thumb."
+  },
+  {
+    "id": "html-select-option",
+    "group": "Choice",
+    "name": "select and option",
+    "syntax": "<select name=\"hotel_id\"><option value=\"1\">Name</option></select>",
+    "desc": "A dropdown of options. The submitted value comes from the option's value attribute, or from its text when value is missing.",
+    "example": "<!-- Empty value: forces a real choice, pairs with required -->\n<label for=\"hotel_id\">Hotel</label>\n<select id=\"hotel_id\" name=\"hotel_id\" required>\n  <option value=\"\">Choose a hotel</option>\n  <optgroup label=\"City centre\">\n    <option value=\"1\">Grand Hotel</option>\n    <option value=\"2\">Riverside Inn</option>\n  </optgroup>\n  <optgroup label=\"Suburbs\">\n    <option value=\"3\" selected>Park Lodge</option>\n  </optgroup>\n</select>",
+    "body": "An option without a `value` submits its text content, which breaks when the page is translated. Add an empty first option with `value=\"\"` when the user must make a conscious choice, and keep `required` on the select. `optgroup` groups options visually and for assistive tech, and cannot be selected itself."
+  },
+  {
+    "id": "html-select-multiple",
+    "group": "Choice",
+    "name": "select multiple",
+    "syntax": "<select name=\"extras\" multiple size=\"4\">",
+    "desc": "Allows several selected options. Each selection becomes its own name and value pair in the submission.",
+    "example": "<!-- One pair per selected option in the submission -->\n<label for=\"extras\">Extras</label>\n<select id=\"extras\" name=\"extras\" multiple size=\"4\">\n  <option value=\"breakfast\">Breakfast</option>\n  <option value=\"parking\">Parking</option>\n  <option value=\"spa\">Spa access</option>\n  <option value=\"late\">Late checkout</option>\n</select>",
+    "body": "A multiple select usually renders as a list box rather than a dropdown, and `size` sets how many rows are visible. Selecting nothing sends no key at all, and some users do not know that Ctrl or Cmd is needed for multiple picks. A list of checkboxes with the same name is often the friendlier choice."
+  },
+  {
+    "id": "html-textarea",
+    "group": "Choice",
+    "name": "textarea",
+    "syntax": "<textarea id=\"notes\" name=\"notes\" rows=\"4\"></textarea>",
+    "desc": "A multi-line text field. Its value is the text between the tags, not a value attribute, and line breaks are submitted as part of the value.",
+    "example": "<!-- The text between the tags is the value, there is no value attribute -->\n<label for=\"notes\">Notes</label>\n<textarea id=\"notes\" name=\"notes\" rows=\"4\" maxlength=\"500\"\n          placeholder=\"Allergies, late arrival, anything else\">Late arrival, around 22:00.</textarea>",
+    "body": "`<textarea value=\"...\">` does nothing. Put the initial text between the tags, and remember that the parser drops one newline directly after the opening tag. `rows` and `cols` set the initial size in characters, and CSS should control the final size. A `maxlength` here counts characters, including line breaks."
+  },
+  {
+    "id": "html-fieldset-legend",
+    "group": "Form",
+    "name": "fieldset and legend",
+    "syntax": "<fieldset><legend>Group name</legend> ... </fieldset>",
+    "desc": "Groups related controls and gives the group a name. A screen reader announces the legend when focus enters the group.",
+    "example": "<!-- The legend must be the first child of the fieldset -->\n<fieldset>\n  <legend>Guest details</legend>\n\n  <label for=\"first_name\">First name</label>\n  <input id=\"first_name\" name=\"first_name\" type=\"text\" required>\n\n  <label for=\"last_name\">Last name</label>\n  <input id=\"last_name\" name=\"last_name\" type=\"text\" required>\n</fieldset>\n\n<fieldset>\n  <legend>Room type</legend>\n  <label><input type=\"radio\" name=\"room\" value=\"single\"> Single</label>\n  <label><input type=\"radio\" name=\"room\" value=\"double\"> Double</label>\n</fieldset>",
+    "body": "The legend must be the first child of the fieldset. A `disabled` attribute on the fieldset disables every control inside it, except controls inside the first legend. Radio grouping still comes from the shared `name`, not from the fieldset."
+  },
+  {
+    "id": "html-button-type",
+    "group": "Buttons",
+    "name": "button type",
+    "syntax": "<button type=\"button|submit|reset\">Label</button>",
+    "desc": "Sets what a button does. Inside a form the default is submit, so any other button needs type=\"button\" explicitly.",
+    "example": "<!-- Explicit submit -->\n<button type=\"submit\">Save</button>\n\n<!-- No form action: safe inside a form -->\n<button type=\"button\" id=\"add_guest\">Add another guest</button>\n\n<!-- Reset throws away typed data, rarely a good idea -->\n<button type=\"reset\">Clear</button>\n\n<!-- Two submits in one form, the clicked one adds name=value -->\n<button type=\"submit\" name=\"intent\" value=\"publish\">Publish</button>\n<button type=\"submit\" name=\"intent\" value=\"draft\" formnovalidate>Save draft</button>",
+    "body": "A button with no `type` inside a form behaves as a submit button, which is how a filter toggle accidentally sends the form. Use `type=\"button\"` for anything driven by JavaScript that should not submit. A submit button with `name` and `value` contributes its own pair, and per-button overrides such as `formaction` and `formnovalidate` win over the form attributes."
+  },
+  {
+    "id": "html-form-checkvalidity",
+    "group": "Validation",
+    "name": "form checkValidity()",
+    "syntax": "form.checkValidity() | form.reportValidity()",
+    "desc": "checkValidity returns false when any control violates a constraint. reportValidity does the same and shows the browser message.",
+    "example": "<!-- Validation runs on submit; reportValidity shows the bubble -->\n<form id=\"booking\" action=\"/book\" method=\"post\">\n  <label for=\"customer_email\">Email</label>\n  <input id=\"customer_email\" name=\"customer_email\" type=\"email\" required>\n  <button type=\"submit\">Book</button>\n</form>\n\n<script>\n  const form = document.querySelector('#booking');\n\n  form.addEventListener('submit', (event) => {\n    if (!form.checkValidity()) {\n      event.preventDefault();\n      form.reportValidity();\n    }\n  });\n</script>",
+    "body": "A single control also has `checkValidity()` and `reportValidity()`. The `validity` object exposes flags such as `valueMissing`, `typeMismatch`, `patternMismatch`, `rangeUnderflow`, `rangeOverflow`, `stepMismatch`, `badInput`, and `customError`. Use `setCustomValidity('message')` to add a rule the browser cannot express, and call it again with an empty string to clear the error."
+  },
+  {
+    "id": "html-form-requestsubmit",
+    "group": "Form",
+    "name": "form requestSubmit()",
+    "syntax": "form.requestSubmit()",
+    "desc": "Submits the form the way a click on a submit button would: validation runs and the submit event fires. form.submit() does neither.",
+    "example": "<form id=\"profile\" action=\"/profile\" method=\"post\">\n  <label for=\"first_name\">First name</label>\n  <input id=\"first_name\" name=\"first_name\" type=\"text\" required>\n</form>\n\n<button type=\"button\" id=\"save\">Save profile</button>\n\n<script>\n  const form = document.querySelector('#profile');\n  const save = document.querySelector('#save');\n\n  save.addEventListener('click', () => {\n    // Validation runs, invalid fields block the request\n    form.requestSubmit();\n  });\n</script>",
+    "body": "`form.submit()` bypasses constraint validation and does not fire the `submit` event, which makes it the wrong tool for almost every case. `requestSubmit()` is the programmatic equivalent of pressing the submit button. Passing a submit button to it, as in `form.requestSubmit(button)`, includes that button's name and value in the payload."
+  }
+]

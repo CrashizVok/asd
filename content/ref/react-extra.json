@@ -1,0 +1,139 @@
+[
+  {
+    "id": "react-extra-useeffect-cleanup",
+    "group": "Hooks",
+    "name": "useEffect cleanup",
+    "syntax": "useEffect(() => { ...; return () => { ... }; }, deps)",
+    "desc": "The function returned from an effect runs before the next run and on unmount. It cancels timers, subscriptions, and stale requests.",
+    "example": "import { useEffect, useState } from \"react\";\n\nfunction Clock({ city }) {\n  const [time, setTime] = useState(new Date().toLocaleTimeString());\n\n  useEffect(() => {\n    const id = setInterval(() => {\n      setTime(new Date().toLocaleTimeString());\n    }, 1000);\n\n    // Without this return the interval keeps running after unmount\n    return () => clearInterval(id);\n  }, [city]); // a new city re-runs the effect and cleans the old timer first\n\n  return <p>{city}: {time}</p>;\n}"
+  },
+  {
+    "id": "react-extra-usereducer",
+    "group": "Hooks",
+    "name": "useReducer",
+    "syntax": "const [state, dispatch] = useReducer(reducer, initialState)",
+    "desc": "Moves state transitions into one pure function. It pays off when several fields change together or the next state depends on the previous one.",
+    "example": "import { useReducer } from \"react\";\n\nconst initial = { adults: 2, children: 0, breakfast: false };\n\nfunction reducer(state, action) {\n  switch (action.type) {\n    case \"adults\":\n      // Never go below one adult\n      return { ...state, adults: Math.max(1, state.adults + action.delta) };\n    case \"children\":\n      return { ...state, children: Math.max(0, state.children + action.delta) };\n    case \"breakfast\":\n      return { ...state, breakfast: action.value };\n    case \"reset\":\n      return initial;\n    default:\n      throw new Error(\"Unknown action: \" + action.type);\n  }\n}\n\nexport default function BookingForm() {\n  const [state, dispatch] = useReducer(reducer, initial);\n\n  return (\n    <form>\n      <p>Adults: {state.adults}</p>\n      <button type=\"button\" onClick={() => dispatch({ type: \"adults\", delta: 1 })}>\n        Add adult\n      </button>\n      <button type=\"button\" onClick={() => dispatch({ type: \"reset\" })}>\n        Reset\n      </button>\n    </form>\n  );\n}",
+    "body": "## Why a reducer\n\nWith `useState` every rule about the next value lives in an event handler. A reducer collects those rules in one function that can be read and tested on its own.\n\n## The rules\n\n- The reducer must be pure. Return a new object, never mutate `state`.\n- Every action goes through `dispatch`, so logging one place shows all changes.\n- An unknown action should throw in development, not silently return the old state.\n- `useReducer` is not only for large state. Three related fields are enough."
+  },
+  {
+    "id": "react-extra-usememo",
+    "group": "Hooks",
+    "name": "useMemo",
+    "syntax": "const value = useMemo(() => compute(input), [input])",
+    "desc": "Caches a computed value between renders until a dependency changes. Use it for expensive work, not for every variable.",
+    "example": "import { useMemo, useState } from \"react\";\n\nfunction HotelTable({ hotels }) {\n  const [query, setQuery] = useState(\"\");\n\n  // Filtering runs only when hotels or query change, not on every keystroke elsewhere\n  const visible = useMemo(() => {\n    const needle = query.trim().toLowerCase();\n    return hotels.filter((hotel) => hotel.name.toLowerCase().includes(needle));\n  }, [hotels, query]);\n\n  const totalStars = useMemo(\n    () => visible.reduce((sum, hotel) => sum + hotel.stars, 0),\n    [visible]\n  );\n\n  return (\n    <div>\n      <input value={query} onChange={(event) => setQuery(event.target.value)} />\n      <p>{visible.length} hotels, {totalStars} stars</p>\n    </div>\n  );\n}"
+  },
+  {
+    "id": "react-extra-usecallback",
+    "group": "Hooks",
+    "name": "useCallback",
+    "syntax": "const fn = useCallback(() => { ... }, deps)",
+    "desc": "Keeps the same function identity between renders while dependencies stay equal. It matters when a memoized child receives the function.",
+    "example": "import { memo, useCallback, useState } from \"react\";\n\n// memo skips the render only when props are equal by reference\nconst Row = memo(function Row({ hotel, onSelect }) {\n  return <button onClick={() => onSelect(hotel.hotel_id)}>{hotel.name}</button>;\n});\n\nexport default function HotelList({ hotels }) {\n  const [selected, setSelected] = useState(null);\n\n  // A new function each render would defeat memo on every Row\n  const handleSelect = useCallback((hotelId) => {\n    setSelected(hotelId);\n  }, []); // setState is stable, so no dependency is needed\n\n  return (\n    <div>\n      <p>Selected: {selected}</p>\n      {hotels.map((hotel) => (\n        <Row key={hotel.hotel_id} hotel={hotel} onSelect={handleSelect} />\n      ))}\n    </div>\n  );\n}"
+  },
+  {
+    "id": "react-extra-usecontext",
+    "group": "Hooks",
+    "name": "useContext",
+    "syntax": "const value = useContext(MyContext)",
+    "desc": "Reads the nearest provider value without prop drilling. The component re-renders when that value changes.",
+    "example": "import { createContext, useContext, useState } from \"react\";\n\nconst ThemeContext = createContext(\"light\");\n\nfunction Toolbar() {\n  // Any component below the provider can read the theme\n  const theme = useContext(ThemeContext);\n  return <button className={theme}>Save</button>;\n}\n\nexport default function App() {\n  const [theme, setTheme] = useState(\"light\");\n\n  return (\n    <ThemeContext.Provider value={theme}>\n      <Toolbar />\n      <button onClick={() => setTheme(theme === \"light\" ? \"dark\" : \"light\")}>\n        Toggle theme\n      </button>\n    </ThemeContext.Provider>\n  );\n}"
+  },
+  {
+    "id": "react-extra-useref-dom",
+    "group": "Hooks",
+    "name": "useRef for DOM nodes",
+    "syntax": "const ref = useRef(null)",
+    "desc": "Holds a mutable reference that survives renders. Attached to an element, ref.current points at the DOM node after mount.",
+    "example": "import { useEffect, useRef } from \"react\";\n\nfunction SearchBox() {\n  const inputRef = useRef(null);\n\n  useEffect(() => {\n    // The node exists only after the first render\n    inputRef.current.focus();\n  }, []);\n\n  function clear() {\n    inputRef.current.value = \"\";\n    inputRef.current.focus();\n  }\n\n  return (\n    <div>\n      <input ref={inputRef} placeholder=\"City\" />\n      <button onClick={clear}>Clear</button>\n    </div>\n  );\n}"
+  },
+  {
+    "id": "react-extra-useid",
+    "group": "Hooks",
+    "name": "useId",
+    "syntax": "const id = useId()",
+    "desc": "Produces a stable id that matches between server and client render. Use it to link labels and inputs instead of hardcoded ids.",
+    "example": "import { useId } from \"react\";\n\nfunction EmailField({ label }) {\n  const id = useId();\n\n  return (\n    <div>\n      <label htmlFor={id}>{label}</label>\n      <input id={id} type=\"email\" name=\"customer_email\" />\n      {/* aria-describedby can point at a second generated id */}\n      <p id={id + \"-hint\"}>We send the confirmation here.</p>\n      <input aria-describedby={id + \"-hint\"} />\n    </div>\n  );\n}"
+  },
+  {
+    "id": "react-extra-usetransition",
+    "group": "Hooks",
+    "name": "useTransition",
+    "syntax": "const [isPending, startTransition] = useTransition()",
+    "desc": "Marks a state update as non urgent, so typing stays responsive while a heavy list re-renders.",
+    "example": "import { useState, useTransition } from \"react\";\n\nfunction HotelSearch({ hotels }) {\n  const [query, setQuery] = useState(\"\");\n  const [list, setList] = useState(hotels);\n  const [isPending, startTransition] = useTransition();\n\n  function handleChange(event) {\n    const next = event.target.value;\n    setQuery(next); // urgent, must follow the keystroke\n\n    startTransition(() => {\n      // Non urgent, React may interrupt this render\n      setList(hotels.filter((hotel) => hotel.name.includes(next)));\n    });\n  }\n\n  return (\n    <div>\n      <input value={query} onChange={handleChange} />\n      {isPending && <p>Filtering...</p>}\n      <ul>{list.map((hotel) => <li key={hotel.hotel_id}>{hotel.name}</li>)}</ul>\n    </div>\n  );\n}"
+  },
+  {
+    "id": "react-extra-usedeferredvalue",
+    "group": "Hooks",
+    "name": "useDeferredValue",
+    "syntax": "const deferred = useDeferredValue(value)",
+    "desc": "Returns a lagging copy of a value. The UI keeps the old copy while the expensive part renders the new one.",
+    "example": "import { useDeferredValue, useState } from \"react\";\n\nfunction SlowList({ text }) {\n  // Imagine a thousand rows here\n  return <p>Rendering {text}</p>;\n}\n\nexport default function Search() {\n  const [query, setQuery] = useState(\"\");\n  const deferredQuery = useDeferredValue(query);\n\n  // The input updates immediately, the list follows when React is free\n  const stale = query !== deferredQuery;\n\n  return (\n    <div>\n      <input value={query} onChange={(event) => setQuery(event.target.value)} />\n      <div style={{ opacity: stale ? 0.5 : 1 }}>\n        <SlowList text={deferredQuery} />\n      </div>\n    </div>\n  );\n}"
+  },
+  {
+    "id": "react-extra-uselayouteffect",
+    "group": "Hooks",
+    "name": "useLayoutEffect",
+    "syntax": "useLayoutEffect(() => { ... }, deps)",
+    "desc": "Runs after the DOM is updated but before the browser paints. Use it to measure or reposition, never for data fetching.",
+    "example": "import { useLayoutEffect, useRef, useState } from \"react\";\n\nfunction Tooltip({ children }) {\n  const boxRef = useRef(null);\n  const [height, setHeight] = useState(0);\n\n  useLayoutEffect(() => {\n    // Measuring here avoids a visible jump after paint\n    setHeight(boxRef.current.getBoundingClientRect().height);\n  }, [children]);\n\n  return (\n    <div>\n      <div ref={boxRef}>{children}</div>\n      <p>Tooltip height: {height}px</p>\n    </div>\n  );\n}"
+  },
+  {
+    "id": "react-extra-memo",
+    "group": "Performance",
+    "name": "React.memo",
+    "syntax": "const Row = memo(Component, areEqual?)",
+    "desc": "Skips a re-render when props are shallowly equal. It helps only when the parent renders often and the props are stable.",
+    "example": "import { memo } from \"react\";\n\nconst HotelRow = memo(function HotelRow({ hotel }) {\n  console.log(\"render\", hotel.name);\n  return <li>{hotel.name} ({hotel.stars} stars)</li>;\n});\n\n// A custom comparator gets prev and next props\nconst Expensive = memo(\n  function Expensive({ hotel }) {\n    return <p>{hotel.name}</p>;\n  },\n  (prev, next) => prev.hotel.hotel_id === next.hotel.hotel_id\n);\n\nexport default function List({ hotels, tick }) {\n  // tick changes on every parent render, but hotel objects do not\n  return <ul>{hotels.map((hotel) => <HotelRow key={hotel.hotel_id} hotel={hotel} />)}</ul>;\n}"
+  },
+  {
+    "id": "react-extra-forwardref",
+    "group": "Components",
+    "name": "forwardRef",
+    "syntax": "const Input = forwardRef((props, ref) => ...)",
+    "desc": "Passes a ref through a function component to a DOM node. React 19 accepts ref as a normal prop, older versions need this wrapper.",
+    "example": "import { forwardRef, useRef } from \"react\";\n\n// Without forwardRef the ref would stay on the component, not the input\nconst TextInput = forwardRef(function TextInput(props, ref) {\n  return <input ref={ref} {...props} />;\n});\n\nexport default function Form() {\n  const emailRef = useRef(null);\n\n  function focusEmail() {\n    emailRef.current.focus();\n  }\n\n  return (\n    <form>\n      <TextInput ref={emailRef} name=\"customer_email\" />\n      <button type=\"button\" onClick={focusEmail}>Focus email</button>\n    </form>\n  );\n}"
+  },
+  {
+    "id": "react-extra-lazy-suspense",
+    "group": "Components",
+    "name": "React.lazy and Suspense",
+    "syntax": "const Page = lazy(() => import('./Page'))",
+    "desc": "Splits a component into its own chunk and loads it on demand. Suspense shows a fallback while the chunk downloads.",
+    "example": "import { lazy, Suspense } from \"react\";\n\n// The import runs only when the component is first rendered\nconst HotelPage = lazy(() => import(\"./HotelPage\"));\n\nexport default function App({ showHotels }) {\n  return (\n    <Suspense fallback={<p>Loading hotels...</p>}>\n      {showHotels && <HotelPage />}\n    </Suspense>\n  );\n}\n\n// The default export of HotelPage.jsx is what lazy resolves\n// A named export needs a mapping:\n// const HotelPage = lazy(() =>\n//   import(\"./HotelPage\").then((module) => ({ default: module.HotelPage }))\n// );"
+  },
+  {
+    "id": "react-extra-createportal",
+    "group": "Components",
+    "name": "createPortal",
+    "syntax": "createPortal(children, container)",
+    "desc": "Renders children into another DOM node while keeping React context and event bubbling. It is how modals escape overflow and z-index traps.",
+    "example": "import { useState } from \"react\";\nimport { createPortal } from \"react-dom\";\n\nfunction Modal({ open, onClose, children }) {\n  if (!open) return null;\n\n  // The markup lands in body, outside the parent stacking context\n  return createPortal(\n    <div className=\"modal-backdrop\" onClick={onClose}>\n      <div className=\"modal\" onClick={(event) => event.stopPropagation()}>\n        {children}\n      </div>\n    </div>,\n    document.body\n  );\n}\n\nexport default function App() {\n  const [open, setOpen] = useState(false);\n  return (\n    <>\n      <button onClick={() => setOpen(true)}>Book</button>\n      <Modal open={open} onClose={() => setOpen(false)}>Booking form</Modal>\n    </>\n  );\n}"
+  },
+  {
+    "id": "react-extra-error-boundary",
+    "group": "Components",
+    "name": "Error boundary",
+    "syntax": "class Boundary extends Component { static getDerivedStateFromError() {} }",
+    "desc": "Catches render errors in its subtree and shows a fallback. There is no hook version, so it stays a class component.",
+    "example": "import { Component } from \"react\";\n\nclass ErrorBoundary extends Component {\n  state = { error: null };\n\n  // Called during render, so it only updates state\n  static getDerivedStateFromError(error) {\n    return { error };\n  }\n\n  // Side effects such as logging belong here\n  componentDidCatch(error, info) {\n    console.error(\"Hotel page failed\", error, info.componentStack);\n  }\n\n  render() {\n    if (this.state.error) {\n      return (\n        <div>\n          <p>Something failed.</p>\n          <button onClick={() => this.setState({ error: null })}>Retry</button>\n        </div>\n      );\n    }\n    return this.props.children;\n  }\n}\n\nexport default ErrorBoundary;"
+  },
+  {
+    "id": "react-extra-custom-hook-usefetch",
+    "group": "Hooks",
+    "name": "Custom hook: useFetch",
+    "syntax": "function useFetch(url) { ... return { data, error, loading }; }",
+    "desc": "A custom hook is a function that calls other hooks and returns state. This one fetches JSON and cancels stale requests.",
+    "example": "import { useEffect, useState } from \"react\";\n\nfunction useFetch(url) {\n  const [data, setData] = useState(null);\n  const [error, setError] = useState(null);\n  const [loading, setLoading] = useState(true);\n\n  useEffect(() => {\n    const controller = new AbortController();\n    setLoading(true);\n\n    fetch(url, { signal: controller.signal })\n      .then((response) => {\n        if (!response.ok) throw new Error(\"HTTP \" + response.status);\n        return response.json();\n      })\n      .then(setData)\n      .catch((caught) => {\n        if (caught.name !== \"AbortError\") setError(caught);\n      })\n      .finally(() => setLoading(false));\n\n    // Cleanup aborts the request when url changes or the component unmounts\n    return () => controller.abort();\n  }, [url]);\n\n  return { data, error, loading };\n}\n\nexport default function HotelList() {\n  const { data, error, loading } = useFetch(\"/api/hotels\");\n\n  if (loading) return <p>Loading...</p>;\n  if (error) return <p>{error.message}</p>;\n  return <ul>{data.map((hotel) => <li key={hotel.hotel_id}>{hotel.name}</li>)}</ul>;\n}"
+  },
+  {
+    "id": "react-extra-context-provider",
+    "group": "Components",
+    "name": "Context provider with a guard",
+    "syntax": "export function useAuth() { const ctx = useContext(AuthContext); ... }",
+    "desc": "Wraps useContext in a custom hook that throws when no provider is above. That turns a silent undefined into a clear error.",
+    "example": "import { createContext, useContext, useMemo, useState } from \"react\";\n\nconst AuthContext = createContext(null);\n\nexport function AuthProvider({ children }) {\n  const [user, setUser] = useState(null);\n\n  // The value object is memoized so consumers skip needless renders\n  const value = useMemo(() => ({ user, login: setUser, logout: () => setUser(null) }), [user]);\n\n  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;\n}\n\nexport function useAuth() {\n  const context = useContext(AuthContext);\n  if (!context) {\n    throw new Error(\"useAuth must be used inside AuthProvider\");\n  }\n  return context;\n}\n\n// Usage: const { user, login } = useAuth();"
+  }
+]

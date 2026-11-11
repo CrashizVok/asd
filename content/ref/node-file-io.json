@@ -1,0 +1,155 @@
+[
+    {
+        "id": "node-fs-readfile",
+        "group": "Files",
+        "name": "readFile() (promises)",
+        "syntax": "const data = await readFile(path, options?)",
+        "desc": "Reads the whole file and resolves to a Buffer, or to a string when an encoding is given. Rejects with a coded error such as ENOENT when the read fails.",
+        "example": "import { readFile } from 'node:fs/promises';\n\n// No encoding: a Buffer of raw bytes.\nconst bytes = await readFile('photo.bin');\n\n// With utf8: a string. This is the form used for text, JSON and CSV.\nconst text = await readFile('notes.txt', 'utf8');\nconsole.log(bytes.length, text.length); // bytes vs characters\n\ntry {\n    await readFile('missing.txt', 'utf8');\n} catch (err) {\n    if (err.code === 'ENOENT') console.error('file is not there');\n    else throw err; // do not swallow permission or disk errors\n}",
+        "body": "The import path matters: `node:fs/promises` gives the promise API directly, while `require('fs').promises` reaches the same functions through a property.\n\nThe whole file is loaded, so the memory cost is the file size plus a copy when an encoding is used. For a file above a few tens of megabytes, use `createReadStream` and `pipeline` instead.\n\nA UTF-8 file saved by Excel can start with a byte order mark. Strip it with `text.replace(/^\\uFEFF/, '')` before `JSON.parse`."
+    },
+    {
+        "id": "node-fs-readfile-sync",
+        "group": "Files",
+        "name": "readFileSync()",
+        "syntax": "const data = readFileSync(path, options?)",
+        "desc": "Reads a whole file and returns it directly, blocking until the disk answers. Fine in a startup script, wrong inside a request handler.",
+        "example": "import { readFileSync } from 'node:fs';\n\n// Startup config: this runs once, before the server listens.\nconst raw = readFileSync('config.json', 'utf8');\nconst config = { port: 3000, ...JSON.parse(raw) };\n\nconsole.log(config.port);\n\n// A missing file throws, and the stack points at this line.\n// try {\n//     readFileSync('config.json', 'utf8');\n// } catch (err) {\n//     if (err.code !== 'ENOENT') throw err;\n// }",
+        "body": "Sync calls block the event loop, so every other request waits while the disk works. They are acceptable in scripts, tests and startup code, and a bad habit inside an Express handler."
+    },
+    {
+        "id": "node-fs-readfile-callback",
+        "group": "Files",
+        "name": "readFile() (callback)",
+        "syntax": "readFile(path, options?, callback)",
+        "desc": "The original error-first form. The callback receives (err, data) and is called once.",
+        "example": "import { readFile } from 'node:fs';\n\n// Error-first callback: check err before touching data.\nreadFile('notes.txt', 'utf8', (err, text) => {\n    if (err) {\n        console.error(err.code, err.message);\n        return;\n    }\n    console.log(text.split('\\n').length, 'lines');\n});",
+        "body": "Wrap it with `util.promisify` when the surrounding code is async, or import from `node:fs/promises` and skip the wrapper entirely."
+    },
+    {
+        "id": "node-fs-writefile",
+        "group": "Files",
+        "name": "writeFile()",
+        "syntax": "await writeFile(path, data, options?)",
+        "desc": "Writes data to a file, creating it when missing and truncating it when present. Accepts a string or a Buffer.",
+        "example": "import { writeFile } from 'node:fs/promises';\n\nconst report = { hotel_id: 3, bookings: 12, guests: 27 };\n\n// Objects must be serialized first; writeFile rejects a plain object.\nawait writeFile('report.json', JSON.stringify(report, null, 2) + '\\n');\n\n// Append instead of replace, and fail instead of overwriting:\nawait writeFile('out.csv', 'hotel_id,bookings\\n', { flag: 'a' });\nawait writeFile('report.json', '{}', { flag: 'wx' }); // EEXIST if it exists",
+        "body": "The default flag is `w`: the old content is gone as soon as the call starts. For an output another process reads, write a temporary file in the same directory and `rename` it into place, so the target is never half written."
+    },
+    {
+        "id": "node-fs-appendfile",
+        "group": "Files",
+        "name": "appendFile()",
+        "syntax": "await appendFile(path, data, options?)",
+        "desc": "Adds data at the end of a file and creates the file when it does not exist. The newline is the caller responsibility.",
+        "example": "import { appendFile } from 'node:fs/promises';\n\n// One JSON object per line keeps the log parseable later.\nconst event = { at: new Date().toISOString(), event: 'login', user: 17 };\nawait appendFile('audit.log', JSON.stringify(event) + '\\n');\n\n// Plain text lines, newline included explicitly.\nawait appendFile('run.log', `${new Date().toISOString()} started\\n`);",
+        "body": "`appendFile` uses the `a` flag, which writes at the end even when other processes append at the same time. Without the trailing `\\n` the log becomes one very long line and every line reader sees a single record."
+    },
+    {
+        "id": "node-fs-mkdir",
+        "group": "Directories",
+        "name": "mkdir()",
+        "syntax": "await mkdir(path, { recursive: true })",
+        "desc": "Creates a directory, and with recursive true creates every missing parent and does not fail when the directory already exists.",
+        "example": "import { mkdir } from 'node:fs/promises';\n\n// Without recursive, a missing parent fails with ENOENT.\nawait mkdir('out', { recursive: true });\n\n// Safe to call on every run: no error when the tree exists.\nawait mkdir('out/reports/2026', { recursive: true });",
+        "body": "A write into a missing directory fails with `ENOENT`, and the message points at the file, not at the folder. Create the output directory before the first write of a script, not after the first failure."
+    },
+    {
+        "id": "node-fs-readdir",
+        "group": "Directories",
+        "name": "readdir()",
+        "syntax": "await readdir(path, { withFileTypes: true })",
+        "desc": "Lists a directory. With withFileTypes the result contains Dirent objects that know whether an entry is a file or a folder.",
+        "example": "import { readdir } from 'node:fs/promises';\n\nconst entries = await readdir('data', { withFileTypes: true });\n\nfor (const entry of entries) {\n    if (entry.isDirectory()) console.log('dir ', entry.name);\n    else if (entry.isFile()) console.log('file', entry.name);\n}\n\n// Plain names when the type is not needed:\nconst names = await readdir('data');\nconsole.log(names.filter((name) => name.endsWith('.csv')));",
+        "body": "The order is whatever the filesystem returns, so sort before printing. `withFileTypes` avoids a `stat` call per entry, which matters in a folder with thousands of files."
+    },
+    {
+        "id": "node-fs-stat",
+        "group": "Directories",
+        "name": "stat()",
+        "syntax": "const info = await stat(path)",
+        "desc": "Returns size in bytes, modification time as a Date, and type checks. Follows symbolic links; lstat does not.",
+        "example": "import { stat } from 'node:fs/promises';\n\nconst info = await stat('bookings.csv');\n\nconsole.log(info.size);              // bytes, not characters\nconsole.log(info.mtime.toISOString());\nconsole.log(info.isFile(), info.isDirectory());\n\n// Guard before reading a path that might be a folder:\nif (info.isDirectory()) throw new Error('expected a file');",
+        "body": "`stat` fails with `ENOENT` for a missing path, so use it to test existence only when you accept that race: the file can disappear between the check and the read. Handling `ENOENT` on the read itself is more reliable."
+    },
+    {
+        "id": "node-fs-rm",
+        "group": "Directories",
+        "name": "rm()",
+        "syntax": "await rm(path, { recursive?, force? })",
+        "desc": "Removes a file or, with recursive true, a whole directory tree. force true ignores a missing target.",
+        "example": "import { rm } from 'node:fs/promises';\n\n// Delete one file. Missing file is an error without force.\nawait rm('out/report.json', { force: true });\n\n// Delete a directory and everything in it.\nawait rm('out/tmp', { recursive: true, force: true });",
+        "body": "There is no undo and no trash folder. Build the path from a known root and print it in a log before a recursive delete. `force` hides `ENOENT`, not permission errors."
+    },
+    {
+        "id": "node-fs-rename",
+        "group": "Files",
+        "name": "rename()",
+        "syntax": "await rename(oldPath, newPath)",
+        "desc": "Moves or renames a path in one atomic step when both paths are on the same filesystem. This is the safe way to publish a finished file.",
+        "example": "import { writeFile, rename, rm } from 'node:fs/promises';\nimport path from 'node:path';\n\nasync function writeAtomic(target, data) {\n    // The temp file must sit in the same directory, or rename fails with EXDEV.\n    const tmp = path.join(path.dirname(target), `.${path.basename(target)}.tmp`);\n    try {\n        await writeFile(tmp, data);\n        await rename(tmp, target); // replaces the old file in one step\n    } catch (err) {\n        await rm(tmp, { force: true });\n        throw err;\n    }\n}\n\nawait writeAtomic('out/report.json', '{\"ok\":true}\\n');",
+        "body": "A reader either sees the old file or the new one, never a partial write. Renaming across devices, for example from `/tmp` to a mounted volume, fails with `EXDEV` and needs a copy plus delete instead."
+    },
+    {
+        "id": "node-fs-copyfile",
+        "group": "Files",
+        "name": "copyFile()",
+        "syntax": "await copyFile(source, target, mode?)",
+        "desc": "Copies a file byte for byte. With the COPYFILE_EXCL constant it fails instead of overwriting an existing target.",
+        "example": "import { copyFile, constants } from 'node:fs/promises';\n\n// Overwrite the target when it exists.\nawait copyFile('template.csv', 'bookings.csv');\n\n// Refuse to overwrite: throws EEXIST when bookings.csv is already there.\nawait copyFile('template.csv', 'bookings.csv', constants.COPYFILE_EXCL);",
+        "body": "Use `copyFile` for a file, not `readFile` plus `writeFile`: the built-in copy does not build the content in memory and lets the platform use its fastest path."
+    },
+    {
+        "id": "node-path-join",
+        "group": "Paths",
+        "name": "path.join()",
+        "syntax": "path.join(...segments)",
+        "desc": "Joins path segments with the platform separator and normalizes the result. Relative segments stay relative.",
+        "example": "import path from 'node:path';\nimport { fileURLToPath } from 'node:url';\n\n// ESM has no __dirname, so build it once from the module URL.\nconst here = path.dirname(fileURLToPath(import.meta.url));\n\nconst input = path.join(here, '..', 'data', 'bookings.csv');\nconsole.log(input); // /home/student/project/data/bookings.csv\n\n// In CommonJS the same line is: path.join(__dirname, 'data', 'bookings.csv')",
+        "body": "Joining with `+ \"/\" +` produces doubled separators and breaks on Windows. `join` also collapses `..`, which is what you want for a path built from parts."
+    },
+    {
+        "id": "node-path-resolve",
+        "group": "Paths",
+        "name": "path.resolve()",
+        "syntax": "path.resolve(...segments)",
+        "desc": "Builds an absolute path, starting from the rightmost absolute segment or from process.cwd().",
+        "example": "import path from 'node:path';\n\n// Anchored to the current working directory.\nconsole.log(path.resolve('data', 'bookings.csv'));\n// /home/student/project/data/bookings.csv\n\n// An absolute segment resets the chain.\nconsole.log(path.resolve('/srv/app', 'data', 'bookings.csv'));\n// /srv/app/data/bookings.csv",
+        "body": "Use `resolve` when the result must be absolute, for example before comparing paths or passing one to another process. It depends on where the process was started, so it is a poor choice for a file that sits beside the source; use `join` with `__dirname` or the module URL there."
+    },
+    {
+        "id": "node-fs-createreadstream",
+        "group": "Streams",
+        "name": "createReadStream()",
+        "syntax": "createReadStream(path, { encoding?, highWaterMark? })",
+        "desc": "Reads a file in chunks instead of loading it whole. Chunks are Buffers unless an encoding is set.",
+        "example": "import { createReadStream } from 'node:fs';\n\nlet lines = 0;\nconst stream = createReadStream('access.log', { encoding: 'utf8' });\n\n// for await pauses and resumes the stream, so memory stays flat.\nfor await (const chunk of stream) {\n    lines += chunk.split('\\n').length - 1;\n}\nconsole.log({ lines }); // note: counts only complete newlines in chunks",
+        "body": "Chunk boundaries fall anywhere, so counting lines per chunk gives a wrong total for the last line. Use `readline.createInterface` when the unit is a line and `pipeline` when the data only needs to move."
+    },
+    {
+        "id": "node-stream-pipeline",
+        "group": "Streams",
+        "name": "pipeline()",
+        "syntax": "await pipeline(source, ...transforms, destination, options?)",
+        "desc": "Connects streams, handles backpressure, forwards errors, and destroys every stage when one fails. Resolves when the destination is finished.",
+        "example": "import { createReadStream, createWriteStream } from 'node:fs';\nimport { createGzip } from 'node:zlib';\nimport { pipeline } from 'node:stream/promises';\n\n// Copy and compress in one pass, with one error handler.\nawait pipeline(\n    createReadStream('access.log'),\n    createGzip(),\n    createWriteStream('access.log.gz'),\n);\n\n// Cancellation: the signal destroys every stage and releases the handles.\nconst controller = new AbortController();\nawait pipeline(createReadStream('big.csv'), createWriteStream('copy.csv'), {\n    signal: controller.signal,\n});",
+        "body": "`pipe` forwards data but not errors, and leaves the other streams open after a failure. `pipeline` closes all of them, which is why a failed run does not hang the process. Pass an async generator function as a stage when a full `Transform` class is more code than the job needs."
+    },
+    {
+        "id": "node-stream-transform",
+        "group": "Streams",
+        "name": "new Transform()",
+        "syntax": "new Transform({ transform(chunk, encoding, callback) })",
+        "desc": "A stream stage that takes a chunk in and emits zero or more chunks out. The callback must be called exactly once.",
+        "example": "import { Transform } from 'node:stream';\n\n// Buffer the unfinished tail: a chunk can end in the middle of a line.\nconst splitLines = new Transform({\n    transform(chunk, encoding, callback) {\n        this.rest = (this.rest ?? '') + chunk.toString();\n        const lines = this.rest.split('\\n');\n        this.rest = lines.pop();\n        callback(null, lines.length ? lines.join('\\n') + '\\n' : undefined);\n    },\n    flush(callback) {\n        // The last line may arrive without a trailing newline.\n        callback(null, this.rest || undefined);\n    },\n});",
+        "body": "Holding state between chunks is allowed, but the leftover must be flushed in `flush` or it is silently dropped. Forgetting to call the callback stalls the pipeline with no error, which looks like a hang rather than a bug."
+    },
+    {
+        "id": "node-readline-createinterface",
+        "group": "Line reading",
+        "name": "readline.createInterface()",
+        "syntax": "readline.createInterface({ input, crlfDelay: Infinity })",
+        "desc": "Turns a readable stream into an async iterator of lines without loading the file into memory. Handles lines split across chunks.",
+        "example": "import { createReadStream } from 'node:fs';\nimport readline from 'node:readline';\n\nconst rl = readline.createInterface({\n    input: createReadStream('access.log', 'utf8'),\n    crlfDelay: Infinity, // treat \\r\\n as one break on every platform\n});\n\nlet errors = 0;\nfor await (const line of rl) {\n    if (line.includes(' 500 ')) errors += 1;\n}\nconsole.log({ errors });",
+        "body": "`crlfDelay: Infinity` stops a Windows file from leaving `\\r` at the end of every line. Breaking out of the loop closes the interface and destroys the stream, so no manual cleanup is needed."
+    }
+]

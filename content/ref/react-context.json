@@ -1,0 +1,146 @@
+[
+  {
+    "id": "react-context-create",
+    "group": "Context",
+    "name": "createContext()",
+    "syntax": "const Ctx = createContext(defaultValue);",
+    "desc": "Creates a named channel. The argument is only used when no provider exists above the consumer.",
+    "example": "import { createContext } from 'react';\n\n// Data shape: { dark: boolean, toggle: () => void }\nconst ThemeContext = createContext(null);\n\n// A provider later supplies the real value:\n// <ThemeContext.Provider value={value}>...</ThemeContext.Provider>\n\n// Declare the context at module level. Inside a component it\n// would be rebuilt on every render and all consumers would remount.",
+    "body": "The default value is a fallback, not initial state. It never updates.\n\n```jsx\nconst LocaleContext = createContext('en');\n\nfunction Price({ amount }) {\n    const locale = useContext(LocaleContext);\n    return <span>{new Intl.NumberFormat(locale).format(amount)}</span>;\n}\n\n// No provider: the component still renders with 'en'\n<Price amount={12500} />\n```\n\nUse `null` when a missing provider is a bug you want your own hook to catch. Use a real value when a standalone fallback makes sense."
+  },
+  {
+    "id": "react-context-provider-value",
+    "group": "Context",
+    "name": "<Ctx.Provider value>",
+    "syntax": "<Ctx.Provider value={value}>{children}</Ctx.Provider>",
+    "desc": "Publishes a value to every consumer below it. The nearest provider wins.",
+    "example": "import { createContext, useMemo, useState } from 'react';\n\n// Data shape: { city: string, setCity: (city: string) => void }\nconst CityContext = createContext(null);\n\nexport function CityProvider({ children }) {\n    const [city, setCity] = useState('');\n\n    // New object on every render would re-render every consumer\n    const value = useMemo(() => ({ city, setCity }), [city]);\n\n    return <CityContext.Provider value={value}>{children}</CityContext.Provider>;\n}",
+    "body": "`value` is compared by reference. A literal object is new on every provider render, so every consumer re-renders with it. Memoize the object, or publish a primitive when possible.\n\n```jsx\n// Stable while dark is unchanged\nconst value = useMemo(() => ({ dark, toggle }), [dark, toggle]);\n\n// Also fine: a primitive compares by value\n<ThemeContext.Provider value={dark ? 'dark' : 'light'}>\n```"
+  },
+  {
+    "id": "react-context-usecontext-read",
+    "group": "Context",
+    "name": "useContext()",
+    "syntax": "const value = useContext(Ctx);",
+    "desc": "Reads the nearest provider value. The component re-renders when that value changes.",
+    "example": "import { useContext } from 'react';\nimport { ThemeContext } from './theme-context.js';\n\nfunction Toolbar() {\n    // Data shape: { dark: boolean, toggle: () => void }\n    const { dark, toggle } = useContext(ThemeContext);\n\n    return (\n        <button className={dark ? 'dark' : 'light'} onClick={toggle}>\n            Menu\n        </button>\n    );\n}",
+    "body": "There is no selector. A component that reads `{ user, cart }` re-renders when either one changes, even if it only displays the cart.\n\nThe hook must be called at the top level, never inside a condition, a loop, or a callback."
+  },
+  {
+    "id": "react-context-custom-hook",
+    "group": "Context",
+    "name": "context custom hook",
+    "syntax": "function useThing() { const v = useContext(Ctx); if (!v) throw new Error(...); return v; }",
+    "desc": "Wraps useContext with a guard and a readable name. Keeps the context object private to its file.",
+    "example": "import { useContext } from 'react';\nimport { CartStateContext } from './cart-context.js';\n\nexport function useCartItems() {\n    const state = useContext(CartStateContext);\n\n    if (!state) {\n        throw new Error('useCartItems must be used inside CartProvider');\n    }\n\n    return state.items;\n}\n\n// In a component:\n// const items = useCartItems();",
+    "body": "Export the provider and the hooks, not the raw context. Then no file can read it and skip the guard, and renaming the shape later touches one file.\n\n```jsx\n// One hook per slice, so a component declares what it uses\nexport function useCartActions() {\n    const actions = useContext(CartActionsContext);\n    if (!actions) throw new Error('useCartActions must be used inside CartProvider');\n    return actions;\n}\n```"
+  },
+  {
+    "id": "react-context-split",
+    "group": "Context",
+    "name": "split state and actions",
+    "syntax": "const StateCtx = createContext(null);\nconst ActionsCtx = createContext(null);",
+    "desc": "Two contexts instead of one object: readers subscribe to state, writers get a value that never changes.",
+    "example": "// Data shape: state { items: Array<{ id: number, name: string }> }\n// Data shape: actions { add: (name: string) => void }\nconst ActionsContext = createContext(null);\nconst StateContext = createContext(null);\n\nfunction Provider({ children }) {\n    const [state, dispatch] = useReducer(reducer, { items: [] });\n    const add = useCallback((name) => dispatch({ type: 'add', name }), []);\n    const actions = useMemo(() => ({ add }), [add]);\n\n    return (\n        <ActionsContext.Provider value={actions}>\n            <StateContext.Provider value={state}>{children}</StateContext.Provider>\n        </ActionsContext.Provider>\n    );\n}",
+    "body": "A component that only calls `add` reads the actions context and never re-renders when the list changes. That is the cheapest performance fix available in a context-heavy tree, and it costs one extra `createContext` line.\n\nSplit further only when a real problem shows: a large list where only the count is displayed, for example."
+  },
+  {
+    "id": "react-context-default-value",
+    "group": "Context",
+    "name": "default value",
+    "syntax": "createContext(fallback)",
+    "desc": "The fallback only applies when no provider is above the consumer. It is not state and never changes.",
+    "example": "// Fallback that works without a provider\nconst LocaleContext = createContext('en');\n\nfunction Standalone() {\n    const locale = useContext(LocaleContext);\n    return <p>{locale}</p>; // 'en'\n}\n\nfunction Wrapped() {\n    return (\n        <LocaleContext.Provider value=\"de\">\n            <Standalone /> {/* 'de' */}\n        </LocaleContext.Provider>\n    );\n}",
+    "body": "`createContext()` with no argument gives `undefined`, and the failure appears later as a destructuring error that does not mention context. Either pass a usable fallback or pass `null` and guard in a custom hook."
+  },
+  {
+    "id": "react-context-nested-providers",
+    "group": "Context",
+    "name": "nested providers",
+    "syntax": "<Ctx.Provider value={outer}><Ctx.Provider value={inner}>...</Ctx.Provider></Ctx.Provider>",
+    "desc": "The nearest provider wins for everything inside it. Nesting is legal and useful for a modal or a preview pane.",
+    "example": "function App() {\n    return (\n        <ThemeContext.Provider value=\"light\">\n            <Page />\n            <ThemeContext.Provider value=\"dark\">\n                <Preview /> {/* reads \"dark\" */}\n            </ThemeContext.Provider>\n        </ThemeContext.Provider>\n    );\n}",
+    "body": "An accidental second provider is a silent override: the outer value is simply ignored below it. When a component shows the wrong value, walk up the tree and count the providers before changing any state."
+  },
+  {
+    "id": "react-context-stable-value",
+    "group": "Context",
+    "name": "memoized provider value",
+    "syntax": "const value = useMemo(() => ({ a, b }), [a, b]);",
+    "desc": "Keeps the provider value identical between renders so consumers do not re-render for nothing.",
+    "example": "function Provider({ children }) {\n    const [dark, setDark] = useState(false);\n\n    const toggle = useCallback(() => setDark((old) => !old), []);\n\n    // Without useMemo the object below is new on every render\n    const value = useMemo(() => ({ dark, toggle }), [dark, toggle]);\n\n    return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;\n}",
+    "body": "Memoizing the object is not enough if a field inside it is unstable. A plain `toggle` function is recreated on every render, so the memoized object still changes. Wrap the function in `useCallback` first, then the object."
+  },
+  {
+    "id": "react-memo-shallow",
+    "group": "Memoization",
+    "name": "React.memo",
+    "syntax": "const Row = memo(RowBase);",
+    "desc": "Skips a re-render when every prop is equal by Object.is. One level deep only.",
+    "example": "import { memo } from 'react';\n\nconst RoomRow = memo(function RoomRow({ room, onSelect }) {\n    return (\n        <li>\n            {room.name}\n            <button onClick={() => onSelect(room.id)}>Open</button>\n        </li>\n    );\n});\n\n// Parent must pass stable props or this does nothing:\n// <RoomRow room={room} onSelect={selectRoom} />",
+    "body": "A new object, array, or arrow function from the parent fails the comparison, so `memo` is common and often useless. It also does not block re-renders caused by the component's own state, or by a context it reads."
+  },
+  {
+    "id": "react-memo-compare",
+    "group": "Memoization",
+    "name": "memo with compare",
+    "syntax": "memo(Component, (prevProps, nextProps) => boolean)",
+    "desc": "Custom comparison. Return true when the props count as equal, which skips the render.",
+    "example": "const Row = memo(\n    function Row({ room, onSelect }) {\n        return <li onClick={() => onSelect(room.id)}>{room.name}</li>;\n    },\n    (prev, next) => prev.room.id === next.room.id && prev.onSelect === next.onSelect\n);",
+    "body": "The return value is inverted compared with `shouldComponentUpdate`: `true` means equal, so no render. Keep the comparison cheap and make sure every prop the component reads is covered, or it will show stale data."
+  },
+  {
+    "id": "react-usememo-derived",
+    "group": "Memoization",
+    "name": "useMemo",
+    "syntax": "const value = useMemo(() => compute(a, b), [a, b]);",
+    "desc": "Caches the result of a calculation until a dependency changes. The function must be pure.",
+    "example": "const visible = useMemo(() => {\n    const needle = query.trim().toLowerCase();\n    if (!needle) return rooms;\n    return rooms.filter((room) => room.name.toLowerCase().includes(needle));\n}, [rooms, query]);",
+    "body": "Worth it when the calculation grows with the data or when the result is a prop of a memoized child. Not worth it for a single arithmetic expression.\n\nNever put a side effect inside: no `setState`, no fetch, no storage write. React may drop the cached value and run the function again.\n\n```jsx\n// Sort a copy, because sort mutates\nconst sorted = useMemo(() => [...rooms].sort((a, b) => a.price - b.price), [rooms]);\n```"
+  },
+  {
+    "id": "react-usecallback-identity",
+    "group": "Memoization",
+    "name": "useCallback",
+    "syntax": "const fn = useCallback((arg) => body, [deps]);",
+    "desc": "Returns the same function object while the dependencies are equal. Needed for memoized children and dependency arrays.",
+    "example": "const selectRoom = useCallback((id) => setSelectedId(id), []);\n\n// Now this child can skip renders\nconst Row = memo(function Row({ room, onSelect }) {\n    return <li onClick={() => onSelect(room.id)}>{room.name}</li>;\n});",
+    "body": "`useCallback(fn, deps)` is `useMemo(() => fn, deps)`. It does not make the function faster and it is pointless for a handler used only on a DOM element.\n\n```jsx\n// No benefit here, nobody compares this function\n<button onClick={() => setOpen(true)}>Open</button>\n```"
+  },
+  {
+    "id": "react-usecallback-updater",
+    "group": "Memoization",
+    "name": "stable callback with updater",
+    "syntax": "const fn = useCallback(() => setValue((old) => old + 1), []);",
+    "desc": "Reads the previous state through the updater instead of closing over the current value, so the array can stay empty.",
+    "example": "// Reads text, so it must depend on text\nconst submitOld = useCallback(() => send(text), [text]);\n\n// Reads no outside value, so it never changes\nconst clear = useCallback(() => setText(''), []);\n\nconst append = useCallback(() => {\n    setText((old) => old + '!');\n}, []);",
+    "body": "This is the cheapest way to keep a handler stable and correct at the same time. The moment the callback reads a state value directly, that value belongs in the dependency array, and the stable identity is gone."
+  },
+  {
+    "id": "react-deps-array-rules",
+    "group": "Memoization",
+    "name": "dependency array",
+    "syntax": "useMemo(fn, [a, b]); // every value read goes here",
+    "desc": "Compared element by element with Object.is. List every prop, state, and local function the callback reads.",
+    "example": "// Wrong: reads query but lists nothing\nconst filtered = useMemo(() => rooms.filter((r) => r.city === query), []);\n\n// Right\nconst filtered = useMemo(\n    () => rooms.filter((r) => r.city === query),\n    [rooms, query]\n);",
+    "body": "An empty array means compute once. A missing array means compute on every render. Module-level imports and `setState` functions from `useState` are stable and can be left out.\n\nDo not silence the lint warning by deleting a dependency. The bug shows up later as data that stops updating."
+  },
+  {
+    "id": "react-stale-closure",
+    "group": "Memoization",
+    "name": "stale closure",
+    "syntax": "useEffect(() => { ... }, []); // captures the first render's values",
+    "desc": "A function with an empty dependency array keeps reading the values from the render that created it.",
+    "example": "// Bug: count stays 0 inside the interval\nuseEffect(() => {\n    const id = setInterval(() => setCount(count + 1), 1000);\n    return () => clearInterval(id);\n}, []);\n\n// Fix 1: updater form\nuseEffect(() => {\n    const id = setInterval(() => setCount((old) => old + 1), 1000);\n    return () => clearInterval(id);\n}, []);",
+    "body": "Two other fixes. Add the value to the dependency array and let the effect restart, or keep a ref that points at the newest value when the effect must not restart.\n\n```jsx\nconst countRef = useRef(count);\ncountRef.current = count;\n\nuseEffect(() => {\n    const id = setInterval(() => setCount(countRef.current + 1), 1000);\n    return () => clearInterval(id);\n}, []);\n```\n\nThe same trap appears in event listeners registered once, in `setTimeout`, and in debounce callbacks."
+  },
+  {
+    "id": "react-memo-children",
+    "group": "Memoization",
+    "name": "memo and children",
+    "syntax": "<Panel><Row /></Panel>",
+    "desc": "children is a prop. A new element on every parent render makes the memo comparison fail.",
+    "example": "// Panel re-renders on every parent render, because the child\n// element is rebuilt each time\n<Panel>\n    <Row room={room} />\n</Panel>\n\n// Move the state down so the parent does not re-render,\n// or pass a stable element from a component that does not change\nconst row = useMemo(() => <Row room={room} />, [room]);\n<Panel>{row}</Panel>;",
+    "body": "The usual fix is structural: move the state that changes into the smallest component that needs it, so the expensive subtree is not a child of the thing that re-renders."
+  }
+]

@@ -1,0 +1,176 @@
+[
+  {
+    "id": "css-position-static",
+    "group": "Positioning",
+    "name": "position: static",
+    "syntax": ".box { position: static; }",
+    "desc": "The default. The box stays in normal flow and every offset is ignored.",
+    "example": ".box {\n  position: static;   /* the initial value; writing it is only a reminder */\n  top: 40px;          /* has no effect here */\n  left: 40px;         /* has no effect here */\n}"
+  },
+  {
+    "id": "css-position-relative-anchor",
+    "group": "Positioning",
+    "name": "relative as a containing block",
+    "syntax": ".card { position: relative; }",
+    "desc": "Keeps the box in flow and makes it the containing block for absolute children. With no offsets it looks unchanged.",
+    "example": ".card {\n  position: relative;  /* the badge now measures against this box */\n}\n\n.card__tag {\n  position: absolute;\n  top: 8px;\n  right: 8px;\n}",
+    "body": "Use `relative` with no offsets when the only goal is to anchor a child. Adding `top: 2px` also shifts the painted box and can hide a border, so keep the two jobs separate."
+  },
+  {
+    "id": "css-position-absolute-stretch",
+    "group": "Positioning",
+    "name": "absolute stretch with inset",
+    "syntax": ".overlay { position: absolute; inset: 0; }",
+    "desc": "Removes the box from flow and stretches it to its containing block when width and height stay auto.",
+    "example": ".figure {\n  position: relative;\n}\n\n.figure__cover {\n  position: absolute;\n  inset: 0;            /* top right bottom left all zero */\n  background: rgb(12 18 28 / 45%);\n}"
+  },
+  {
+    "id": "css-position-absolute-center",
+    "group": "Positioning",
+    "name": "absolute centering",
+    "syntax": ".modal { position: absolute; inset: 0; margin: auto; width: 320px; height: 200px; }",
+    "desc": "Sets all four offsets plus auto margins, so the fixed size box centers on both axes.",
+    "example": ".panel {\n  position: absolute;\n  inset: 0;\n  margin: auto;        /* auto margins absorb the leftover space on both sides */\n  width: 320px;\n  height: 200px;\n}\n\n/* Shorter alternative: let the parent center the child. */\n.backdrop {\n  position: fixed;\n  inset: 0;\n  display: grid;\n  place-items: center;\n}"
+  },
+  {
+    "id": "css-position-fixed-header",
+    "group": "Positioning",
+    "name": "fixed header",
+    "syntax": ".header { position: fixed; inset: 0 0 auto 0; height: 64px; }",
+    "desc": "Pins the header to the top of the viewport. The body must reserve the same height or the first content slides under it.",
+    "example": ":root {\n  --header-h: 64px;\n}\n\n.header {\n  position: fixed;\n  inset: 0 0 auto 0;   /* top 0, right 0, bottom auto, left 0 */\n  height: var(--header-h);\n  z-index: 10;\n}\n\nbody {\n  padding-top: var(--header-h);\n}\n\nhtml {\n  /* Anchor links scroll 12px below the header instead of under it. */\n  scroll-padding-top: calc(var(--header-h) + 12px);\n}",
+    "body": "A `transform`, `filter`, `perspective` or `contain: paint` on an ancestor makes that ancestor the containing block, and the header scrolls with the page. Check the wrapper before adding more `z-index`."
+  },
+  {
+    "id": "css-position-sticky-header",
+    "group": "Positioning",
+    "name": "sticky table header",
+    "syntax": "th { position: sticky; top: 0; }",
+    "desc": "Keeps the header row visible inside a scrolling table or list without JavaScript.",
+    "example": ".table-wrap {\n  max-height: 360px;\n  overflow: auto;      /* this element becomes the scrollport */\n}\n\n.table-wrap thead th {\n  position: sticky;\n  top: 0;\n  background: #f4f7fb; /* must be opaque, or rows show through */\n  border-bottom: 1px solid #d8dde6;\n}"
+  },
+  {
+    "id": "css-position-sticky-debug",
+    "group": "Positioning",
+    "name": "why sticky does nothing",
+    "syntax": ".item { position: sticky; top: 0; }",
+    "desc": "Sticky needs a threshold, a taller parent, and no clipping ancestor between it and the scrollport.",
+    "example": "/* 1. The threshold is missing. */\n.head { position: sticky; }               /* no top, no stickiness */\n\n/* 2. An ancestor clips it. */\n.wrapper { overflow: hidden; }            /* becomes the scrollport */\n\n/* 3. No room to travel. */\n.column { display: grid; }                /* stretch makes the child as tall as the parent */\n.column > .head { position: sticky; top: 0; }\n.column > .head { align-self: start; }    /* gives the element room to move */"
+  },
+  {
+    "id": "css-inset-shorthand",
+    "group": "Positioning",
+    "name": "inset",
+    "syntax": "inset: top right bottom left;",
+    "desc": "Shorthand for the four offsets. Values follow the same order as margin.",
+    "example": ".cover {\n  position: absolute;\n  inset: 0;               /* all four sides */\n}\n\n.gutter {\n  position: absolute;\n  inset: 12px 24px;       /* 12px top and bottom, 24px left and right */\n}\n\n.translated {\n  position: absolute;\n  inset-inline-start: 0;  /* left in English, right in Arabic or Hebrew */\n}"
+  },
+  {
+    "id": "css-containing-block",
+    "group": "Positioning",
+    "name": "finding the containing block",
+    "syntax": "position: absolute;",
+    "desc": "An absolute box measures against the padding box of the nearest ancestor whose position is not static, or the initial containing block.",
+    "example": "/* Walk up from the absolute box and stop at the first match. */\n.static-parent { position: static; }        /* skip */\n.grid-parent { position: relative; }        /* stop here: its padding box wins */\n\n.child {\n  position: absolute;\n  top: 0;             /* 0 from the padding edge of .grid-parent */\n  left: 0;\n}\n\n/* Fixed boxes use the viewport unless an ancestor has transform,\n   filter, perspective, contain: paint or content-visibility: auto. */"
+  },
+  {
+    "id": "css-stacking-context-isolate",
+    "group": "Stacking",
+    "name": "isolation: isolate",
+    "syntax": ".widget { isolation: isolate; }",
+    "desc": "Creates a stacking context with no visual side effect, so a component's internal z-index values stay inside it.",
+    "example": ".widget {\n  isolation: isolate;   /* like a z-index context, but no layer change */\n  position: relative;\n}\n\n.widget__badge {\n  position: absolute;\n  z-index: 2;           /* cannot climb above the widget now */\n}"
+  },
+  {
+    "id": "css-z-index-scale",
+    "group": "Stacking",
+    "name": "z-index scale with custom properties",
+    "syntax": "--z-header: 10; --z-modal: 100;",
+    "desc": "Keeps layer values in one place so a new component can be inserted between two existing ones.",
+    "example": ":root {\n  --z-base: 0;\n  --z-header: 10;\n  --z-dropdown: 20;\n  --z-backdrop: 100;\n  --z-modal: 110;\n  --z-toast: 120;\n}\n\n.header { position: sticky; top: 0; z-index: var(--z-header); }\n.backdrop { position: fixed; inset: 0; z-index: var(--z-backdrop); }\n.modal { position: fixed; z-index: var(--z-modal); }\n\n/* A child with z-index 9999 inside .header still loses to .backdrop,\n   because the header's context caps it at 10. */"
+  },
+  {
+    "id": "css-responsive-viewport-meta",
+    "group": "Responsive setup",
+    "name": "viewport meta tag",
+    "syntax": "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+    "desc": "Makes the layout viewport match the device width. Without it a phone renders at about 980px and zooms out.",
+    "example": "<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<!-- No maximum-scale and no user-scalable=no: both block pinch zoom. -->",
+    "body": "Test the result at 375px wide. With the tag in place, `100vw` is 375px and a `min-width: 48em` query does not match, which is what the mobile layout expects."
+  },
+  {
+    "id": "css-responsive-mobile-first",
+    "group": "Breakpoints",
+    "name": "mobile first layout",
+    "syntax": ".grid { grid-template-columns: 1fr; }\n@media (min-width: 48em) { .grid { grid-template-columns: repeat(2, 1fr); } }",
+    "desc": "Base styles describe the narrow screen and min-width queries add columns as space appears.",
+    "example": "/* Phone layout first, no query needed. */\n.grid {\n  display: grid;\n  gap: 16px;\n  grid-template-columns: 1fr;\n}\n\n@media (min-width: 48em) {\n  .grid {\n    grid-template-columns: repeat(2, 1fr);\n  }\n}\n\n@media (min-width: 64em) {\n  .grid {\n    grid-template-columns: repeat(3, 1fr);\n    gap: 24px;\n  }\n}"
+  },
+  {
+    "id": "css-responsive-breakpoint-em",
+    "group": "Breakpoints",
+    "name": "em breakpoints",
+    "syntax": "@media (min-width: 48em) { }",
+    "desc": "Breakpoints in em follow the user's font size and zoom. One em inside a query is the initial font size, normally 16px.",
+    "example": "/* 48em is 768px at the default 16px root, and 960px at a 20px user setting. */\n@media (min-width: 48em) {\n  .layout {\n    grid-template-columns: 220px 1fr;\n  }\n}\n\n/* Pick the number where the content breaks, not the name of a device. */\n@media (min-width: 60em) {\n  .cards { grid-template-columns: repeat(3, 1fr); }\n}"
+  },
+  {
+    "id": "css-responsive-fluid-type",
+    "group": "Units and sizing",
+    "name": "fluid type with clamp()",
+    "syntax": "font-size: clamp(min, preferred, max);",
+    "desc": "Scales a heading with the viewport inside fixed limits. The preferred value mixes rem and vw so the user's font setting still applies.",
+    "example": "h1 {\n  /* 28px minimum, 44px maximum, gentle growth between. */\n  font-size: clamp(1.75rem, 1.25rem + 2.2vw, 2.75rem);\n  line-height: 1.15;\n}\n\n.wrap {\n  /* Cap the width and keep a gutter in one declaration. */\n  width: min(1100px, 100% - 32px);\n  margin-inline: auto;\n}",
+    "body": "A preferred value of pure `2.5vw` ignores the user's font size setting at the low end and gives about 9px on a 375px screen. Keep a `rem` part in the middle value and a `rem` minimum."
+  },
+  {
+    "id": "css-responsive-auto-fit-cards",
+    "group": "Responsive layout",
+    "name": "auto-fit card grid",
+    "syntax": "grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));",
+    "desc": "Fits as many cards per row as the container allows and reflows without any media query.",
+    "example": ".cards {\n  display: grid;\n  gap: 16px;\n  /* min(100%, 240px) stops the track from overflowing a container\n     narrower than 240px, which a bare 240px would do. */\n  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));\n  padding: 0;\n  margin: 0;\n  list-style: none;\n}",
+    "body": "`auto-fit` collapses empty tracks, `auto-fill` keeps them. Cards want `auto-fit`. If prices must line up in cards of different heights, make each card `display: flex; flex-direction: column` and give the price `margin-top: auto`."
+  },
+  {
+    "id": "css-responsive-nav-details",
+    "group": "Responsive layout",
+    "name": "disclosure nav with details",
+    "syntax": "<details><summary>Menu</summary> ... </details>",
+    "desc": "A mobile menu that opens without JavaScript and is keyboard accessible by default.",
+    "example": "<details class=\"nav\">\n  <summary>Menu</summary>\n  <ul>\n    <li><a href=\"#rooms\">Rooms</a></li>\n    <li><a href=\"#rates\">Rates</a></li>\n  </ul>\n</details>\n\n<style>\n  .nav summary {\n    padding: 8px 12px;      /* at least a 44px tap target */\n    cursor: pointer;\n    list-style: none;       /* hides the default triangle */\n  }\n\n  .nav ul {\n    position: absolute;     /* overlays the page instead of pushing it */\n    right: 16px;\n    min-width: 180px;\n    background: #fff;\n    border: 1px solid #d8dde6;\n    border-radius: 10px;\n    list-style: none;\n    padding: 8px;\n  }\n\n  @media (min-width: 40em) {\n    .nav summary { display: none; }\n    .nav ul { position: static; display: flex; gap: 4px; border: 0; }\n  }\n</style>"
+  },
+  {
+    "id": "css-responsive-fixed-header-offset",
+    "group": "Responsive layout",
+    "name": "scroll offset under a fixed header",
+    "syntax": "html { scroll-padding-top: calc(var(--header-h) + 12px); }",
+    "desc": "Keeps anchor targets visible below a fixed header instead of scrolling them under it.",
+    "example": ":root {\n  --header-h: 56px;\n}\n\nhtml {\n  scroll-padding-top: calc(var(--header-h) + 12px);\n}\n\nbody {\n  padding-top: var(--header-h);  /* reserve the header once */\n}\n\n@media (min-width: 40em) {\n  :root { --header-h: 64px; }    /* padding and offset both follow */\n}\n\n/* Section by section alternative: */\n#rooms, #rates { scroll-margin-top: calc(var(--header-h) + 12px); }"
+  },
+  {
+    "id": "css-responsive-dvh",
+    "group": "Units and sizing",
+    "name": "dvh and svh viewport units",
+    "syntax": "min-height: 100dvh;",
+    "desc": "Dynamic and small viewport heights, so a full screen panel is not cut off by the mobile browser toolbar.",
+    "example": ".panel {\n  /* Shrinks and grows with the toolbar. */\n  min-height: 100dvh;\n}\n\n.hero {\n  /* The safe choice: never taller than the visible area. */\n  min-height: 60svh;\n}\n\n/* Avoid 100vw for full width blocks: it includes the desktop scrollbar\n   and can add a horizontal scrollbar. Use 100% instead. */\n.full { width: 100%; }"
+  },
+  {
+    "id": "css-responsive-container-query",
+    "group": "Responsive layout",
+    "name": "@container",
+    "syntax": ".card-wrap { container-type: inline-size; }\n@container (min-width: 400px) { ... }",
+    "desc": "Styles a component by the width of its container, so the same card works in a sidebar and in a wide grid.",
+    "example": ".card-wrap {\n  container-type: inline-size;  /* makes this box a query container */\n  container-name: card;\n}\n\n.card {\n  display: grid;\n  gap: 8px;\n}\n\n@container card (min-width: 400px) {\n  .card {\n    /* Side by side only when the card itself is wide enough. */\n    grid-template-columns: 120px 1fr;\n    align-items: center;\n  }\n}"
+  },
+  {
+    "id": "css-responsive-375-check",
+    "group": "Responsive setup",
+    "name": "375px overflow check",
+    "syntax": "img, video, iframe { max-width: 100%; }",
+    "desc": "The first rules to add when a phone layout scrolls sideways. Then find the single wide element instead of hiding the overflow.",
+    "example": "/* Media cannot overflow its container. */\nimg,\nvideo,\niframe,\nsvg {\n  max-width: 100%;\n  height: auto;\n}\n\n/* Long words and URLs wrap instead of pushing the line wide. */\np, li {\n  overflow-wrap: anywhere;\n}\n\n/* Debug only: outline every box, then look for the one that crosses the edge. */\n/* body * { outline: 1px solid rgb(255 0 0 / 25%); } */\n\n/* Do not ship overflow-x: hidden on the body. It hides the symptom\n   and lets the wide element keep breaking the layout. */",
+    "body": "Check at 375px, then at 200 percent zoom, which leaves about 187px of layout width. A page that needs no horizontal scroll at both sizes has no fixed pixel widths left in the hot path."
+  }
+]

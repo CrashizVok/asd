@@ -1,0 +1,191 @@
+[
+  {
+    "id": "javafx-project-fxml-loader",
+    "group": "FXML",
+    "name": "FXMLLoader.load()",
+    "syntax": "new FXMLLoader(url).load()",
+    "desc": "Builds the node tree described by an FXML file, creates its controller, injects the fx:id fields and calls initialize(). Returns the root node.",
+    "example": "URL fxml = App.class.getResource(\"/app/bookings.fxml\");\nif (fxml == null) {\n    throw new IllegalStateException(\"bookings.fxml is not on the classpath\");\n}\n\n// One call does four things: parse, create the controller, inject fields, call initialize().\nParent root = new FXMLLoader(fxml).load();\nstage.setScene(new Scene(root, 1040, 640));",
+    "body": "The loader reads the XML from top to bottom, creates a controller instance with its no-argument constructor, then injects every node that has an fx:id into the field with the same name. Only after that does it call the controller's initialize method.\n\nThe returned Parent is the root element of the XML, so the same file can open in a fresh Scene or be placed inside another layout. If the URL is null, the loader throws an unhelpful exception, which is why the null check above is worth the three lines."
+  },
+  {
+    "id": "javafx-project-fxml-controller",
+    "group": "FXML",
+    "name": "fx:controller",
+    "syntax": "<BorderPane fx:controller=\"app.BookingController\">",
+    "desc": "Names the controller class for an FXML file. The value is a fully qualified class name and the class needs a no-argument constructor.",
+    "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<?import javafx.scene.layout.BorderPane?>\n\n<BorderPane xmlns=\"http://javafx.com/javafx/21\"\n            xmlns:fx=\"http://javafx.com/fxml/1\"\n            fx:controller=\"app.BookingController\">\n</BorderPane>",
+    "body": "A missing package in fx:controller produces a ClassNotFoundException inside a LoadException. The message repeats the exact string from the XML, so compare the two before changing the Java class.\n\nPut fx:controller on the root element of the file. A nested element can name a different controller, which is rare and hard to debug, so use one controller per FXML file."
+  },
+  {
+    "id": "javafx-project-fxml-id",
+    "group": "FXML",
+    "name": "fx:id",
+    "syntax": "<TextField fx:id=\"emailField\"/>",
+    "desc": "Gives a node a name so the loader can assign it to a controller field. Field name, field type and fx:id must all match.",
+    "example": "<!-- bookings.fxml -->\n<TextField fx:id=\"emailField\"/>\n<TableView fx:id=\"table\"/>",
+    "body": "On the Java side the field needs the annotation when it is private:\n\n```java\n@FXML private TextField emailField;\n@FXML private TableView<Booking> table;\n```\n\nThe compiler cannot check either link. A wrong name shows up as \"No field named ... in controller\" when the window opens, and a wrong type shows up as an injection error naming both classes.\n\nfx:id is not the CSS id. Styling with #emailField only works after a call to setId(\"emailField\")."
+  },
+  {
+    "id": "javafx-project-fxml-onaction",
+    "group": "FXML",
+    "name": "onAction",
+    "syntax": "onAction=\"#onSave\"",
+    "desc": "Connects a button, menu item or other action source to a controller method. The method must return void and may take no argument or one ActionEvent.",
+    "example": "<!-- FXML -->\n<Button text=\"Save\" onAction=\"#onSave\"/>\n<MenuItem text=\"Open CSV...\" onAction=\"#onOpenFile\"/>",
+    "body": "The handler stays private, which keeps the controller surface small:\n\n```java\n@FXML\nprivate void onSave() {\n    // the click lands here\n}\n```\n\nA renamed method breaks the window at startup with \"method not found\", not at compile time. If the handler needs the event, declare one ActionEvent parameter; adding a second parameter makes the loader reject the method."
+  },
+  {
+    "id": "javafx-project-fxml-import",
+    "group": "FXML",
+    "name": "<?import ...?>",
+    "syntax": "<?import javafx.scene.control.TableView?>",
+    "desc": "Declares a JavaFX class so the XML parser accepts it as a tag. Every class used in the file needs an import.",
+    "example": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<?import javafx.scene.control.TableColumn?>\n<?import javafx.scene.control.TableView?>\n<?import javafx.scene.layout.VBox?>\n\n<VBox xmlns=\"http://javafx.com/javafx/21\"\n      xmlns:fx=\"http://javafx.com/fxml/1\">\n    <TableView>\n        <columns>\n            <TableColumn text=\"Guest\"/>\n        </columns>\n    </TableView>\n</VBox>",
+    "body": "A wildcard import such as javafx.scene.control.* also works and saves typing:\n\n```xml\n<?import javafx.scene.control.*?>\n```\n\nExplicit imports make the file longer and easier to read in an exam, because the top of the file lists what the window contains. Layout containers from javafx.scene.layout and controls from javafx.scene.control are the two groups you almost always need."
+  },
+  {
+    "id": "javafx-project-fxml-gridpane-constraints",
+    "group": "FXML",
+    "name": "GridPane constraints",
+    "syntax": "GridPane.rowIndex=\"1\" GridPane.columnIndex=\"0\"",
+    "desc": "Places a node in a form grid. The second column usually grows, and the inputs need maxWidth set to Infinity to fill their cell.",
+    "example": "<GridPane hgap=\"8\" vgap=\"8\">\n    <columnConstraints>\n        <ColumnConstraints minWidth=\"84\" prefWidth=\"84\"/>\n        <ColumnConstraints hgrow=\"ALWAYS\"/>\n    </columnConstraints>\n\n    <Label text=\"Email\" GridPane.rowIndex=\"2\" GridPane.columnIndex=\"0\"/>\n    <TextField fx:id=\"emailField\" maxWidth=\"Infinity\"\n               GridPane.rowIndex=\"2\" GridPane.columnIndex=\"1\"/>\n</GridPane>",
+    "body": "Without a growing column the form keeps its preferred width and leaves the extra space to the right. Without maxWidth=\"Infinity\" the TextField keeps its own preferred width inside a wide cell, which looks like a layout bug but is the control obeying its maximum size.\n\nLeaving a row empty is allowed; the row simply gets the height of the nodes in it."
+  },
+  {
+    "id": "javafx-project-fxml-initialize",
+    "group": "Controller",
+    "name": "@FXML initialize()",
+    "syntax": "@FXML private void initialize() {}",
+    "desc": "Runs after every fx:id field is injected and before the scene is shown. This is the only safe place to touch the injected nodes.",
+    "example": "@FXML\nprivate void initialize() {\n    // Fields are injected by now; they are still null in the constructor.\n    guestColumn.setCellValueFactory(\n            cell -> new ReadOnlyStringWrapper(cell.getValue().guestName()));\n    table.setItems(bookings);\n    updateStatus();\n}",
+    "body": "The name and signature are fixed: no arguments, no return value. The loader calls it by name even without the annotation, but adding @FXML documents the link and keeps the method private.\n\nData that the controller needs from the caller cannot arrive through the constructor, because the loader builds the controller itself. Add a setter and call it after load, then run the dependent setup from that setter."
+  },
+  {
+    "id": "javafx-project-fxml-getcontroller",
+    "group": "Controller",
+    "name": "FXMLLoader.getController()",
+    "syntax": "Controller c = loader.getController();",
+    "desc": "Returns the controller instance the loader created, so the caller can pass data in after the window is built.",
+    "example": "FXMLLoader loader = new FXMLLoader(App.class.getResource(\"/app/bookings.fxml\"));\nParent root = loader.load();\n\n// The loader owns the constructor, so data arrives through a setter.\nBookingController controller = loader.getController();\ncontroller.setDeskName(\"Front desk\");",
+    "body": "Call getController after load. Before load it returns null.\n\nThe other direction also works and is often cleaner: the controller can reach application level objects through a small service class instead of a setter, which avoids a long chain of pass-through methods when the window gains panes."
+  },
+  {
+    "id": "javafx-project-fxml-module-opens",
+    "group": "Project",
+    "name": "opens to javafx.fxml",
+    "syntax": "opens app to javafx.fxml;",
+    "desc": "Required when the project has a module-info.java. The loader accesses the controller by reflection, so the package must be open to the FXML module.",
+    "example": "module app {\n    requires javafx.controls;\n    requires javafx.fxml;\n\n    // Reflection needs this, even when the class is public.\n    opens app to javafx.fxml;\n    exports app;\n}",
+    "body": "A missing opens line fails at startup with an IllegalAccessException or a LoadException that mentions the controller class. Non-modular projects, which is most exam projects, never need this line.\n\nAdd requires javafx.fxml as well. The controls artifact does not bring the FXML loader with it."
+  },
+  {
+    "id": "javafx-project-tableview-cellvaluefactory",
+    "group": "TableView",
+    "name": "TableColumn.setCellValueFactory()",
+    "syntax": "column.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().field()));",
+    "desc": "Tells a column how to read one value out of a row. Without a factory the column stays empty.",
+    "example": "// Strings use ReadOnlyStringWrapper; anything else uses ReadOnlyObjectWrapper.\nguestColumn.setCellValueFactory(\n        cell -> new ReadOnlyStringWrapper(cell.getValue().guestName()));\nstartColumn.setCellValueFactory(\n        cell -> new ReadOnlyObjectWrapper<>(cell.getValue().startDate()));\nnightsColumn.setCellValueFactory(\n        cell -> new ReadOnlyObjectWrapper<>(cell.getValue().nights()));",
+    "body": "cell.getValue() is the row object, not the cell text. The wrapper makes the value observable so the cell redraws when the row changes.\n\nPropertyValueFactory is the older shortcut and requires a JavaBean getter such as getStartDate() or startDateProperty(). Record accessors are named startDate(), so PropertyValueFactory finds nothing and the column renders blank without an error."
+  },
+  {
+    "id": "javafx-project-tableview-items",
+    "group": "TableView",
+    "name": "TableView.setItems()",
+    "syntax": "table.setItems(observableList);",
+    "desc": "Supplies the rows. The list must be observable, and the table only updates when that same list object changes.",
+    "example": "private final ObservableList<Booking> bookings = FXCollections.observableArrayList();\n\n@FXML\nprivate void initialize() {\n    table.setItems(bookings);   // getItems() is null before this call\n}",
+    "body": "Adding through an ArrayList that was passed to setItems shows nothing, because a plain list does not notify the table. Keep the observable list in a field and mutate it in place with add, set, remove or setAll.\n\nReplacing the list object with a new ObservableList also works if you call setItems again, but then every binding to the old list is stale."
+  },
+  {
+    "id": "javafx-project-tableview-column-resize",
+    "group": "TableView",
+    "name": "TableView.setColumnResizePolicy()",
+    "syntax": "table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);",
+    "desc": "Makes the columns share the available width instead of leaving empty space on the right. The constant exists from JavaFX 20.",
+    "example": "// Columns fill the table width; prefWidth values become proportions.\ntable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);\n\n// JavaFX 17 to 19 only has this one, deprecated in 20 but still working:\n// table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);",
+    "body": "Under a constrained policy the declared prefWidth is a hint for the ratio, so a 60 pixel column next to a 150 pixel column keeps roughly that proportion as the window grows.\n\nThe unconstrained default keeps pixel widths and leaves a grey strip after the last column. That strip is not a bug, it is the table background showing through."
+  },
+  {
+    "id": "javafx-project-tableview-selection",
+    "group": "TableView",
+    "name": "selectedItemProperty()",
+    "syntax": "table.getSelectionModel().selectedItemProperty().addListener((obs, old, row) -> {});",
+    "desc": "Fires when the selected row changes, including when it becomes null after the list is cleared.",
+    "example": "table.getSelectionModel().selectedItemProperty().addListener(\n        (observable, oldRow, newRow) -> {\n            if (newRow == null) {\n                clearForm();\n            } else {\n                showBooking(newRow);   // newRow is the row object, not its text\n            }\n        });",
+    "body": "The listener must handle null. Removing the selected row, filtering it out, or calling clearSelection all produce a null event, and a listener that dereferences it crashes at the worst moment.\n\nClearing the form from inside the listener is safe as long as clearing the form does not change the selection. If it does, the listener runs again and the form flickers or resets while the user types."
+  },
+  {
+    "id": "javafx-project-filteredlist-search",
+    "group": "TableView",
+    "name": "FilteredList and SortedList",
+    "syntax": "new FilteredList<>(master, predicate)",
+    "desc": "Shows a subset of a list without copying it. Wrap the filter in a SortedList so header clicks still sort the visible rows.",
+    "example": "private final ObservableList<Booking> bookings = FXCollections.observableArrayList();\nprivate FilteredList<Booking> filtered;\n\n@FXML\nprivate void initialize() {\n    filtered = new FilteredList<>(bookings, booking -> true);\n    SortedList<Booking> sorted = new SortedList<>(filtered);\n    sorted.comparatorProperty().bind(table.comparatorProperty());\n    table.setItems(sorted);\n\n    searchField.textProperty().addListener((obs, old, text) -> {\n        String query = text.trim().toLowerCase(Locale.ROOT);\n        filtered.setPredicate(b -> query.isEmpty() || b.matches(query));\n    });\n}",
+    "body": "The master list keeps every row. Filtering only changes what the table displays, so clearing the search restores the rows without reloading the file.\n\nA predicate must accept every row when the query is empty. Returning false for an empty query makes the table look empty after the user deletes the search text."
+  },
+  {
+    "id": "javafx-project-datepicker-value",
+    "group": "Form",
+    "name": "DatePicker.getValue()",
+    "syntax": "LocalDate date = picker.getValue();",
+    "desc": "Returns the picked LocalDate, or null while the picker is empty. Never assume a date is present.",
+    "example": "LocalDate start = startPicker.getValue();\nLocalDate end = endPicker.getValue();\n\nif (start == null || end == null) {\n    problems.add(\"Both dates are required.\");\n} else if (!end.isAfter(start)) {\n    problems.add(\"Departure must be after arrival.\");\n}",
+    "body": "Setting a date from a model is one call: `startPicker.setValue(booking.startDate())`. Passing null clears the field again.\n\nThe editor text and the value can disagree while the user types. Read getValue rather than parsing the editor text, and let the picker handle the format."
+  },
+  {
+    "id": "javafx-project-combobox-items",
+    "group": "Form",
+    "name": "ComboBox items and value",
+    "syntax": "box.getItems().setAll(values); Object v = box.getValue();",
+    "desc": "A fixed choice list. getValue returns null until something is selected, even when the list has one item.",
+    "example": "// FXML: <ComboBox fx:id=\"starsBox\" maxWidth=\"Infinity\"/>\nstarsBox.getItems().setAll(1, 2, 3, 4, 5);\n\n// Reading it during validation:\nif (starsBox.getValue() == null) {\n    problems.add(\"Pick a star rating.\");\n}",
+    "body": "A ComboBox prevents invalid input, which is often less work than validating a free text field. The price is the null value and the need to fill the items before the user can pick.\n\nTo preselect a value use setValue, not getSelectionModel().select, when the value type is the same as the item type. setValue also works when the item is not in the list, so validate that path if the model can contain anything else."
+  },
+  {
+    "id": "javafx-project-alert-showandwait",
+    "group": "Dialogs",
+    "name": "Alert.showAndWait()",
+    "syntax": "new Alert(type, content, buttons).showAndWait()",
+    "desc": "Shows a modal dialog and returns the button the user pressed as an Optional. Always attach the owner window.",
+    "example": "Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,\n        \"Delete the booking for \" + booking.guestName() + \"?\",\n        ButtonType.OK, ButtonType.CANCEL);\nconfirm.setTitle(\"Delete booking\");\nconfirm.setHeaderText(null);\nconfirm.initOwner(table.getScene().getWindow());\n\nOptional<ButtonType> answer = confirm.showAndWait();\nif (answer.isPresent() && answer.get() == ButtonType.OK) {\n    bookings.remove(booking);\n}",
+    "body": "The four types are INFORMATION, WARNING, ERROR and CONFIRMATION. The type only sets the icon and the default buttons; the text is yours.\n\nA result is only guaranteed once a button was pressed, so compare against the button you asked for. Closing the dialog from the window frame can leave the result empty. Without initOwner the dialog can open behind the main window, where the user sees a frozen app."
+  },
+  {
+    "id": "javafx-project-filechooser-open",
+    "group": "Files",
+    "name": "FileChooser.showOpenDialog()",
+    "syntax": "chooser.showOpenDialog(ownerWindow)",
+    "desc": "Opens the system file dialog and returns the chosen File, or null when the user cancels. The owner window keeps the dialog on top.",
+    "example": "FileChooser chooser = new FileChooser();\nchooser.setTitle(\"Open bookings CSV\");\nchooser.getExtensionFilters().add(\n        new FileChooser.ExtensionFilter(\"CSV files\", \"*.csv\"));\n\nFile file = chooser.showOpenDialog(table.getScene().getWindow());\nif (file == null) {\n    return;   // Cancel returns null, not an exception\n}\n\nList<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);",
+    "body": "The extension filter is a convenience for the user and a hint for the system dialog; it does not stop anyone from typing another name, so the reader still needs to cope with a wrong file.\n\nReading a small CSV on the JavaFX thread is fine. A very large file freezes the window while it parses, which in an exam is a note in the README rather than a background task."
+  },
+  {
+    "id": "javafx-project-scene-stylesheet",
+    "group": "CSS",
+    "name": "Scene.getStylesheets()",
+    "syntax": "scene.getStylesheets().add(url.toExternalForm())",
+    "desc": "Attaches a CSS file to a scene. The URL must point at a resource on the classpath, not a relative file path.",
+    "example": "Scene scene = new Scene(root, 1040, 640);\n\nURL css = App.class.getResource(\"/app/app.css\");\nif (css != null) {\n    scene.getStylesheets().add(css.toExternalForm());\n}\n\n// In FXML the same thing is one attribute on the root:\n// <BorderPane stylesheets=\"@app.css\">",
+    "body": "A stylesheet added to the root node applies to that subtree only; added to the scene, it covers dialogs created with that scene as owner as well.\n\ngetResource returns null for a missing file and the null check turns a silent styling failure into an obvious one. The leading slash means classpath root, so app/app.css sits in src/main/resources/app/app.css."
+  },
+  {
+    "id": "javafx-project-css-styleclass",
+    "group": "CSS",
+    "name": "styleClass",
+    "syntax": "node.getStyleClass().add(\"form\")",
+    "desc": "Adds a CSS class to a node. JavaFX CSS needs the -fx- prefix on every property and matches classes with a leading dot.",
+    "example": "// FXML\n<VBox styleClass=\"form\" spacing=\"10\">\n    <Label text=\"Booking details\" styleClass=\"form-title\"/>\n</VBox>\n\n/* app.css */\n.form {\n    -fx-background-color: #ffffff;\n    -fx-background-radius: 10;\n    -fx-padding: 12;\n}\n\n.form-title {\n    -fx-font-size: 15px;\n    -fx-font-weight: bold;\n}",
+    "body": "background-color without -fx- is ignored without a warning. The same happens to a selector that matches nothing, so a typo in the style class looks like a broken CSS file.\n\nA node can carry several classes: styleClass=\"button primary\" in FXML, or two add calls in code. A class selector beats a type selector, which is why .button.primary overrides .button."
+  },
+  {
+    "id": "javafx-project-fxml-resource-url",
+    "group": "Project",
+    "name": "Class.getResource()",
+    "syntax": "getClass().getResource(\"/app/bookings.fxml\")",
+    "desc": "Finds a file on the classpath. The leading slash starts at the classpath root; without it the lookup starts in the caller package.",
+    "example": "// src/main/resources/app/bookings.fxml -> /app/bookings.fxml\nURL fxml = getClass().getResource(\"/app/bookings.fxml\");\n\n// Relative form, valid only from a class in package app:\nURL same = getClass().getResource(\"bookings.fxml\");\n\nif (fxml == null) {\n    throw new IllegalStateException(\"check src/main/resources\");\n}",
+    "body": "Maven copies src/main/resources into target/classes, so the path in getResource is the path under resources, not the path on disk. An IDE that runs the class from a stale target directory will miss a file you can see in the project tree; a rebuild fixes it.\n\ngetClass() resolves relative paths against the package of the calling class, which changes when the class moves. The absolute form with a slash is the safer habit."
+  }
+]

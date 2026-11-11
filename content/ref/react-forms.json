@@ -1,0 +1,128 @@
+[
+  {
+    "id": "react-form-text-field",
+    "group": "Forms",
+    "name": "controlled text input",
+    "syntax": "<input value={value} onChange={(e) => setValue(e.target.value)} />",
+    "desc": "State holds the text, value displays it, onChange writes it back. Removing either half breaks the loop.",
+    "example": "const [name, setName] = useState('');\n\n<label htmlFor=\"name\">Name</label>\n<input\n  id=\"name\"\n  name=\"name\"\n  value={name}\n  onChange={(event) => setName(event.target.value)}\n/>",
+    "body": "The handler receives a React event. `event.target` is the DOM input, so `event.target.value` is the current text. Trim only when validating; stripping spaces in `onChange` moves the cursor while the user types.\n\nFor a form with several text fields, use one state object and one handler keyed by `name`:\n\n```jsx\nconst [form, setForm] = useState({ first_name: '', last_name: '' });\n\nfunction handleChange(event) {\n  const { name, value } = event.target;\n  setForm((prev) => ({ ...prev, [name]: value }));\n}\n```"
+  },
+  {
+    "id": "react-form-email-field",
+    "group": "Forms",
+    "name": "email input",
+    "syntax": "<input type=\"email\" value={email} onChange={(e) => setEmail(e.target.value)} />",
+    "desc": "An email field is a text field with type email. The browser checks the shape on submit, and your own check still runs.",
+    "example": "const [email, setEmail] = useState('');\n\n<input\n  type=\"email\"\n  name=\"customer_email\"\n  value={email}\n  onChange={(event) => setEmail(event.target.value)}\n  autoComplete=\"email\"\n  required\n/>",
+    "body": "`type=\"email\"` gives the right mobile keyboard and lets the browser reject an address with no `@`. That check is skipped when the form has `noValidate`, and it never runs when the value comes from state without a submit, so validate in code as well:\n\n```jsx\nconst clean = email.trim();\nif (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(clean)) {\n  setError('Email looks incomplete.');\n}\n```\n\nA trimmed value is the one to send. Keep the raw value in state so the user sees their own typing."
+  },
+  {
+    "id": "react-form-number-field",
+    "group": "Forms",
+    "name": "number input",
+    "syntax": "<input type=\"number\" value={count} onChange={(e) => setCount(e.target.value)} />",
+    "desc": "The value is a string even with type number. Keep the string in state and convert once, at submit.",
+    "example": "const [adults, setAdults] = useState('2');\n\nfunction handleSubmit(event) {\n  event.preventDefault();\n  const count = Number(adults);\n  if (!Number.isInteger(count) || count < 1) {\n    setError('Whole number, at least 1.');\n    return;\n  }\n  save({ adults: count });\n}",
+    "body": "Two traps. A cleared number field gives `''`, and `Number('')` is `0`, so a required field can look like a valid zero. A partially typed value such as `-` or `1e` also reports an empty string in some browsers.\n\n`event.target.valueAsNumber` is the alternative: it gives `NaN` for an empty or incomplete value.\n\n```jsx\nfunction handleChange(event) {\n  const next = event.target.valueAsNumber;\n  setAdults(Number.isNaN(next) ? '' : next);\n}\n```\n\nWhichever route you take, do the range check with `Number.isInteger` and explicit bounds. `min` and `max` on the input only guide the spinner and the browser check."
+  },
+  {
+    "id": "react-form-select",
+    "group": "Forms",
+    "name": "select",
+    "syntax": "<select value={city} onChange={(e) => setCity(e.target.value)}>",
+    "desc": "The value lives on select, not on option. A first option with an empty value works as the placeholder.",
+    "example": "const [city, setCity] = useState('');\n\n<select\n  name=\"city\"\n  value={city}\n  onChange={(event) => setCity(event.target.value)}\n>\n  <option value=\"\">Choose a city</option>\n  <option value=\"Budapest\">Budapest</option>\n  <option value=\"Vienna\">Vienna</option>\n</select>",
+    "body": "Every option needs a `value`. Without one the browser uses the option text, which breaks when the label changes or gets translated.\n\nFor a multiple select the state is an array:\n\n```jsx\n<select multiple value={cities} onChange={(event) => {\n  const picked = Array.from(event.target.selectedOptions, (option) => option.value);\n  setCities(picked);\n}}>\n```\n\nA checkbox group is usually the better interface for several choices, because a multiple select needs a modifier key."
+  },
+  {
+    "id": "react-form-checkbox",
+    "group": "Forms",
+    "name": "checkbox",
+    "syntax": "<input type=\"checkbox\" checked={agree} onChange={(e) => setAgree(e.target.checked)} />",
+    "desc": "A single checkbox holds a boolean in checked. It does not use value, and it reads event.target.checked.",
+    "example": "const [agree, setAgree] = useState(false);\n\n<label>\n  <input\n    type=\"checkbox\"\n    checked={agree}\n    onChange={(event) => setAgree(event.target.checked)}\n  />\n  I accept the terms\n</label>\n\n<button type=\"submit\" disabled={!agree}>Continue</button>",
+    "body": "Writing `value={agree}` with `event.target.value` stores the string `\"on\"` and the box stops following state. That is the most common mistake in exam answers.\n\nA group of checkboxes holds an array. Toggle by building a new array:\n\n```jsx\nfunction toggle(list, value) {\n  return list.includes(value)\n    ? list.filter((item) => item !== value)\n    : [...list, value];\n}\n\nsetExtras((prev) => toggle(prev, 'breakfast'));\n```"
+  },
+  {
+    "id": "react-form-radio",
+    "group": "Forms",
+    "name": "radio group",
+    "syntax": "<input type=\"radio\" name=\"room_type\" value={type} checked={roomType === type} onChange={handle} />",
+    "desc": "One state value for the group. Shared name, checked compared to that value, onChange stores the picked value.",
+    "example": "const [roomType, setRoomType] = useState('double');\n\n{['single', 'double', 'suite'].map((type) => (\n  <label key={type}>\n    <input\n      type=\"radio\"\n      name=\"room_type\"\n      value={type}\n      checked={roomType === type}\n      onChange={(event) => setRoomType(event.target.value)}\n    />\n    {type}\n  </label>\n))}",
+    "body": "The shared `name` is what makes the browser treat the inputs as one group. Without it, clicking a second radio leaves the first one selected.\n\nRadio choices drawn as cards keep the real input and hide it with CSS on the input, or use `appearance: none` plus a styled label. Replacing the input with clickable divs loses arrow key navigation and the group announcement for screen readers.\n\nOne value is pre-selected in the example. If the task wants no default, start the state as `''` and compare against that."
+  },
+  {
+    "id": "react-form-textarea",
+    "group": "Forms",
+    "name": "textarea",
+    "syntax": "<textarea value={notes} onChange={(e) => setNotes(e.target.value)} />",
+    "desc": "The value is an attribute, not child text. Children would become initial content and React warns.",
+    "example": "const [notes, setNotes] = useState('');\n\n<label htmlFor=\"notes\">Notes</label>\n<textarea\n  id=\"notes\"\n  name=\"notes\"\n  rows={4}\n  value={notes}\n  onChange={(event) => setNotes(event.target.value)}\n/>",
+    "body": "In plain HTML the text sits between the tags. In JSX that reads as default content, so a controlled textarea must use `value` and `onChange` like every other text field.\n\n`rows` sets the visible height, `maxLength` caps the input, and CSS `resize: vertical` stops a user from dragging the box wider than the layout."
+  },
+  {
+    "id": "react-form-multi-field",
+    "group": "Form state",
+    "name": "one state object",
+    "syntax": "setForm((prev) => ({ ...prev, [name]: value }))",
+    "desc": "One object holds every field and one handler writes by name. Cheaper than one useState per field once a form grows.",
+    "example": "const EMPTY = { first_name: '', last_name: '', phone: '' };\nconst [form, setForm] = useState(EMPTY);\n\nfunction handleChange(event) {\n  const { name, type, value, checked } = event.target;\n  setForm((prev) => ({\n    ...prev,\n    [name]: type === 'checkbox' ? checked : value,\n  }));\n}",
+    "body": "The computed key needs `name` on every input. A field without `name` writes to the key `\"undefined\"` and nothing visible changes, which is hard to spot.\n\nAdd a checkbox group with its own handler, because it needs an array rather than a string. A nested object needs a spread at every level:\n\n```jsx\nsetForm((prev) => ({\n  ...prev,\n  address: { ...prev.address, city: value },\n}));\n```\n\nWhen the form gains add, remove and edit row actions, `useReducer` keeps the transitions in one place and is easier to read than five chained spreads."
+  },
+  {
+    "id": "react-form-on-submit",
+    "group": "Form submission",
+    "name": "submit handler",
+    "syntax": "function handleSubmit(event) { event.preventDefault(); }",
+    "desc": "Attach to form onSubmit and preventDefault first. Without it the browser reloads and state is lost.",
+    "example": "async function handleSubmit(event) {\n  event.preventDefault();\n  const found = validate(form);\n  setErrors(found);\n  if (Object.keys(found).length > 0) return;\n\n  setSaving(true);\n  try {\n    await onSave(form);\n  } finally {\n    setSaving(false);\n  }\n}",
+    "body": "`onSubmit` on the form catches both the button click and the Enter key inside a text field. A click handler on the button catches only the click.\n\nValidate before the request, and return early when the errors object is not empty. Disable the button while the request runs (`disabled={saving}`) so a second click does not post the same booking twice.\n\nRead any `event.target.value` before the first `await`; after the request the DOM node may be gone even though the event object still exists."
+  },
+  {
+    "id": "react-form-validation",
+    "group": "Validation",
+    "name": "validate function",
+    "syntax": "function validate(form) { const errors = {}; return errors; }",
+    "desc": "A pure function from values to an errors object. Empty object means valid.",
+    "example": "function validate(form) {\n  const errors = {};\n  const email = form.customer_email.trim();\n\n  if (!email) errors.customer_email = 'Email is required.';\n  else if (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) {\n    errors.customer_email = 'Email looks incomplete.';\n  }\n\n  if (!form.first_name.trim()) errors.first_name = 'First name is required.';\n  if (Number(form.adults) < 1) errors.adults = 'At least one adult.';\n\n  return errors;\n}\n\nconst found = validate(form);\nconst valid = Object.keys(found).length === 0;",
+    "body": "Keeping validation outside the component makes it testable without rendering and keeps the submit handler short.\n\nThree moments to run it: on submit always, on blur when a field is left, on change only after the first failed submit. The last one avoids shouting at someone who is halfway through typing.\n\nError text should say what to do. \"Phone needs at least 7 digits\" is useful; \"Invalid input\" is not. Validate for the user, then validate again on the server, because the browser and your state are both outside the database."
+  },
+  {
+    "id": "react-form-error-object",
+    "group": "Validation",
+    "name": "field errors",
+    "syntax": "{errors.customer_email && <p>{errors.customer_email}</p>}",
+    "desc": "One errors object keyed by field name. Render each message under its field and mark the input invalid.",
+    "example": "const [errors, setErrors] = useState({});\n\n<input\n  name=\"customer_email\"\n  value={form.customer_email}\n  onChange={handleChange}\n  aria-invalid={Boolean(errors.customer_email)}\n  aria-describedby={errors.customer_email ? 'customer_email_error' : undefined}\n/>\n{errors.customer_email && (\n  <p id=\"customer_email_error\">{errors.customer_email}</p>\n)}",
+    "body": "`aria-invalid` tells assistive technology the field is wrong, and `aria-describedby` makes the message part of the field announcement. Without both, a screen reader user hears the label and the value but not the reason.\n\nAfter a failed submit, move focus to the first invalid field. With a ref on the form this is a single query:\n\n```jsx\nconst first = Object.keys(errors)[0];\nformRef.current?.querySelector(`[name=\"${first}\"]`)?.focus();\n```\n\nFor long forms, an error summary at the top with the count of problems helps, but the per-field text is what people actually read."
+  },
+  {
+    "id": "react-form-reset",
+    "group": "Form submission",
+    "name": "reset a form",
+    "syntax": "setForm(EMPTY_FORM); fileRef.current.value = '';",
+    "desc": "A controlled form clears through state. form.reset() only restores DOM defaults and the state value returns.",
+    "example": "const EMPTY = { email: '', city: '', terms: false };\nconst [form, setForm] = useState(EMPTY);\nconst fileRef = useRef(null);\n\nfunction reset() {\n  setForm(EMPTY);\n  setErrors({});\n  if (fileRef.current) fileRef.current.value = '';\n}\n\n<button type=\"button\" onClick={reset}>Reset</button>",
+    "body": "A `<button type=\"reset\">` and `form.reset()` send the form back to its HTML default values. For a controlled input the next render puts the state value straight back, so the field looks like it refused to clear.\n\nUncontrolled inputs do reset with `form.reset()`. A file input is always uncontrolled and needs the ref line above.\n\nA third option is a changing `key` on the form. React throws the subtree away and rebuilds it empty, which is handy when the form is generated from a record and the user switches records."
+  },
+  {
+    "id": "react-form-file-input",
+    "group": "Forms",
+    "name": "file input",
+    "syntax": "<input type=\"file\" onChange={(e) => setFile(e.target.files[0])} />",
+    "desc": "Always uncontrolled. Read event.target.files, send FormData, and clear it through a ref.",
+    "example": "const [image, setImage] = useState(null);\nconst fileRef = useRef(null);\n\n<input\n  ref={fileRef}\n  type=\"file\"\n  name=\"image\"\n  accept=\"image/*\"\n  onChange={(event) => setImage(event.target.files[0] ?? null)}\n/>\n\n// on submit\nconst data = new FormData();\ndata.append('image', image);\ndata.append('city', form.city);\nawait fetch('/api/bookings', { method: 'POST', body: data });",
+    "body": "React cannot set the value of a file input, so there is no controlled version. `files` is a read only `FileList`; take one entry, or use `Array.from(files)` when the input has `multiple`.\n\n`accept=\"image/*\"` only filters the picker. Check the type and the size in code before uploading, because a user can choose any file through the system dialog.\n\nSend the file with `FormData` and let the browser set the multipart boundary. Do not put a `File` into `JSON.stringify`; it becomes `{}` and the upload arrives empty."
+  },
+  {
+    "id": "react-form-prevent-default",
+    "group": "Form submission",
+    "name": "event.preventDefault()",
+    "syntax": "event.preventDefault()",
+    "desc": "Stops the browser from submitting the form as a page navigation, which would reload and drop React state.",
+    "example": "function handleSubmit(event) {\n  event.preventDefault(); // no navigation, state survives\n  const found = validate(form);\n  setErrors(found);\n  if (Object.keys(found).length > 0) return;\n  onSubmit(form);\n}",
+    "body": "A form without a handler submits to its `action` with a GET request, reloading the page. In a single page app that resets every piece of state and looks like a bug in the reset logic.\n\nCall it before validation and before any `await`. The first line of the handler is the right place, so nobody adds a `return` above it later.\n\nA button inside a form defaults to `type=\"submit\"`. A button that only clears fields needs `type=\"button\"`, or it will submit the form and fire `preventDefault` on the wrong path."
+  }
+]

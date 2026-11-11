@@ -1,0 +1,222 @@
+[
+  {
+    "id": "node-knex-install",
+    "group": "Setup",
+    "name": "install knex with mysql2",
+    "syntax": "npm install knex mysql2",
+    "desc": "Knex has no driver of its own. mysql2 is the package that opens MySQL sockets, so both go into dependencies.",
+    "example": "// package.json after: npm install knex mysql2\n// knex 3.x works with mysql2 3.x. Do not also install the old \"mysql\".\n{\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"knex\": \"^3.1.0\",\n    \"mysql2\": \"^3.12.0\"\n  }\n}\n\n// A missing driver shows up on the first query, not at import time:\n// Knex: run $ npm install mysql2\nimport knex from 'knex';\nconst db = knex({ client: 'mysql2', connection: { database: 'bookings' } });\nawait db.raw('select 1');\nawait db.destroy();",
+    "body": "The `client` value does two jobs: it picks the SQL dialect and it names the driver module. `mysql2` is the maintained driver. `mysql` is the old one and differs on big integers and decimals."
+  },
+  {
+    "id": "node-knex-init",
+    "group": "Setup",
+    "name": "knex()",
+    "syntax": "const db = knex(config)",
+    "desc": "Creates a query builder factory with its own connection pool. Call it once per process, in a module you import everywhere.",
+    "example": "// db.js\nimport 'dotenv/config';\nimport knex from 'knex';\n\nconst db = knex({\n  client: 'mysql2',\n  connection: {\n    host: process.env.DB_HOST ?? 'localhost',\n    port: Number(process.env.DB_PORT ?? 3306),\n    user: process.env.DB_USER ?? 'root',\n    password: process.env.DB_PASSWORD ?? '',\n    database: process.env.DB_NAME ?? 'bookings',\n  },\n});\n\nexport default db;\n\n// Lazy: no socket is opened until the first query runs.",
+    "body": "A `knex()` call per request is the classic bug. Each call builds another pool, MySQL counts the connections, and the error is `ER_CON_COUNT_ERROR: Too many connections`."
+  },
+  {
+    "id": "node-knex-knexfile",
+    "group": "Setup",
+    "name": "knexfile",
+    "syntax": "module.exports = { development: {...}, production: {...} }",
+    "desc": "Configuration file the knex CLI and the app share. Keyed by environment, so credentials stay out of code.",
+    "example": "// knexfile.cjs\n// .cjs on purpose: the CLI loads this file with require, and a\n// package.json with \"type\": \"module\" makes a plain .js file an ES module.\nrequire('dotenv/config');\n\nconst base = {\n  client: 'mysql2',\n  connection: {\n    host: process.env.DB_HOST ?? 'localhost',\n    port: Number(process.env.DB_PORT ?? 3306),\n    user: process.env.DB_USER ?? 'root',\n    password: process.env.DB_PASSWORD ?? '',\n    database: process.env.DB_NAME ?? 'bookings',\n  },\n  dateStrings: true,\n  migrations: { directory: './db/migrations', tableName: 'knex_migrations' },\n  seeds: { directory: './db/seeds' },\n};\n\nmodule.exports = {\n  development: { ...base, pool: { min: 0, max: 10 } },\n  production: { ...base, pool: { min: 2, max: 20 }, asyncStackTraces: false },\n};",
+    "body": "Older examples put `dateStrings` at the top level. It belongs in `connection`, because mysql2 reads it. Pick the block with `config[process.env.NODE_ENV ?? 'development']`, and give the CLI the same file: `npx knex migrate:latest --knexfile knexfile.cjs --env production`."
+  },
+  {
+    "id": "node-knex-pool",
+    "group": "Setup",
+    "name": "pool",
+    "syntax": "pool: { min, max, acquireTimeoutMillis, idleTimeoutMillis, afterCreate }",
+    "desc": "Bounds how many MySQL connections this process holds. Without a cap, load creates sockets until the server refuses them.",
+    "example": "const db = knex({\n  client: 'mysql2',\n  connection: { host: 'localhost', database: 'bookings' },\n  pool: {\n    min: 0,                        // idle sockets kept open\n    max: 10,                       // hard cap for this process\n    acquireTimeoutMillis: 10_000,  // fail instead of queueing forever\n    idleTimeoutMillis: 30_000,     // close a socket unused this long, down to min\n    // Runs on every new socket. done(err) finishes the setup.\n    afterCreate(conn, done) {\n      conn.query(\"SET time_zone = '+00:00'\", done);\n    },\n  },\n});\n\n// Ten app processes with max: 10 need 100 slots in MySQL max_connections.",
+    "body": "`waitForConnections` is true by default, so queries queue when every socket is busy. One slow query holding all ten turns into a pile of waiters that time out together. Lower the pool or fix the query. Raising `max` only moves the failure into MySQL."
+  },
+  {
+    "id": "node-knex-destroy",
+    "group": "Lifecycle",
+    "name": "db.destroy()",
+    "syntax": "await db.destroy()",
+    "desc": "Closes every pooled socket. A script that forgets this prints its result and then hangs, because an open socket keeps the event loop alive.",
+    "example": "// scripts/report.js\nimport db from '../db.js';\n\ntry {\n  const [{ total }] = await db('hotels').count('* as total');\n  console.log('hotels:', Number(total));\n} finally {\n  await db.destroy();\n}\n\n// In a server, close the HTTP listener first, then the pool:\n// server.close(async () => { await db.destroy(); process.exit(0); });"
+  },
+  {
+    "id": "node-knex-select",
+    "group": "Queries",
+    "name": "select()",
+    "syntax": "db('hotels').select('id', 'name', 'stars')",
+    "desc": "Lists the columns to return. The result is an array of plain objects with one key per column.",
+    "example": "// rows: [{ id: 1, name: 'Danube View', stars: 4 }, ...]\nconst rows = await db('hotels').select('id', 'name', 'stars');\n\n// Aliases: the object key becomes the column name in the result.\nconst owners = await db('hotels as h')\n  .join('customers as c', 'c.email', 'h.owner_email')\n  .select({ hotel: 'h.name', owner: 'c.last_name' });\n\n// select('*') sends every column, including a 500 character image URL\n// and a TEXT description, on every list request.",
+    "body": "Two tables with a `name` column produce one key that overwrites the other in the object. Alias at least one side."
+  },
+  {
+    "id": "node-knex-where",
+    "group": "Queries",
+    "name": "where()",
+    "syntax": ".where(column, value) | .where(column, operator, value) | .where(object)",
+    "desc": "Adds an AND condition. Values travel as bindings, so quotes in the value cannot change the statement.",
+    "example": "await db('hotels').where('city', 'Budapest');             // city = 'Budapest'\nawait db('hotels').where('stars', '>=', 4);               // stars >= 4\nawait db('hotels').where({ city: 'Budapest', stars: 4 }); // both, joined with AND\n\n// Lists and NULL need their own methods.\nawait db('bookings').whereIn('hotel_id', [1, 2, 3]);\nawait db('customers').whereNull('phone');\nawait db('bookings').whereBetween('start_date', ['2025-07-01', '2025-07-31']);\n\n// Grouping: without the callback the OR escapes every other condition.\nawait db('hotels')\n  .where('stars', '>=', 4)\n  .where(function () {\n    this.where('city', 'Budapest').orWhere('city', 'Debrecen');\n  });\n// where stars >= 4 and (city = 'Budapest' or city = 'Debrecen')",
+    "body": "`where('phone', null)` builds `phone = NULL`, which is never true and returns no rows. Use `whereNull`. An empty array in `whereIn` produces a false condition, so the query returns nothing instead of failing."
+  },
+  {
+    "id": "node-knex-orderby-limit",
+    "group": "Queries",
+    "name": "orderBy() with limit()",
+    "syntax": ".orderBy(column, 'asc'|'desc').limit(n).offset(m)",
+    "desc": "Sorts and pages the result. Offset and limit map to the MySQL `LIMIT m, n` clause.",
+    "example": "// First page of the cheapest hotels in one city.\nconst page1 = await db('hotels')\n  .where('city', 'Budapest')\n  .orderBy('stars', 'asc')\n  .limit(10)\n  .offset(0);\n\n// Two keys, so ties on stars fall back to the name.\nconst ranked = await db('hotels').orderBy([\n  { column: 'stars', order: 'desc' },\n  { column: 'name', order: 'asc' },\n]);\n\n// Custom order, bound as values.\nconst byCity = await db('hotels').orderByRaw('FIELD(city, ?, ?)', ['Budapest', 'Eger']);",
+    "body": "A column name from the query string must be checked against a whitelist before it reaches `orderBy`. Identifiers are not bindings, and quoting is not validation."
+  },
+  {
+    "id": "node-knex-first",
+    "group": "Queries",
+    "name": "first()",
+    "syntax": ".first() | .first('name')",
+    "desc": "Runs the query with `LIMIT 1` and resolves to one row, or to `undefined` when nothing matches. No array to unwrap.",
+    "example": "const hotel = await db('hotels').where('id', 1).first();\nif (!hotel) {\n  // undefined, not an empty object: check before reading a column.\n  return res.status(404).json({ error: 'Hotel not found' });\n}\nconsole.log(hotel.name);\n\n// One column only: the value itself, or undefined.\nconst name = await db('hotels').where('id', 1).first('name');"
+  },
+  {
+    "id": "node-knex-count",
+    "group": "Aggregates",
+    "name": "count()",
+    "syntax": ".count('* as total')",
+    "desc": "Returns an aggregate row. MySQL sends COUNT as BIGINT, which mysql2 can hand over as a string, so convert before doing arithmetic.",
+    "example": "// rows: [{ total: 3 }], sometimes [{ total: '3' }]\nconst [row] = await db('hotels').count('* as total');\nconst total = Number(row.total);\n\n// Unique guests, not bookings. Without distinct a join multiplies rows.\nconst [guests] = await db('bookings').countDistinct('customer_email as guests');\n\n// Counting per group.\nconst perHotel = await db('bookings')\n  .select('hotel_id')\n  .count('* as booked')\n  .groupBy('hotel_id');",
+    "body": "`count()` on a builder that already has `limit` counts at most that many rows. Build the count query from a fresh `db(table)`."
+  },
+  {
+    "id": "node-knex-insert",
+    "group": "Writes",
+    "name": "insert()",
+    "syntax": ".insert(row) | .insert([row, row])",
+    "desc": "Writes one row or many. On MySQL it resolves to `[insertId]`, an array whose first item is the auto increment value.",
+    "example": "// One row: destructure the generated id.\nconst [hotelId] = await db('hotels').insert({\n  city: 'Eger',\n  name: 'Hill House',\n  description: 'Six rooms above a bakery.',\n  stars: 3,\n  owner_email: 'anna.kovacs@example.com',\n  image: null,\n});\nconsole.log(hotelId); // 4\n\n// Many rows in one statement. MySQL reports the first generated id only.\nawait db('bookings').insert([\n  { customer_email: 'anna.kovacs@example.com', hotel_id: 1, start_date: '2025-07-01', end_date: '2025-07-05', adults: 2, children: 1, boylovers: 0 },\n  { customer_email: 'ben.nagy@example.com', hotel_id: 1, start_date: '2025-07-10', end_date: '2025-07-12', adults: 1, children: 0, boylovers: 0 },\n]);",
+    "body": "The bookings table has a composite primary key and no auto increment, so an insert id comes back as 0. Do not treat it as the key of the new row."
+  },
+  {
+    "id": "node-knex-update",
+    "group": "Writes",
+    "name": "update()",
+    "syntax": ".update(patch)",
+    "desc": "Updates the rows the builder selects and resolves to the number of affected rows.",
+    "example": "const affected = await db('hotels').where('id', 1).update({ stars: 4 });\nconsole.log(affected); // 1\n\n// Arithmetic happens in the server, so concurrent requests both count.\nawait db('hotels').where('id', 1).increment('stars', 1);\nawait db('hotels').where('id', 1).decrement('stars', 1);\n\n// A patch built from a request body needs a fixed key list.\nconst allowed = ['city', 'name', 'description', 'stars', 'image'];\nconst changes = Object.fromEntries(\n  Object.entries(req.body).filter(([key]) => allowed.includes(key))\n);\nif (Object.keys(changes).length > 0) {\n  await db('hotels').where('id', req.params.id).update(changes);\n}",
+    "body": "MySQL counts changed rows, not matched rows. Sending the same values again returns 0, so 0 means either no row or no difference. A `select` in the same transaction tells them apart. An empty patch object makes knex throw."
+  },
+  {
+    "id": "node-knex-delete",
+    "group": "Writes",
+    "name": "del()",
+    "syntax": ".where(...).del()",
+    "desc": "Deletes the selected rows and resolves to how many were removed. `truncate()` is the fast, unrollbackable alternative.",
+    "example": "const removed = await db('bookings')\n  .where({ customer_email: 'ben.nagy@example.com', hotel_id: 1 })\n  .del();\nconsole.log(removed); // 1\n\n// A hotel that still has bookings raises ER_ROW_IS_REFERENCED_2,\n// because the foreign key is ON DELETE RESTRICT.\ntry {\n  await db('hotels').where('id', 1).del();\n} catch (error) {\n  if (error.code === 'ER_ROW_IS_REFERENCED_2') {\n    console.log('Delete the bookings first.');\n  }\n}\n\n// Empty the table and reset the auto increment. DDL, so no rollback.\nawait db('hotels').truncate();",
+    "body": "`del()` with no `where` deletes every row and reports no error. Guard the route, and keep `truncate()` for seeds and tests."
+  },
+  {
+    "id": "node-knex-returning",
+    "group": "Writes",
+    "name": "returning()",
+    "syntax": ".returning('id')",
+    "desc": "Asks for the written row back. MySQL has no RETURNING clause, so knex warns and ignores it. Read the insert id or select again instead.",
+    "example": "// Warning on MySQL: .returning() is not supported and has no effect.\nconst result = await db('hotels')\n  .insert({ city: 'Eger', name: 'Hill House' })\n  .returning('id');\n// result is still [insertId], not [{ id: 4 }]\n\n// Portable pattern: insert, then read the row by its id.\nconst [id] = await db('hotels').insert({\n  city: 'Eger',\n  name: 'Hill House',\n  stars: 3,\n  owner_email: 'anna.kovacs@example.com',\n});\nconst created = await db('hotels').where('id', id).first();\n\n// For an update, read inside the same transaction so nothing slips between.\nawait db.transaction(async (trx) => {\n  await trx('hotels').where('id', id).update({ stars: 4 });\n  const row = await trx('hotels').where('id', id).first();\n  return row;\n});"
+  },
+  {
+    "id": "node-knex-onconflict",
+    "group": "Writes",
+    "name": "onConflict()",
+    "syntax": ".onConflict().merge([columns]) | .onConflict().ignore()",
+    "desc": "Turns an insert into MySQL's upsert: `ON DUPLICATE KEY UPDATE` for merge, `INSERT IGNORE` for ignore.",
+    "example": "// One guest books one hotel once, so the primary key is\n// (customer_email, hotel_id). A repeated POST moves the dates.\nawait db('bookings')\n  .insert({\n    customer_email: 'ben.nagy@example.com',\n    hotel_id: 1,\n    start_date: '2025-09-01',\n    end_date: '2025-09-04',\n    adults: 2,\n    children: 0,\n    boylovers: 0,\n  })\n  .onConflict()\n  .merge(['start_date', 'end_date', 'adults', 'children', 'boylovers']);\n\n// Insert or do nothing. Useful for a seed that may run twice.\nawait db('customers')\n  .insert({ email: 'cara.szabo@example.com', first_name: 'Cara', last_name: 'Szabo' })\n  .onConflict()\n  .ignore();",
+    "body": "MySQL ignores the column list you pass, because `ON DUPLICATE KEY` fires on any unique key of the table. Know which keys exist before you rely on it. `merge()` with no column list updates every inserted column."
+  },
+  {
+    "id": "node-knex-join",
+    "group": "Joins",
+    "name": "join()",
+    "syntax": ".join('customers as c', 'c.email', 'b.customer_email')",
+    "desc": "Adds an inner join. Only rows with a match on both sides survive.",
+    "example": "// Bookings with the guest name and image the frontend renders.\nconst rows = await db('bookings as b')\n  .join('customers as c', 'c.email', 'b.customer_email')\n  .select(\n    'b.customer_email',\n    'b.hotel_id',\n    'b.start_date',\n    'b.end_date',\n    'b.adults',\n    'b.children',\n    'c.first_name',\n    'c.last_name',\n    'c.image as customer_image'\n  )\n  .where('b.hotel_id', 1)\n  .orderBy('b.start_date', 'asc');\n\n// Three tables, all columns qualified.\nconst detailed = await db('bookings as b')\n  .join('customers as c', 'c.email', 'b.customer_email')\n  .join('hotels as h', 'h.id', 'b.hotel_id')\n  .select('c.last_name', 'h.name', 'h.city', 'b.start_date');",
+    "body": "Always alias and qualify. Two joined tables with a `name` column give an ambiguous column error, and unqualified `select('*')` silently drops one of them from the result object."
+  },
+  {
+    "id": "node-knex-leftjoin",
+    "group": "Joins",
+    "name": "leftJoin()",
+    "syntax": ".leftJoin('bookings as b', 'b.hotel_id', 'h.id')",
+    "desc": "Keeps every row from the left table, with `null` on the right side when nothing matches. Use it for lists that include zero counts.",
+    "example": "// Hotels with their booking count, including hotels nobody booked.\nconst rows = await db('hotels as h')\n  .leftJoin('bookings as b', 'b.hotel_id', 'h.id')\n  .select('h.id', 'h.name')\n  .count('b.customer_email as guests')\n  .groupBy('h.id', 'h.name');\n\n// rows: [{ id: 1, name: 'Danube View', guests: 2 }, { id: 3, name: 'City Loft', guests: 0 }]\n\n// A filter on the right side belongs in the join condition.\nconst withRooms = await db('hotels as h')\n  .leftJoin('bookings as b', function () {\n    this.on('b.hotel_id', 'h.id').andOn('b.end_date', '>', db.raw('?', ['2025-07-01']));\n  })\n  .select('h.name', 'b.start_date');",
+    "body": "Putting a right-side condition into `where` removes the `null` rows, so the query behaves like an inner join. Use the join callback, or accept `whereNull` as the alternative."
+  },
+  {
+    "id": "node-knex-groupby",
+    "group": "Aggregates",
+    "name": "groupBy()",
+    "syntax": ".groupBy('h.id').count('b.customer_email as guests')",
+    "desc": "Collapses rows into groups so aggregates can be computed per group. MySQL 8 rejects plain selected columns that are missing from the group list.",
+    "example": "const perHotel = await db('bookings')\n  .select('hotel_id')\n  .count('* as booked')\n  .sum('adults as adults')\n  .groupBy('hotel_id')\n  .havingRaw('count(*) > ?', [1])\n  .orderBy('booked', 'desc');\n\n// rows: [{ hotel_id: 1, booked: 2, adults: '3' }]\n\n// Grouping by a joined column needs it in the group list too.\nconst byCity = await db('hotels as h')\n  .join('bookings as b', 'b.hotel_id', 'h.id')\n  .select('h.city')\n  .countDistinct('b.customer_email as guests')\n  .groupBy('h.city');",
+    "body": "`SUM` and `AVG` on MySQL come back as DECIMAL, which mysql2 returns as a string. Wrap them in `Number()` before arithmetic or before sending them in JSON."
+  },
+  {
+    "id": "node-knex-transaction",
+    "group": "Transactions",
+    "name": "db.transaction()",
+    "syntax": "await db.transaction(async (trx) => { ... })",
+    "desc": "Runs statements on one connection as a unit. Resolving commits, throwing rolls back.",
+    "example": "export async function book({ email, hotelId, start, end }) {\n  return db.transaction(async (trx) => {\n    // forUpdate locks the row until this transaction ends.\n    const hotel = await trx('hotels').where('id', hotelId).forUpdate().first();\n    if (!hotel) throw Object.assign(new Error('Hotel not found'), { status: 404 });\n\n    const clash = await trx('bookings')\n      .where('hotel_id', hotelId)\n      .where('start_date', '<', end)\n      .where('end_date', '>', start)\n      .first();\n    if (clash) throw Object.assign(new Error('Dates taken'), { status: 409 });\n\n    await trx('bookings').insert({\n      customer_email: email,\n      hotel_id: hotelId,\n      start_date: start,\n      end_date: end,\n      adults: 1,\n      children: 0,\n      boylovers: 0,\n    });\n\n    return trx('bookings').where({ customer_email: email, hotel_id: hotelId }).first();\n  });\n}",
+    "body": "Using `db(...)` inside the callback runs on a different socket, outside the transaction, so a rollback leaves that write in place. Every statement inside must use `trx`. A deadlock (`ER_LOCK_DEADLOCK`) is safe to retry once, from outside the callback."
+  },
+  {
+    "id": "node-knex-raw",
+    "group": "Raw SQL",
+    "name": "raw()",
+    "syntax": "db.raw(sql, bindings)",
+    "desc": "Sends SQL you write yourself, still with bound values. On MySQL it resolves to `[rows, fields]`, not to rows.",
+    "example": "// Destructure the rows; the second item is the field metadata.\nconst [rows] = await db.raw(\n  'select hotel_id, count(*) as booked from bookings group by hotel_id'\n);\nconsole.log(rows[0].booked);\n\n// Bound values, never interpolation.\nconst [matched] = await db.raw(\n  'select id, name from hotels where city = ? and stars >= ?',\n  ['Budapest', 4]\n);\n\n// Raw expression inside a builder, for functions knex does not model.\nconst owners = await db('hotels as h')\n  .join('customers as c', 'c.email', 'h.owner_email')\n  .select('h.name', db.raw(\"concat(c.first_name, ' ', c.last_name) as owner\"));"
+  },
+  {
+    "id": "node-knex-where-raw",
+    "group": "Raw SQL",
+    "name": "whereRaw()",
+    "syntax": ".whereRaw('?? = ?', ['h.stars', 4])",
+    "desc": "Adds a raw condition. `?` binds a value and `??` binds an identifier, and the difference decides whether the query works.",
+    "example": "// Expression on the left side, value bound on the right.\nawait db('hotels').whereRaw('LOWER(name) LIKE ?', ['%view%']);\n\n// Identifier binding. Without ?? MySQL compares the column to the text 'h.stars'.\nawait db('hotels as h').whereRaw('?? = ?', ['h.stars', 4]);\n\n// Careful: the % stays a wildcard, so a user typing % matches everything.\nconst term = req.query.q ?? '';\nconst rows = await db('hotels').whereRaw('name like ?', [`%${term}%`]);\n\n// Bound list, built from the array length.\nawait db('hotels').whereRaw('id in (?, ?, ?)', [1, 2, 3]);",
+    "body": "The `%` and `_` characters inside user input stay wildcards even when bound. Escape them, or accept that a search term can match more than it should."
+  },
+  {
+    "id": "node-knex-schema",
+    "group": "Migrations",
+    "name": "schema.createTable()",
+    "syntax": "db.schema.createTable('hotels', (table) => { ... })",
+    "desc": "Builds tables from code in a migration. Types, keys, and constraints are methods on the table builder.",
+    "example": "exports.up = async function up(knex) {\n  await knex.schema.createTable('hotels', (table) => {\n    table.increments('id').primary();\n    table.string('city', 80).notNullable();\n    table.string('name', 120).notNullable();\n    table.text('description').nullable();\n    table.tinyint('stars').notNullable().defaultTo(0);\n    table.string('owner_email', 120).notNullable();\n    table.string('image', 500).nullable();\n    table.foreign('owner_email').references('email').inTable('customers')\n      .onUpdate('CASCADE').onDelete('RESTRICT');\n    table.check('stars between 0 and 5', [], 'chk_hotels_stars');\n    table.engine('InnoDB');\n    table.charset('utf8mb4');\n  });\n};\n\nexports.down = async function down(knex) {\n  await knex.schema.dropTableIfExists('hotels');\n};",
+    "body": "Drop in reverse creation order in `down()`, because MySQL refuses to drop a table another table still references. The composite key form is `table.primary(['customer_email', 'hotel_id'])`."
+  },
+  {
+    "id": "node-knex-migrate",
+    "group": "Migrations",
+    "name": "migrate:latest",
+    "syntax": "npx knex migrate:latest --knexfile knexfile.cjs",
+    "desc": "Runs every migration that is not in the `knex_migrations` table yet. Rollback undoes the last batch.",
+    "example": "// Create a file, then fill in exports.up and exports.down.\n// npx knex migrate:make create_booking_tables --knexfile knexfile.cjs\n\n// Apply everything pending.\n// npx knex migrate:latest --knexfile knexfile.cjs\n\n// Undo the last batch. Each migrate:latest run is one batch,\n// so this can undo several files at once.\n// npx knex migrate:rollback --knexfile knexfile.cjs\n\n// What is applied and what is pending.\n// npx knex migrate:list --knexfile knexfile.cjs\n\n// From application code, for a test database.\nawait db.migrate.latest();\nawait db.migrate.rollback();",
+    "body": "The bookkeeping table is `knex_migrations` by default. Give each app its own `tableName` when two apps share a database, or one app will skip the other's files."
+  },
+  {
+    "id": "node-knex-seed",
+    "group": "Migrations",
+    "name": "seed:run",
+    "syntax": "npx knex seed:run --knexfile knexfile.cjs",
+    "desc": "Fills a development database with test rows. Seeds run in filename order, which is why they are numbered.",
+    "example": "// db/seeds/01_hotels.cjs\n// Delete before insert, child rows first, so the seed is repeatable.\nexports.seed = async function seed(knex) {\n  await knex('bookings').del();\n  await knex('hotels').del();\n  await knex('customers').del();\n\n  await knex('customers').insert([\n    { email: 'anna.kovacs@example.com', first_name: 'Anna', last_name: 'Kovacs', birthday: '1990-05-12' },\n    { email: 'ben.nagy@example.com', first_name: 'Ben', last_name: 'Nagy', birthday: '1985-11-03' },\n  ]);\n\n  await knex('hotels').insert([\n    { city: 'Budapest', name: 'Danube View', stars: 4, owner_email: 'anna.kovacs@example.com' },\n    { city: 'Eger', name: 'Hill House', stars: 3, owner_email: 'ben.nagy@example.com' },\n  ]);\n};\n\n// npx knex seed:run --knexfile knexfile.cjs\n// One file only: npx knex seed:run --specific=01_hotels.cjs"
+  },
+  {
+    "id": "node-knex-error-code",
+    "group": "Errors",
+    "name": "err.code",
+    "syntax": "if (error.code === 'ER_DUP_ENTRY') { ... }",
+    "desc": "mysql2 puts a stable MySQL error code on the error object. Branch on the code, because the message text changes between versions and languages.",
+    "example": "// Codes worth knowing in the bookings exam:\n// ER_DUP_ENTRY             duplicate primary or unique key\n// ER_NO_REFERENCED_ROW_2   insert points at a row that does not exist\n// ER_ROW_IS_REFERENCED_2   delete blocked by a foreign key\n// ER_DATA_TOO_LONG         value longer than the column\n// ER_TRUNCATED_WRONG_VALUE bad date or number format\n// ER_LOCK_DEADLOCK         transaction chosen as a deadlock victim\n// ER_ACCESS_DENIED_ERROR   wrong user or password\n// ER_BAD_DB_ERROR          database does not exist\n// ECONNREFUSED             nothing listening on that host and port\n\nconst STATUS = {\n  ER_DUP_ENTRY: 409,\n  ER_NO_REFERENCED_ROW_2: 400,\n  ER_ROW_IS_REFERENCED_2: 409,\n  ER_DATA_TOO_LONG: 400,\n  ER_TRUNCATED_WRONG_VALUE: 400,\n  ER_LOCK_DEADLOCK: 503,\n};\n\ntry {\n  await db('customers').insert({\n    email: 'anna.kovacs@example.com',\n    first_name: 'Anna',\n    last_name: 'Kovacs',\n  });\n} catch (error) {\n  const status = STATUS[error.code] ?? 500;\n  // Log the detail, answer with a sentence. sqlMessage names tables.\n  console.error({ code: error.code, sql: error.sql, message: error.message });\n  res.status(status).json({ error: status === 409 ? 'Already exists' : 'Cannot save' });\n}",
+    "body": "Knex adds `error.sql` and `error.bindings` to driver errors. Log them on the server only. `sqlMessage` is a schema map for anyone who can read the response."
+  }
+]
